@@ -4,7 +4,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from sqlmodel import Session, select
 
-from app.core.celery_app import celery_app
+from celery import shared_task
 from app.core.database import engine
 from app.models.account import Account, AccountType
 from app.models.loan_account import LoanAccount
@@ -16,7 +16,7 @@ from app.services.transaction_service import (create_transaction_core,
 
 logger = logging.getLogger(__name__)
 
-@celery_app.task
+@shared_task(name="app.tasks.automation.process_automation_rules")
 def process_automation_rules():
     """
     Periodic task to execute due automation rules (Transaction Rules).

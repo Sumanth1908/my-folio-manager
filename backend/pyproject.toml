@@ -31,6 +31,8 @@ dependencies = [
 [tool.poetry.scripts]
 dev = "dev:__main__"
 start = "start:__main__"
+worker = "celery_start:start_worker"
+beat = "celery_start:start_beat"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

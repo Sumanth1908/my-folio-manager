@@ -14,6 +14,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import AccountInfoCard from '../components/account/AccountInfoCard';
 import AccountActivityPanel from '../components/account/AccountActivityPanel';
 import AccountTypeDetails from '../components/account/AccountTypeDetails';
+import AccountEditForm from '../components/account/AccountEditForm';
 import { Button } from '../components/ui/Button';
 
 
@@ -28,7 +29,7 @@ export default function AccountDetails() {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-    const [modalType, setModalType] = useState<'transaction' | 'rule'>('transaction');
+    const [modalType, setModalType] = useState<'transaction' | 'rule' | 'edit-account'>('transaction');
     const [editingRule, setEditingRule] = useState<Rule | null>(null);
 
     // Confirm Modal State
@@ -301,6 +302,10 @@ export default function AccountDetails() {
                 balance={balance}
                 currencies={currencies}
                 onDelete={handleDeleteAccountConfirm}
+                onEdit={() => {
+                    setModalType('edit-account');
+                    setIsModalOpen(true);
+                }}
             />
 
 
@@ -340,7 +345,9 @@ export default function AccountDetails() {
                 title={
                     modalType === 'transaction'
                         ? (editingTransaction ? "Edit Transaction" : "New Transaction")
-                        : "New Rule"
+                        : modalType === 'rule'
+                            ? "New Rule"
+                            : "Edit Account Details"
                 }
             >
                 {modalType === 'transaction' ? (
@@ -350,10 +357,16 @@ export default function AccountDetails() {
                         onSuccess={closeModal}
                         onCancel={closeModal}
                     />
-                ) : (
+                ) : modalType === 'rule' ? (
                     <RuleForm
                         accountId={accountId!}
                         ruleToEdit={editingRule}
+                        onSuccess={closeModal}
+                        onCancel={closeModal}
+                    />
+                ) : (
+                    <AccountEditForm
+                        account={account}
                         onSuccess={closeModal}
                         onCancel={closeModal}
                     />

@@ -11,7 +11,7 @@ from app.models.savings_account import SavingsAccount
 from app.models.transaction import Transaction
 from app.models.investment_holding import InvestmentHolding
 from app.models.user import User
-from app.schemas.account import AccountCreate, AccountRead
+from app.schemas.account import AccountCreate, AccountRead, AccountUpdate
 from app.schemas.investment import InvestmentHoldingCreate, InvestmentHoldingRead
 from app.services.account_service import calculate_account_balance
 from app.deps import get_current_user
@@ -206,6 +206,56 @@ def delete_account(
     session.delete(account)
     session.commit()
     return {"message": "Account deleted successfully"}
+
+
+@router.patch("/{account_id}", response_model=AccountRead)
+def update_account(
+    account_id: str,
+    account_in: AccountUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Update an account and its specific details."""
+    account = session.get(Account, account_id)
+    if not account or account.user_id != current_user.user_id:
+        raise HTTPException(status_code=404, detail="Account not found")
+        
+    # Update base account fields
+    account_data = account_in.model_dump(exclude_unset=True, exclude={"savings_account", "loan_account", "fixed_deposit_account"})
+    for key, value in account_data.items():
+        setattr(account, key, value)
+    
+    # Update specific details based on type
+    if account.account_type == AccountType.SAVINGS and account_in.savings_account:
+        savings = session.get(SavingsAccount, account.account_id)
+        if savings:
+            savings_data = account_in.savings_account.model_dump(exclude_unset=True)
+            for key, value in savings_data.items():
+                setattr(savings, key, value)
+            session.add(savings)
+            
+    elif account.account_type == AccountType.LOAN and account_in.loan_account:
+        loan = session.get(LoanAccount, account.account_id)
+        if loan:
+            loan_data = account_in.loan_account.model_dump(exclude_unset=True)
+            for key, value in loan_data.items():
+                setattr(loan, key, value)
+            session.add(loan)
+            
+    elif account.account_type == AccountType.FIXED_DEPOSIT and account_in.fixed_deposit_account:
+        fd = session.get(FixedDepositAccount, account.account_id)
+        if fd:
+            fd_data = account_in.fixed_deposit_account.model_dump(exclude_unset=True)
+            for key, value in fd_data.items():
+                setattr(fd, key, value)
+            session.add(fd)
+
+    session.add(account)
+    session.commit()
+    session.refresh(account)
+    
+    # We need to return the full AccountRead, so we use the same enrichment logic as read_account
+    return read_account(account_id, session, current_user)
 
 
 

@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react';
+import { Trash2, Edit3 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { cn } from '../../lib/utils';
@@ -11,9 +11,10 @@ interface AccountInfoCardProps {
     balance: number;
     currencies: Currency[] | undefined;
     onDelete: () => void;
+    onEdit: () => void;
 }
 
-export default function AccountInfoCard({ account, balance, currencies, onDelete }: AccountInfoCardProps) {
+export default function AccountInfoCard({ account, balance, currencies, onDelete, onEdit }: AccountInfoCardProps) {
     const { settings } = useSettings();
     const targetCurrency = settings?.default_currency;
     const currency = account.currency;
@@ -30,6 +31,15 @@ export default function AccountInfoCard({ account, balance, currencies, onDelete
                 <div className="space-y-3">
                     <div className="flex items-center gap-3">
                         <h1 className="text-4xl font-black tracking-tight text-foreground">{account.account_name}</h1>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={onEdit}
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                            title="Edit Account"
+                        >
+                            <Edit3 size={18} />
+                        </Button>
                         <Button
                             variant="ghost"
                             size="icon"
