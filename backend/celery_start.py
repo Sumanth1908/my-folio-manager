@@ -9,7 +9,11 @@ def start_worker():
 def start_beat():
     """Start Celery beat."""
     print("Starting Celery beat...")
-    subprocess.run(["celery", "-A", "app.core.celery_app:celery_app", "beat", "--loglevel=info"])
+    subprocess.run([
+        "celery", "-A", "app.core.celery_app:celery_app", 
+        "beat", "--loglevel=info",
+        "--scheduler=redbeat.RedBeatScheduler"
+    ])
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "beat":
