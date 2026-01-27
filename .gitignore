@@ -77,3 +77,6 @@ build/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Celery
+celerybeat-schedule*
