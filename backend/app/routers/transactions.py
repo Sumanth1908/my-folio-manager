@@ -31,17 +31,28 @@ def create_transaction(
         raise HTTPException(status_code=404, detail="Account not found")
 
     try:
-        # Create Transaction directly
-        transaction_data = transaction_in.model_dump()
-        db_transaction = Transaction.model_validate(transaction_data)
+        # Create Transaction
+        transaction_data = transaction_in.model_dump(exclude_unset=True)
+        
+        # Ensure currency is set from account if not provided
+        if not transaction_data.get('currency'):
+            transaction_data['currency'] = account.currency
+            
+        # Ensure date is set if not provided
+        if not transaction_data.get('transaction_date'):
+            from datetime import datetime
+            transaction_data['transaction_date'] = datetime.utcnow()
+            
+        db_transaction = Transaction(**transaction_data)
         
         session.add(db_transaction)
         session.commit()
         session.refresh(db_transaction)
         transaction = db_transaction
         
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=f"Failed to create transaction: {str(e)}")
         
     # Load category if present (for response model)
     tx_dict = transaction.model_dump()
@@ -80,6 +91,7 @@ def create_transfer(
             pass
             
         desc = transfer.description or f"Transfer to {target.account_name}"
+        transfer_date = transfer.transaction_date or datetime.utcnow()
         
         # Debit
         debit_tx = Transaction(
@@ -88,7 +100,7 @@ def create_transfer(
             transaction_type=TransactionType.DEBIT,
             currency=source.currency,
             description=f"Transfer to {target.account_name}: {desc}",
-            transaction_date=transfer.date
+            transaction_date=transfer_date
         )
         
         # Credit
@@ -98,7 +110,7 @@ def create_transfer(
             transaction_type=TransactionType.CREDIT,
             currency=target.currency,
             description=f"Transfer from {source.account_name}: {desc}",
-            transaction_date=transfer.date
+            transaction_date=transfer_date
         )
         
         session.add(debit_tx)
@@ -107,8 +119,9 @@ def create_transfer(
         
         return {"message": "Transfer successful"}
         
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=f"Transfer failed: {str(e)}")
 
 
 

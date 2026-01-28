@@ -4,13 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
 import api from '../api';
-import type { Transaction, Currency, Rule } from '../types';
+import type { Transaction, Rule } from '../types';
 import Modal from '../components/Modal';
 import TransactionForm from '../components/TransactionForm';
 import RuleForm from '../components/RuleForm';
 import { useTransactions } from '../hooks/useTransactions';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmModal from '../components/ConfirmModal';
+import { useCurrencies } from '../hooks/useCurrencies';
 import AccountInfoCard from '../components/account/AccountInfoCard';
 import AccountActivityPanel from '../components/account/AccountActivityPanel';
 import AccountTypeDetails from '../components/account/AccountTypeDetails';
@@ -57,13 +58,7 @@ export default function AccountDetails() {
         enabled: !!accountId
     });
 
-    const { data: currencies } = useQuery<Currency[]>({
-        queryKey: ['currencies'],
-        queryFn: async () => {
-            const res = await api.get('/currencies/');
-            return res.data;
-        }
-    });
+    const { data: currencies } = useCurrencies();
 
     const { data: rules, isLoading: isRulesLoading } = useQuery<Rule[]>({
         queryKey: ['rules', accountId],
@@ -90,6 +85,9 @@ export default function AccountDetails() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['transactions', accountId] });
             queryClient.invalidateQueries({ queryKey: ['transactions', 'all'] });
+            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
+            queryClient.invalidateQueries({ queryKey: ['account', accountId] });
         }
     });
 
@@ -100,6 +98,7 @@ export default function AccountDetails() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
             navigate('/accounts');
         }
     });
@@ -112,6 +111,9 @@ export default function AccountDetails() {
             queryClient.invalidateQueries({ queryKey: ['rules', accountId] });
             queryClient.invalidateQueries({ queryKey: ['transactions', accountId] });
             queryClient.invalidateQueries({ queryKey: ['transactions', 'all'] });
+            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
+            queryClient.invalidateQueries({ queryKey: ['account', accountId] });
             toast.success('Rule executed successfully');
         },
         onError: (err) => {

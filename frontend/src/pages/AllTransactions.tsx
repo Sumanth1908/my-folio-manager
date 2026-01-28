@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
 import api from '../api';
-import type { Currency, Transaction } from '../types';
+import type { Transaction } from '../types';
 import Modal from '../components/Modal';
 import TransactionForm from '../components/TransactionForm';
 import ConfirmModal from '../components/ConfirmModal';
 import { useAccounts } from '../hooks/useAccounts';
 import { useTransactions } from '../hooks/useTransactions';
-import { Button } from '../components/ui/Button';
+import { useCurrencies } from '../hooks/useCurrencies';
 import TransactionsPanel from '../components/TransactionsPanel';
 import toast from 'react-hot-toast';
 
@@ -51,13 +50,7 @@ export default function AllTransactions() {
     // Flatten transactions for display
     const transactions = transactionsData?.pages.flatMap(page => page.items) || [];
 
-    const { data: currencies } = useQuery<Currency[]>({
-        queryKey: ['currencies'],
-        queryFn: async () => {
-            const res = await api.get('/currencies/');
-            return res.data;
-        }
-    });
+    const { data: currencies } = useCurrencies();
 
     // Fetch categories for filter
     const { data: categories } = useQuery<any[]>({
@@ -74,7 +67,8 @@ export default function AllTransactions() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] }); // Update balances
+            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
         }
     });
 

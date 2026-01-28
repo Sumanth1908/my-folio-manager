@@ -1,12 +1,20 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { LogOut, User as UserIcon, Sun, Moon, Eye } from 'lucide-react';
 import { Button } from './ui/Button';
+import { cn } from '../lib/utils';
 
 export default function Navbar() {
     const { user, logout } = useAuth();
     const { theme, toggleTheme } = useTheme();
+    const location = useLocation();
+
+    const navItems = [
+        { label: 'Accounts', path: '/accounts' },
+        { label: 'Activity', path: '/transactions' },
+        { label: 'Portfolio', path: '/portfolio' },
+    ];
 
     return (
         <nav className="bg-background/80 border-b border-border backdrop-blur-xl sticky top-0 z-50 transition-colors duration-300">
@@ -23,12 +31,22 @@ export default function Navbar() {
                     </Link>
 
                     <div className="flex items-center space-x-1 md:space-x-4">
-                        <Button variant="ghost" asChild className="font-bold">
-                            <Link to="/accounts">Accounts</Link>
-                        </Button>
-                        <Button variant="ghost" asChild className="font-bold">
-                            <Link to="/transactions">Activity</Link>
-                        </Button>
+                        {navItems.map((item) => {
+                            const isActive = location.pathname === item.path;
+                            return (
+                                <Button
+                                    key={item.path}
+                                    variant={isActive ? "secondary" : "ghost"}
+                                    asChild
+                                    className={cn(
+                                        "font-bold transition-all duration-300",
+                                        isActive ? "bg-accent text-accent-foreground shadow-sm px-5" : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    <Link to={item.path}>{item.label}</Link>
+                                </Button>
+                            );
+                        })}
 
                         <Button
                             variant="ghost"
@@ -43,9 +61,17 @@ export default function Navbar() {
                         <div className="h-6 w-px bg-border mx-2 hidden md:block"></div>
 
                         <div className="flex items-center gap-1 md:gap-3 bg-muted/50 p-1.5 rounded-2xl border border-border">
-                            <Button variant="ghost" size="sm" asChild className="gap-2 px-3">
+                            <Button
+                                variant={location.pathname === '/settings' ? "secondary" : "ghost"}
+                                size="sm"
+                                asChild
+                                className={cn(
+                                    "gap-2 px-3",
+                                    location.pathname === '/settings' && "bg-accent text-accent-foreground shadow-sm"
+                                )}
+                            >
                                 <Link to="/settings">
-                                    <UserIcon className="h-4 w-4 text-muted-foreground" />
+                                    <UserIcon className={cn("h-4 w-4", location.pathname === '/settings' ? "text-primary" : "text-muted-foreground")} />
                                     <span className="font-bold hidden sm:inline">{user?.full_name?.split(' ')[0] || user?.email?.split('@')[0]}</span>
                                 </Link>
                             </Button>

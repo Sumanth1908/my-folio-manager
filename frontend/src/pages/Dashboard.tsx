@@ -1,14 +1,10 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import api from '../api';
-import type { Currency } from '../types';
 import SankeyChart from '../components/SankeyChart';
 import SpendingBreakdown from '../components/SpendingBreakdown';
-import AccountSummaryPanel from '../components/AccountSummaryPanel';
 import { useSettings } from '../hooks/useSettings';
 import { useCurrencyConverter } from '../hooks/useCurrencyConverter';
-import { useAccounts } from '../hooks/useAccounts';
 import { useSummary } from '../hooks/useSummary';
+import { useCurrencies } from '../hooks/useCurrencies';
 import { useAuth } from '../context/AuthContext';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardTitle } from '../components/ui/Card';
@@ -17,43 +13,24 @@ import { cn } from '../lib/utils';
 
 type TimeRange = 'thisMonth' | 'lastMonth' | 'allTime';
 
+const ACCOUNT_TYPES = ['Savings', 'Investment', 'Fixed Deposit', 'Loan'];
+
 export default function Dashboard() {
     const { user } = useAuth();
     const [timeRange, setTimeRange] = useState<TimeRange>('thisMonth');
     const [isCashflowExpanded, setIsCashflowExpanded] = useState(true);
 
-    // Fetch account summary from backend using the new hook
+    // Fetch account summary from backend using the hook
     const { data: summaryData, isLoading: isSummaryLoading } = useSummary({
         timeRange,
-        accountTypes: ['Savings', 'Investment', 'Fixed Deposit']
+        accountTypes: ACCOUNT_TYPES
     });
 
-    const { data: accounts } = useAccounts();
-    const { data: currencies } = useQuery<Currency[]>({
-        queryKey: ['currencies'],
-        queryFn: async () => {
-            const res = await api.get('/currencies/');
-            return res.data;
-        }
-    });
+    const { data: currencies } = useCurrencies();
 
     const { settings } = useSettings();
     const defaultCurrency = settings?.default_currency || 'USD';
     const { convert, isLoading: isRatesLoading } = useCurrencyConverter(defaultCurrency);
-
-    const totalNetWorth = accounts?.items.reduce((acc, account) => {
-        let balance = 0;
-        if (account.account_type === 'Savings' && account.savings_account) {
-            balance = Number(account.savings_account.balance);
-        } else if (account.account_type === 'Loan' && account.loan_account) {
-            balance = -Number(account.loan_account.outstanding_amount);
-        } else if (account.account_type === 'Fixed Deposit' && account.fixed_deposit_account) {
-            balance = Number(account.fixed_deposit_account.principal_amount);
-        } else if (account.account_type === 'Investment' && account.investment_holdings) {
-            balance = account.investment_holdings.reduce((sum, h) => sum + (Number(h.quantity) * (Number(h.current_price) || Number(h.average_price))), 0);
-        }
-        return acc + convert(balance, account.currency);
-    }, 0) || 0;
 
     const currencySymbol = currencies?.find(c => c.code === defaultCurrency)?.symbol || defaultCurrency;
 
@@ -88,22 +65,11 @@ export default function Dashboard() {
             <Card className="p-6 backdrop-blur-xl bg-background/60">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div>
-                        <CardTitle className="text-3xl font-bold tracking-tight text-foreground">Portfolio</CardTitle>
+                        <CardTitle className="text-3xl font-bold tracking-tight text-foreground">Insight</CardTitle>
                         <p className="text-muted-foreground text-sm mt-1">Welcome back, {user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Sumanth'}</p>
                     </div>
 
-                    <div className="flex flex-col md:flex-row items-end md:items-center gap-8 w-full md:w-auto">
-                        <div className="text-right">
-                            <p className="text-muted-foreground text-[10px] uppercase tracking-widest font-bold mb-1 opacity-70">Total Net Worth</p>
-                            <div className="text-3xl font-black text-foreground drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">
-                                {isRatesLoading ? (
-                                    <div className="animate-pulse h-8 w-32 bg-muted rounded-lg ml-auto" />
-                                ) : (
-                                    <span className="tabular-nums">{currencySymbol}{totalNetWorth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                )}
-                            </div>
-                        </div>
-
+                    <div className="flex flex-col md:flex-row items-end md:items-center gap-4 w-full md:w-auto">
                         <div className="flex bg-muted/50 p-1 rounded-xl border border-border self-start md:self-auto">
                             {(['thisMonth', 'lastMonth', 'allTime'] as const).map((range) => (
                                 <Button
@@ -124,15 +90,6 @@ export default function Dashboard() {
                 </div>
             </Card>
 
-            {/* Account Summary from New API */}
-            {isSummaryLoading ? (
-                <div className="flex items-center justify-center p-12 bg-card rounded-2xl border border-border/50">
-                    <Loader2 className="animate-spin text-primary" size={32} />
-                </div>
-            ) : summaryData && (
-                <AccountSummaryPanel data={summaryData} />
-            )}
-
             {/* Cashflow Section */}
             <Card className="overflow-hidden">
                 <div
@@ -151,7 +108,7 @@ export default function Dashboard() {
 
                 {isCashflowExpanded && (
                     <CardContent className="pb-10">
-                        {summaryData && !isRatesLoading ? (
+                        {summaryData && !isRatesLoading && !isSummaryLoading ? (
                             <div className="transform transition-all duration-500 ease-out">
                                 <SankeyChart
                                     inflows={globalInflows}

@@ -49,3 +49,4 @@ class TransferRequest(BaseModel):
     amount: Decimal
     description: Optional[str] = None
     category_id: Optional[int] = None
+    transaction_date: Optional[datetime] = None

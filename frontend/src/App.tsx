@@ -7,6 +7,7 @@ import AccountDetails from './pages/AccountDetails';
 import AllTransactions from './pages/AllTransactions';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
+import Portfolio from './pages/Portfolio';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const queryClient = new QueryClient();
@@ -69,6 +70,14 @@ function App() {
                   <>
                     <Navbar />
                     <Settings />
+                  </>
+                </ProtectedRoute>
+              } />
+              <Route path="/portfolio" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <Portfolio />
                   </>
                 </ProtectedRoute>
               } />

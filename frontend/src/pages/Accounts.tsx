@@ -1,24 +1,30 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { Plus, TrendingUp } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import api, { handleApiError } from '../api';
-import type { Currency } from '../types';
 import Modal from '../components/Modal';
 import { useAccounts } from '../hooks/useAccounts';
-import { useTransactions } from '../hooks/useTransactions';
+import { useSummary, type SummaryTimeRange } from '../hooks/useSummary';
+import { useCurrencies } from '../hooks/useCurrencies';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import SavingsAccountCard from '../components/account/SavingsAccountCard';
-import InvestmentAccountCard from '../components/account/InvestmentAccountCard';
-import LoanAccountCard from '../components/account/LoanAccountCard';
-import FDAccountCard from '../components/account/FDAccountCard';
+import AccountSummaryPanel from '../components/AccountSummaryPanel';
+import { cn } from '../lib/utils';
+
+const ACCOUNT_TYPES = ['Savings', 'Investment', 'Fixed Deposit', 'Loan'];
 
 export default function Accounts() {
     const queryClient = useQueryClient();
-    const navigate = useNavigate();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [timeRange, setTimeRange] = useState<SummaryTimeRange>('thisMonth');
+
+    // Fetch accounts and summary
+    const { data: accounts } = useAccounts();
+    const { data: summaryData, isLoading: isSummaryLoading } = useSummary({
+        timeRange,
+        accountTypes: ACCOUNT_TYPES
+    });
 
     // Form State
     const [newAccountName, setNewAccountName] = useState('');
@@ -88,17 +94,7 @@ export default function Accounts() {
         }
     }, [fdPrincipal, fdInterestRate, fdStartDate, fdMaturityDate, accountType]);
 
-    const { data: accounts } = useAccounts();
-
-    const { data: currencies } = useQuery<Currency[]>({
-        queryKey: ['currencies'],
-        queryFn: async () => {
-            const res = await api.get('/currencies/');
-            return res.data;
-        }
-    });
-
-    const { data: allTransactions } = useTransactions();
+    const { data: currencies } = useCurrencies();
 
     const createAccountMutation = useMutation({
         mutationFn: async (data: any) => {
@@ -106,6 +102,7 @@ export default function Accounts() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
             closeModal();
         }
     });
@@ -179,128 +176,55 @@ export default function Accounts() {
         setFdAccrualDay('1');
     };
 
-    const getAccountBalance = (accountId: string) => {
-        if (!allTransactions?.pages) return 0;
-        const items = allTransactions.pages.flatMap(page => page.items);
-        return items
-            .filter(tx => tx.account_id === accountId)
-            .reduce((balance, tx) => {
-                return tx.transaction_type === 'Credit' ? balance + tx.amount : balance - tx.amount;
-            }, 0);
-    };
-
-    const getCurrencySymbol = (code: string) => {
-        return currencies?.find(c => c.code === code)?.symbol || '$';
-    };
-
-    // Lazy import or just standard import. Let's add it to top if possible, but replace_file_content is block based.
-    // I will check imports first.
-
-
-
-
     return (
         <div className="max-w-6xl mx-auto p-6 space-y-8">
             <Card className="p-8 border-border/50 bg-background/50 backdrop-blur-xl">
-                <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Accounts</h1>
-                    <Button
-                        size="icon"
-                        className="rounded-full h-12 w-12 shadow-md hover:bg-primary/90 transition-colors"
-                        onClick={() => setIsModalOpen(true)}
-                        title="New Account"
-                    >
-                        <Plus size={24} />
-                    </Button>
-                </div>
-
-                <div className="space-y-12">
-                    {/* Assets Section */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
                     <div>
-                        <h2 className="text-2xl font-bold tracking-tight text-foreground mb-6 flex items-center gap-2">
-                            <span className="bg-primary/10 text-primary p-2 rounded-xl">
-                                <TrendingUp className="w-6 h-6" />
-                            </span>
-                            Assets & Investments
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {accounts?.items.filter(a => a.account_type !== 'Loan').map(account => {
-                                const balance = getAccountBalance(account.account_id);
-                                const symbol = getCurrencySymbol(account.currency);
-
-                                if (account.account_type === 'Savings') {
-                                    return (
-                                        <SavingsAccountCard
-                                            key={account.account_id}
-                                            account={account}
-                                            balance={balance}
-                                            symbol={symbol}
-                                            onClick={() => navigate(`/accounts/${account.account_id}`)}
-                                        />
-                                    );
-                                } else if (account.account_type === 'Fixed Deposit') {
-                                    return (
-                                        <FDAccountCard
-                                            key={account.account_id}
-                                            account={account}
-                                            balance={balance}
-                                            symbol={symbol}
-                                            onClick={() => navigate(`/accounts/${account.account_id}`)}
-                                        />
-                                    );
-                                } else {
-                                    return (
-                                        <InvestmentAccountCard
-                                            key={account.account_id}
-                                            account={account}
-                                            balance={balance}
-                                            symbol={symbol}
-                                            onClick={() => navigate(`/accounts/${account.account_id}`)}
-                                        />
-                                    );
-                                }
-                            })}
-
-                            {accounts?.items.filter(a => a.account_type !== 'Loan').length === 0 && (
-                                <div className="col-span-full text-center py-12 text-muted-foreground bg-muted/30 rounded-2xl border border-dashed border-border/50">
-                                    No asset accounts found. Create one to get started!
-                                </div>
-                            )}
-                        </div>
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground">Accounts</h1>
+                        <p className="text-muted-foreground text-sm mt-1">Manage your financial portfolio and tracking</p>
                     </div>
 
-                    {/* Liabilities Section */}
-                    <div>
-                        <h2 className="text-2xl font-bold tracking-tight text-foreground mb-6 flex items-center gap-2">
-                            <span className="bg-destructive/10 text-destructive p-2 rounded-xl">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </span>
-                            Liabilities & Loans
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {accounts?.items.filter(a => a.account_type === 'Loan').map(account => {
-                                const symbol = getCurrencySymbol(account.currency);
-
-                                return (
-                                    <LoanAccountCard
-                                        key={account.account_id}
-                                        account={account}
-                                        symbol={symbol}
-                                        onClick={() => navigate(`/accounts/${account.account_id}`)}
-                                    />
-                                );
-                            })}
-
-                            {accounts?.items.filter(a => a.account_type === 'Loan').length === 0 && (
-                                <div className="col-span-full text-center py-12 text-muted-foreground bg-muted/30 rounded-2xl border border-dashed border-border/50">
-                                    No loan accounts found.
-                                </div>
-                            )}
+                    <div className="flex flex-col md:flex-row items-end md:items-center gap-4 w-full md:w-auto">
+                        <div className="flex bg-muted/50 p-1 rounded-xl border border-border self-start md:self-auto">
+                            {(['thisMonth', 'lastMonth', 'allTime'] as const).map((range) => (
+                                <Button
+                                    key={range}
+                                    variant={timeRange === range ? "default" : "ghost"}
+                                    size="sm"
+                                    onClick={() => setTimeRange(range)}
+                                    className={cn(
+                                        "text-[10px] font-bold uppercase tracking-wider px-4 rounded-lg transition-all duration-200 h-8",
+                                        timeRange !== range && "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    {range === 'thisMonth' ? '30D' : range === 'lastMonth' ? 'Last Month' : 'All'}
+                                </Button>
+                            ))}
                         </div>
+
+                        <Button
+                            size="icon"
+                            className="rounded-full h-10 w-10 shadow-md hover:bg-primary/90 transition-colors"
+                            onClick={() => setIsModalOpen(true)}
+                            title="New Account"
+                        >
+                            <Plus size={20} />
+                        </Button>
                     </div>
                 </div>
+
+                {isSummaryLoading ? (
+                    <div className="flex items-center justify-center p-20">
+                        <Loader2 className="animate-spin text-primary" size={40} />
+                    </div>
+                ) : summaryData ? (
+                    <AccountSummaryPanel data={summaryData} accountsData={accounts?.items} />
+                ) : (
+                    <div className="text-center py-20 bg-muted/10 rounded-3xl border-2 border-dashed border-border/50">
+                        <p className="text-muted-foreground">No account data found for this period.</p>
+                    </div>
+                )}
             </Card>
 
             <Modal isOpen={isModalOpen} onClose={closeModal} title="Create New Account" maxWidth="max-w-3xl">
@@ -563,6 +487,6 @@ export default function Accounts() {
                     </div>
                 </form>
             </Modal>
-        </div >
+        </div>
     );
 }

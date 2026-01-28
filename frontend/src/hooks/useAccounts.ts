@@ -21,6 +21,7 @@ export function useUpdateAccount() {
         },
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
             queryClient.invalidateQueries({ queryKey: ['account', data.account_id] });
         }
     });
@@ -34,6 +35,7 @@ export function useDeleteAccount() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
         }
     });
 }

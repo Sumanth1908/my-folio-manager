@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api';
 import type { UserSettings } from '../types';
 import toast from 'react-hot-toast';
+import { useMemo } from 'react';
 
 export function useSettings() {
     const queryClient = useQueryClient();
@@ -29,11 +30,11 @@ export function useSettings() {
         }
     });
 
-    return {
+    return useMemo(() => ({
         settings,
         isLoading,
         error,
         updateSettings: updateSettingsMutation.mutate,
         isUpdating: updateSettingsMutation.isPending
-    };
+    }), [settings, isLoading, error, updateSettingsMutation.mutate, updateSettingsMutation.isPending]);
 }

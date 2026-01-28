@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../api';
+import toast from 'react-hot-toast';
+import api, { handleApiError } from '../api';
 import type { Transaction, Account, Category, PaginatedResponse } from '../types';
 import { Button } from './ui/Button';
 
@@ -61,16 +62,16 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
     const createTransactionMutation = useMutation({
         mutationFn: async () => {
             if (type === 'Transfer') {
-                await api.post('/transactions/transfer/', {
+                return await api.post('/transactions/transfer/', {
                     from_account_id: selectedAccountId,
                     to_account_id: toAccountId,
                     amount: parseFloat(amount),
                     description,
                     category_id: selectedCategoryId ? parseInt(selectedCategoryId) : null,
-                    date: date ? new Date(date).toISOString() : undefined
+                    transaction_date: date ? new Date(date).toISOString() : undefined
                 });
             } else {
-                await api.post('/transactions/', {
+                return await api.post('/transactions/', {
                     account_id: selectedAccountId,
                     amount: parseFloat(amount),
                     transaction_type: type,
@@ -83,18 +84,28 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['transactions'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
+            toast.success('Transaction created successfully');
             onSuccess();
+        },
+        onError: (err) => {
+            toast.error(handleApiError(err, 'Failed to create transaction'));
         }
     });
 
     const updateTransactionMutation = useMutation({
         mutationFn: async ({ id, data }: { id: number; data: any }) => {
-            await api.put(`/transactions/${id}`, data);
+            return await api.put(`/transactions/${id}`, data);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['transactions'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
+            toast.success('Transaction updated successfully');
             onSuccess();
+        },
+        onError: (err) => {
+            toast.error(handleApiError(err, 'Failed to update transaction'));
         }
     });
 

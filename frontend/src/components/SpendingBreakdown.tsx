@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, memo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { ChevronDown, Layers } from 'lucide-react';
 import type { CategorySummary } from '../types';
@@ -21,7 +21,7 @@ const COLORS = [
     '#9ca3af', // Uncategorized - Gray
 ];
 
-export default function SpendingBreakdown({ data, symbol }: SpendingBreakdownProps) {
+const SpendingBreakdown = memo(({ data, symbol }: SpendingBreakdownProps) => {
     const [isExpanded, setIsExpanded] = useState(true);
 
     const chartData = useMemo(() => {
@@ -131,4 +131,6 @@ export default function SpendingBreakdown({ data, symbol }: SpendingBreakdownPro
             )}
         </Card>
     );
-}
+});
+
+export default SpendingBreakdown;

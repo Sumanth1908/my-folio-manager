@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import { Sankey, Tooltip, ResponsiveContainer } from 'recharts';
 
 import type { CategorySummary } from '../types';
@@ -12,7 +12,7 @@ interface SankeyChartProps {
 interface SankeyNode {
     name: string;
     fill?: string;
-    value?: number; // Recharts adds this but we declare it for TS
+    value?: number;
 }
 
 interface SankeyLink {
@@ -22,7 +22,7 @@ interface SankeyLink {
     fill?: string;
 }
 
-export default function SankeyChart({ inflows, outflows, symbol }: SankeyChartProps) {
+const SankeyChart = memo(({ inflows, outflows, symbol }: SankeyChartProps) => {
     const data = useMemo(() => {
         if (inflows.length === 0 && outflows.length === 0) {
             return { nodes: [], links: [] };
@@ -199,4 +199,6 @@ export default function SankeyChart({ inflows, outflows, symbol }: SankeyChartPr
             </ResponsiveContainer>
         </div>
     );
-}
+});
+
+export default SankeyChart;
