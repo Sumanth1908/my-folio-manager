@@ -57,7 +57,7 @@ export default function Settings() {
     };
 
     return (
-        <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
+        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
             <h1 className="text-4xl font-black text-foreground tracking-tight">Settings</h1>
 
             <div className="flex flex-col md:flex-row gap-10">
@@ -111,7 +111,7 @@ export default function Settings() {
                         <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
                             <div>
                                 <h2 className="text-2xl font-black text-foreground tracking-tight">Identity</h2>
-                                <p className="text-sm text-muted-foreground mt-1 lowercase italic">Your verified profile details</p>
+                                <p className="text-sm text-muted-foreground mt-1 lowercase">Your verified profile details</p>
                             </div>
 
                             <div className="space-y-6 max-w-lg">
@@ -140,7 +140,7 @@ export default function Settings() {
                         <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <h2 className="text-2xl font-black text-foreground tracking-tight italic uppercase tracking-tighter">Taxonomy</h2>
+                                    <h2 className="text-2xl font-black text-foreground tracking-tight uppercase tracking-tighter">Taxonomy</h2>
                                     <p className="text-sm text-muted-foreground mt-1">Classify your financial activity.</p>
                                 </div>
                                 <Button

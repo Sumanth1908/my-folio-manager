@@ -12,8 +12,7 @@ import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchSettings } from '../store/slices/settingsSlice';
 import { fetchRates } from '../store/slices/converterSlice';
 import type { RootState } from '../store';
-
-const ACCOUNT_TYPES = ['Savings', 'Investment', 'Fixed Deposit', 'Loan'];
+import { ACCOUNT_TYPES, TIME_RANGES } from '../constants';
 
 export default function Dashboard() {
     const dispatch = useAppDispatch();
@@ -35,7 +34,7 @@ export default function Dashboard() {
     }, [dispatch]);
 
     useEffect(() => {
-        dispatch(fetchSummary({ timeRange, accountTypes: ACCOUNT_TYPES }));
+        dispatch(fetchSummary({ timeRange, accountTypes: [...ACCOUNT_TYPES] }));
     }, [dispatch, timeRange]);
 
     useEffect(() => {
@@ -79,23 +78,23 @@ export default function Dashboard() {
     return (
         <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
             {/* Minimal Header */}
-            <Card className="p-6 backdrop-blur-xl bg-background/60">
+            <Card className="p-6 bg-background/90 text-foreground">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div>
-                        <CardTitle className="text-3xl font-bold tracking-tight text-foreground">Insight</CardTitle>
+                        <CardTitle className="text-3xl font-bold tracking-tight text-foreground">Dashboard</CardTitle>
                         <p className="text-muted-foreground text-sm mt-1">Welcome back, {user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Sumanth'}</p>
                     </div>
 
                     <div className="flex flex-col md:flex-row items-end md:items-center gap-4 w-full md:w-auto">
                         <div className="flex bg-muted/50 p-1 rounded-xl border border-border self-start md:self-auto">
-                            {(['thisMonth', 'lastMonth', 'allTime'] as const).map((range) => (
+                            {TIME_RANGES.map((range) => (
                                 <Button
                                     key={range}
                                     variant={timeRange === range ? "default" : "ghost"}
                                     size="sm"
                                     onClick={() => dispatch(setSummaryTimeRange(range))}
                                     className={cn(
-                                        "text-[10px] font-bold uppercase tracking-wider px-4 rounded-lg transition-all duration-200 h-8",
+                                        "text-[10px] font-bold uppercase tracking-wider px-4 rounded-lg transition-colors duration-200 h-8",
                                         timeRange !== range && "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
@@ -110,7 +109,7 @@ export default function Dashboard() {
             {/* Cashflow Section */}
             <Card className="overflow-hidden">
                 <div
-                    className="p-6 flex justify-between items-center cursor-pointer hover:bg-accent/50 transition"
+                    className="p-6 flex justify-between items-center cursor-pointer hover:bg-accent/50 transition-colors"
                     onClick={() => setIsCashflowExpanded(!isCashflowExpanded)}
                 >
                     <div className="flex items-center gap-3">
@@ -126,7 +125,7 @@ export default function Dashboard() {
                 {isCashflowExpanded && (
                     <CardContent className="pb-10">
                         {summaryData && !isRatesLoading && !isSummaryLoading ? (
-                            <div className="transform transition-all duration-500 ease-out">
+                            <div className="transform transition-opacity duration-500 ease-out">
                                 <SankeyChart
                                     inflows={globalInflows}
                                     outflows={globalOutflows}

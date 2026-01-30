@@ -23,4 +23,5 @@ class Account(SQLModel, table=True):
     account_name: str | None = Field(default=None, max_length=30)
     currency: str = Field(default="USD", max_length=10)
     status: str = Field(default="Active", max_length=20)
+    is_interest_enabled: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)

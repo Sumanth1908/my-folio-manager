@@ -2,8 +2,18 @@ import React, { useState } from 'react';
 import { useAppDispatch } from '../../store/hooks';
 import { updateAccount } from '../../store/slices/accountsSlice';
 import type { Account } from '../../types';
+import { ACCOUNT_TYPE } from '../../constants';
 import { Button } from '../ui/Button';
 import toast from 'react-hot-toast';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
+} from '../ui/Select';
 
 interface AccountEditFormProps {
     account: Account;
@@ -19,9 +29,9 @@ export default function AccountEditForm({ account, onSuccess, onCancel }: Accoun
 
     // Specific details
     const [interestRate, setInterestRate] = useState(
-        account.account_type === 'Loan' ? account.loan_account?.interest_rate?.toString() || '' :
-            account.account_type === 'Savings' ? account.savings_account?.interest_rate?.toString() || '' :
-                account.account_type === 'Fixed Deposit' ? account.fixed_deposit_account?.interest_rate?.toString() || '' : ''
+        account.account_type === ACCOUNT_TYPE.LOAN ? account.loan_account?.interest_rate?.toString() || '' :
+            account.account_type === ACCOUNT_TYPE.SAVINGS ? account.savings_account?.interest_rate?.toString() || '' :
+                account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT ? account.fixed_deposit_account?.interest_rate?.toString() || '' : ''
     );
 
     const [emiAmount, setEmiAmount] = useState(account.loan_account?.emi_amount?.toString() || '');
@@ -40,19 +50,19 @@ export default function AccountEditForm({ account, onSuccess, onCancel }: Accoun
             status: status
         };
 
-        if (account.account_type === 'Loan') {
+        if (account.account_type === ACCOUNT_TYPE.LOAN) {
             data.loan_account = {
                 interest_rate: parseFloat(interestRate),
                 emi_amount: parseFloat(emiAmount),
                 tenure_months: parseInt(tenure),
                 interest_accrual_day: parseInt(accrualDay)
             };
-        } else if (account.account_type === 'Savings') {
+        } else if (account.account_type === ACCOUNT_TYPE.SAVINGS) {
             data.savings_account = {
                 interest_rate: parseFloat(interestRate),
                 interest_accrual_day: parseInt(accrualDay)
             };
-        } else if (account.account_type === 'Fixed Deposit') {
+        } else if (account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT) {
             data.fixed_deposit_account = {
                 interest_rate: parseFloat(interestRate),
                 interest_accrual_day: parseInt(accrualDay)
@@ -86,14 +96,21 @@ export default function AccountEditForm({ account, onSuccess, onCancel }: Accoun
 
             <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Status</label>
-                <select
+                <Select
                     value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    className="w-full bg-muted border border-border rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                    onValueChange={(value) => setStatus(value)}
                 >
-                    <option value="Active">Active</option>
-                    <option value="Closed">Closed</option>
-                </select>
+                    <SelectTrigger className="w-full bg-muted border border-border rounded-lg h-10">
+                        <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            <SelectLabel>Status</SelectLabel>
+                            <SelectItem value="Active">Active</SelectItem>
+                            <SelectItem value="Closed">Closed</SelectItem>
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -122,7 +139,7 @@ export default function AccountEditForm({ account, onSuccess, onCancel }: Accoun
                 </div>
             </div>
 
-            {account.account_type === 'Loan' && (
+            {account.account_type === ACCOUNT_TYPE.LOAN && (
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">EMI Amount</label>

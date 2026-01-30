@@ -14,6 +14,8 @@ interface TransactionsState {
         accountId: string | null;
         search: string;
         categoryId: string;
+        startDate?: string;
+        endDate?: string;
         page: number;
         limit: number;
     };
@@ -30,6 +32,8 @@ const initialState: TransactionsState = {
         accountId: null,
         search: '',
         categoryId: 'all',
+        startDate: '',
+        endDate: '',
         page: 1,
         limit: 20,
     },
@@ -37,14 +41,16 @@ const initialState: TransactionsState = {
 
 export const fetchTransactions = createAsyncThunk(
     'transactions/fetchTransactions',
-    async (params: { accountId?: string | null; search?: string; categoryId?: string; page?: number; limit?: number; append?: boolean } | undefined, { rejectWithValue }) => {
+    async (params: { accountId?: string | null; search?: string; categoryId?: string; startDate?: string; endDate?: string; page?: number; limit?: number; append?: boolean } | undefined, { rejectWithValue }) => {
         try {
-            const { accountId, search, categoryId, page = 1, limit = 20 } = params || {};
+            const { accountId, search, categoryId, startDate, endDate, page = 1, limit = 20 } = params || {};
             const skip = (page - 1) * limit;
             const queryParams: any = { skip, limit };
             if (accountId) queryParams.account_id = accountId;
             if (search) queryParams.search = search;
             if (categoryId && categoryId !== 'all') queryParams.category_id = categoryId;
+            if (startDate) queryParams.start_date = startDate;
+            if (endDate) queryParams.end_date = endDate;
 
             const res = await api.get('/transactions/', { params: queryParams });
             return { ...res.data, append: params?.append };

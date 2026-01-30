@@ -47,7 +47,7 @@ const SpendingBreakdown = memo(({ data, symbol }: SpendingBreakdownProps) => {
     return (
         <Card className="overflow-hidden">
             <div
-                className="p-6 flex justify-between items-center cursor-pointer hover:bg-accent/50 transition"
+                className="p-6 flex justify-between items-center cursor-pointer hover:bg-accent/50 transition-colors"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center gap-3">
@@ -112,7 +112,7 @@ const SpendingBreakdown = memo(({ data, symbol }: SpendingBreakdownProps) => {
                             </div>
                             <div className="max-h-[350px] overflow-y-auto custom-scrollbar">
                                 {chartData.items.map((item, idx) => (
-                                    <div key={idx} className="grid grid-cols-12 p-4 items-center hover:bg-muted/50 transition border-b border-border/50 last:border-0">
+                                    <div key={idx} className="grid grid-cols-12 p-4 items-center hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0">
                                         <div className="col-span-6 flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${item.color}20`, color: item.color }}>
                                                 <Layers size={16} />

@@ -32,7 +32,6 @@ export default function AllTransactions() {
         variant: 'primary'
     });
 
-    const { items: accounts, loading: isLoadingAccounts } = useAppSelector((state: RootState) => state.accounts);
     const {
         items: transactions,
         loading: isLoadingTransactions,
@@ -56,7 +55,7 @@ export default function AllTransactions() {
             page: 1,
             append: false
         }));
-    }, [dispatch, transactionFilters.search, transactionFilters.categoryId]);
+    }, [dispatch, transactionFilters.search, transactionFilters.categoryId, transactionFilters.startDate, transactionFilters.endDate]);
 
     const handleSearchChange = (query: string) => {
         dispatch(setFilters({ search: query, page: 1 }));
@@ -64,6 +63,10 @@ export default function AllTransactions() {
 
     const handleCategoryChange = (catId: string) => {
         dispatch(setFilters({ categoryId: catId, page: 1 }));
+    };
+
+    const handleDateChange = (start: string, end: string) => {
+        dispatch(setFilters({ startDate: start, endDate: end, page: 1 }));
     };
 
     const handleLoadMore = () => {
@@ -115,12 +118,9 @@ export default function AllTransactions() {
         });
     };
 
-    if (isLoadingAccounts && accounts.length === 0) {
-        return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
-    }
 
     return (
-        <div className="max-w-5xl mx-auto p-6 md:p-10 space-y-8">
+        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
             <TransactionsPanel
                 title="Financial Stream"
                 description="Chronological view of all your movements"
@@ -133,6 +133,9 @@ export default function AllTransactions() {
                 onSearchChange={handleSearchChange}
                 selectedCategoryId={transactionFilters.categoryId}
                 onCategoryChange={handleCategoryChange}
+                startDate={transactionFilters.startDate}
+                endDate={transactionFilters.endDate}
+                onDateChange={handleDateChange}
                 categories={categories}
                 currencies={currencies}
                 showAccountName={true}

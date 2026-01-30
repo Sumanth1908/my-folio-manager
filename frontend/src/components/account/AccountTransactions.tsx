@@ -1,11 +1,10 @@
 import { Plus, Pencil, Trash2, Tag } from 'lucide-react';
-import { memo, useMemo, useEffect } from 'react';
+import { memo, useMemo } from 'react';
 import type { Transaction, Currency } from '../../types';
 import { Button } from '../ui/Button';
 import { cn } from '../../lib/utils';
 import LoadingSpinner from '../LoadingSpinner';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { fetchAccounts } from '../../store/slices/accountsSlice';
+import { useAppSelector } from '../../store/hooks';
 import type { RootState } from '../../store';
 
 interface AccountTransactionsProps {
@@ -31,7 +30,7 @@ const TransactionRow = memo(({
     onEdit?: (tx: Transaction) => void,
     onDelete?: (id: number) => void
 }) => (
-    <div className="group flex justify-between items-center p-6 hover:bg-muted/30 transition-all">
+    <div className="group flex justify-between items-center p-6 hover:bg-muted/30 transition-colors">
         <div className="flex items-center gap-5">
             <div className={cn(
                 "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors shadow-sm",
@@ -103,14 +102,8 @@ const AccountTransactions = memo(({
     onDelete,
     showAccountName = false
 }: AccountTransactionsProps) => {
-    const dispatch = useAppDispatch();
     const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
 
-    useEffect(() => {
-        if (showAccountName && accounts.length === 0) {
-            dispatch(fetchAccounts());
-        }
-    }, [dispatch, showAccountName, accounts.length]);
 
     const accountsMap = useMemo(() => {
         const map = new Map<string, string>();

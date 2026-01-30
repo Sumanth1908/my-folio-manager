@@ -1,6 +1,5 @@
 import { useState, memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import {
     ChevronDown,
     TrendingUp,
@@ -12,18 +11,13 @@ import {
     Clock,
     Target,
     Layers,
-    Eye,
-    Pencil,
-    Trash2,
-    AlertTriangle
+    Eye
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 import Modal from './Modal';
 import type { SummaryResponse, AccountSummary, Account } from '../types';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { deleteAccount, updateAccount } from '../store/slices/accountsSlice';
-import type { RootState } from '../store';
+import { ACCOUNT_TYPE } from '../constants';
 
 interface AccountSummaryPanelProps {
     data: SummaryResponse;
@@ -34,18 +28,12 @@ const AccountCard = memo(({
     account,
     isExpanded,
     onToggle,
-    onOpenInfo,
-    onEdit,
-    onDelete,
-    isDeleting
+    onOpenInfo
 }: {
     account: AccountSummary,
     isExpanded: boolean,
     onToggle: () => void,
-    onOpenInfo: (id: string, e: React.MouseEvent) => void,
-    onEdit: (id: string, e: React.MouseEvent) => void,
-    onDelete: (account: AccountSummary, e: React.MouseEvent) => void,
-    isDeleting: boolean
+    onOpenInfo: (id: string, e: React.MouseEvent) => void
 }) => {
     const navigate = useNavigate();
 
@@ -58,7 +46,7 @@ const AccountCard = memo(({
     const outTotal = (account.categories || []).filter(c => c.transaction_type === 'Debit').reduce((acc, c) => acc + Number(c.total_amount || 0), 0);
 
     return (
-        <Card className={`overflow-hidden border-border/40 transition-all duration-300 ${isDeleting ? 'opacity-50 scale-[0.98] pointer-events-none' : 'opacity-100'}`}>
+        <Card className="overflow-hidden border-border/40 transition-[border-color,box-shadow,transform] duration-300">
             <div
                 className="p-4 flex justify-between items-center cursor-pointer hover:bg-accent/30 transition-colors"
                 onClick={onToggle}
@@ -103,29 +91,13 @@ const AccountCard = memo(({
                     </div>
 
                     <div className="h-8 w-px bg-border/40 mx-1 hidden sm:block"></div>
-                    <div className="flex items-center gap-1">
-                        <button
-                            onClick={handleView}
-                            className="p-2 hover:bg-primary/10 rounded-xl text-muted-foreground hover:text-primary transition-all group"
-                            title="View Details"
-                        >
-                            <Eye size={18} className="group-hover:scale-110 transition-transform" />
-                        </button>
-                        <button
-                            onClick={(e) => onEdit(account.account_id, e)}
-                            className="p-2 hover:bg-primary/10 rounded-xl text-muted-foreground hover:text-primary transition-all group"
-                            title="Edit Account"
-                        >
-                            <Pencil size={18} className="group-hover:scale-110 transition-transform" />
-                        </button>
-                        <button
-                            onClick={(e) => onDelete(account, e)}
-                            className="p-2 hover:bg-destructive/10 rounded-xl text-muted-foreground hover:text-destructive transition-all group"
-                            title="Delete Account"
-                        >
-                            <Trash2 size={18} className="group-hover:scale-110 transition-transform" />
-                        </button>
-                    </div>
+                    <button
+                        onClick={handleView}
+                        className="p-2 hover:bg-primary/10 rounded-xl text-muted-foreground hover:text-primary transition-colors group"
+                        title="View Details"
+                    >
+                        <Eye size={18} className="group-hover:scale-110 transition-transform" />
+                    </button>
                 </div>
             </div>
 
@@ -167,14 +139,6 @@ const AccountCard = memo(({
 const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelProps) => {
     const [expandedAccounts, setExpandedAccounts] = useState<Record<string, boolean>>({});
     const [infoAccount, setInfoAccount] = useState<Account | null>(null);
-    const [isDeleting, setIsDeleting] = useState<string | null>(null);
-
-    const [editAccount, setEditAccount] = useState<Account | null>(null);
-    const [editName, setEditName] = useState('');
-    const [deleteConfirmAccount, setDeleteConfirmAccount] = useState<AccountSummary | null>(null);
-
-    const dispatch = useAppDispatch();
-    const { loading: isAccountsLoading } = useAppSelector((state: RootState) => state.accounts);
 
     const toggleAccount = useCallback((accountId: string) => {
         setExpandedAccounts(prev => ({
@@ -191,51 +155,6 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
         }
     }, [accountsData]);
 
-    const handleEdit = useCallback((accountId: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        const fullAccount = accountsData?.find(a => a.account_id === accountId);
-        if (fullAccount) {
-            setEditAccount(fullAccount);
-            setEditName(fullAccount.account_name || '');
-        }
-    }, [accountsData]);
-
-    const handleDeleteClick = useCallback((account: AccountSummary, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setDeleteConfirmAccount(account);
-    }, []);
-
-    const confirmDelete = async () => {
-        if (!deleteConfirmAccount) return;
-
-        const accountId = deleteConfirmAccount.account_id;
-        setIsDeleting(accountId);
-        setDeleteConfirmAccount(null);
-
-        try {
-            await dispatch(deleteAccount(accountId)).unwrap();
-            toast.success('Account deleted successfully');
-        } catch (err) {
-            toast.error('Failed to delete account');
-        } finally {
-            setIsDeleting(null);
-        }
-    };
-
-    const saveEdit = async () => {
-        if (!editAccount) return;
-        try {
-            await dispatch(updateAccount({
-                id: editAccount.account_id,
-                data: { account_name: editName }
-            })).unwrap();
-            toast.success('Account updated successfully');
-            setEditAccount(null);
-        } catch (err) {
-            toast.error('Failed to update account');
-        }
-    };
-
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center px-1">
@@ -249,9 +168,6 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
                         isExpanded={!!expandedAccounts[account.account_id]}
                         onToggle={() => toggleAccount(account.account_id)}
                         onOpenInfo={openInfo}
-                        onEdit={handleEdit}
-                        onDelete={handleDeleteClick}
-                        isDeleting={isDeleting === account.account_id}
                     />
                 ))
             ) : (
@@ -288,7 +204,7 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            {infoAccount.account_type === 'Savings' && infoAccount.savings_account && (
+                            {infoAccount.account_type === ACCOUNT_TYPE.SAVINGS && infoAccount.savings_account && (
                                 <>
                                     <InfoCard disabled label="Current Balance" value={`${infoAccount.currency} ${Number(infoAccount.savings_account.balance).toLocaleString()}`} icon={<DollarSign size={16} />} />
                                     <InfoCard disabled label="Interest Rate" value={`${infoAccount.savings_account.interest_rate}%`} icon={<BadgePercent size={16} />} />
@@ -297,7 +213,7 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
                                 </>
                             )}
 
-                            {infoAccount.account_type === 'Loan' && infoAccount.loan_account && (
+                            {infoAccount.account_type === ACCOUNT_TYPE.LOAN && infoAccount.loan_account && (
                                 <>
                                     <InfoCard disabled label="Loan Amount" value={`${infoAccount.currency} ${Number(infoAccount.loan_account.loan_amount).toLocaleString()}`} icon={<DollarSign size={16} />} />
                                     <InfoCard disabled label="Outstanding" value={`${infoAccount.currency} ${Number(infoAccount.loan_account.outstanding_amount).toLocaleString()}`} icon={<TrendingDown size={16} className="text-rose-500" />} color="text-rose-500" />
@@ -308,7 +224,7 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
                                 </>
                             )}
 
-                            {infoAccount.account_type === 'Fixed Deposit' && infoAccount.fixed_deposit_account && (
+                            {infoAccount.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT && infoAccount.fixed_deposit_account && (
                                 <>
                                     <InfoCard disabled label="Principal" value={`${infoAccount.currency} ${Number(infoAccount.fixed_deposit_account.principal_amount).toLocaleString()}`} icon={<DollarSign size={16} />} />
                                     <InfoCard disabled label="Maturity Amount" value={`${infoAccount.currency} ${Number(infoAccount.fixed_deposit_account.maturity_amount).toLocaleString()}`} icon={<TrendingUp size={16} className="text-emerald-500" />} color="text-emerald-500" />
@@ -319,7 +235,7 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
                                 </>
                             )}
 
-                            {infoAccount.account_type === 'Investment' && infoAccount.investment_holdings && (
+                            {infoAccount.account_type === ACCOUNT_TYPE.INVESTMENT && infoAccount.investment_holdings && (
                                 <div className="col-span-2 space-y-3">
                                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Asset Holdings ({infoAccount.investment_holdings.length})</p>
                                     <div className="bg-muted/30 rounded-2xl border border-border/50 overflow-hidden">
@@ -357,116 +273,6 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
                     </div>
                 )}
             </Modal>
-
-            {/* Edit Modal */}
-            <Modal
-                isOpen={!!editAccount}
-                onClose={() => setEditAccount(null)}
-                title="Edit Account"
-                maxWidth="max-w-md"
-            >
-                {editAccount && (
-                    <div className="space-y-6">
-                        <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                                <Pencil size={20} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-primary/70">Modifying</p>
-                                <p className="text-sm font-bold text-foreground">{editAccount.account_name}</p>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-3 ml-1">New Account Name</label>
-                            <input
-                                type="text"
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                                className="w-full p-4 bg-muted/20 border-2 border-transparent focus:border-primary/30 rounded-2xl focus:ring-4 focus:ring-primary/5 outline-none transition-all text-lg font-medium"
-                                placeholder="Enter account name"
-                                autoFocus
-                            />
-                        </div>
-
-                        <div className="bg-muted/10 p-4 rounded-2xl border border-border/50 flex gap-3">
-                            <Info size={16} className="text-muted-foreground shrink-0 mt-0.5" />
-                            <p className="text-xs text-muted-foreground leading-relaxed italic">
-                                Only basic metadata can be edited currently. To change account type or currency, please create a new account.
-                            </p>
-                        </div>
-
-                        <div className="pt-4 border-t border-border/50 flex gap-3">
-                            <Button
-                                variant="ghost"
-                                className="flex-1 rounded-xl h-12 text-xs uppercase tracking-widest font-bold"
-                                onClick={() => setEditAccount(null)}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                className="flex-1 rounded-xl h-12 shadow-lg shadow-primary/20 text-xs uppercase tracking-widest font-bold"
-                                onClick={saveEdit}
-                                isLoading={isAccountsLoading}
-                            >
-                                Save Changes
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </Modal>
-
-            {/* Delete Confirmation Modal */}
-            <Modal
-                isOpen={!!deleteConfirmAccount}
-                onClose={() => setDeleteConfirmAccount(null)}
-                title="Confirm Account Deletion"
-                maxWidth="max-w-md"
-            >
-                {deleteConfirmAccount && (
-                    <div className="space-y-6">
-                        <div className="p-6 bg-destructive/5 rounded-3xl border border-destructive/10 flex flex-col items-center text-center space-y-4">
-                            <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center text-destructive animate-pulse">
-                                <AlertTriangle size={32} />
-                            </div>
-                            <div className="space-y-1">
-                                <p className="text-lg font-black text-foreground">Irreversible Action</p>
-                                <p className="text-sm text-muted-foreground">You are about to permanently delete:</p>
-                                <p className="text-xl font-bold text-destructive underline decoration-dotted underline-offset-4">{deleteConfirmAccount.account_name}</p>
-                            </div>
-                        </div>
-
-                        <div className="bg-muted/30 p-4 rounded-2xl border border-border/50 flex gap-3">
-                            <Trash2 size={16} className="text-muted-foreground shrink-0 mt-0.5" />
-                            <div className="text-xs text-muted-foreground leading-relaxed">
-                                <p className="font-bold text-foreground mb-1">Impact Summary:</p>
-                                <ul className="list-disc list-inside space-y-1">
-                                    <li>All associated transactions will be purged.</li>
-                                    <li>Balance history for this account will be lost.</li>
-                                    <li>Connected budget rules may stop working.</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <div className="pt-4 border-t border-border/50 flex gap-3">
-                            <Button
-                                variant="ghost"
-                                className="flex-1 rounded-xl h-12 text-xs uppercase tracking-widest font-bold"
-                                onClick={() => setDeleteConfirmAccount(null)}
-                            >
-                                Keep Account
-                            </Button>
-                            <Button
-                                className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl h-12 shadow-lg shadow-destructive/20 text-xs uppercase tracking-widest font-bold"
-                                onClick={confirmDelete}
-                                isLoading={isAccountsLoading}
-                            >
-                                Delete Forever
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </Modal>
         </div>
     );
 });
@@ -475,7 +281,7 @@ export default AccountSummaryPanel;
 
 function InfoCard({ label, value, icon, color = "text-foreground", disabled = false }: { label: string, value: string, icon: React.ReactNode, color?: string, disabled?: boolean }) {
     return (
-        <div className={`p-4 rounded-2xl border border-border/50 bg-muted/20 flex flex-col gap-2 transition-all ${!disabled && 'hover:border-primary/30 cursor-pointer shadow-sm'}`}>
+        <div className={`p-4 rounded-2xl border border-border/50 bg-muted/20 flex flex-col gap-2 transition-[border-color,box-shadow] ${!disabled && 'hover:border-primary/30 cursor-pointer shadow-sm'}`}>
             <div className="flex items-center gap-2 text-muted-foreground">
                 {icon}
                 <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>

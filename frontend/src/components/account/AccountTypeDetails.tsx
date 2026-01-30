@@ -1,6 +1,7 @@
 import { Card } from '../ui/Card';
 import InvestmentDetails from './InvestmentDetails';
 import type { Account } from '../../types';
+import { ACCOUNT_TYPE } from '../../constants';
 
 interface AccountTypeDetailsProps {
     account: Account;
@@ -8,7 +9,7 @@ interface AccountTypeDetailsProps {
 }
 
 export default function AccountTypeDetails({ account, symbol }: AccountTypeDetailsProps) {
-    if (account.account_type === 'Savings' && account.savings_account) {
+    if (account.account_type === ACCOUNT_TYPE.SAVINGS && account.savings_account) {
         return (
             <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
                 <div className="flex items-center gap-3">
@@ -40,7 +41,7 @@ export default function AccountTypeDetails({ account, symbol }: AccountTypeDetai
         );
     }
 
-    if (account.account_type === 'Fixed Deposit' && account.fixed_deposit_account) {
+    if (account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT && account.fixed_deposit_account) {
         return (
             <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
                 <div className="flex items-center gap-3">
@@ -90,7 +91,7 @@ export default function AccountTypeDetails({ account, symbol }: AccountTypeDetai
         );
     }
 
-    if (account.account_type === 'Loan' && account.loan_account) {
+    if (account.account_type === ACCOUNT_TYPE.LOAN && account.loan_account) {
         return (
             <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
                 <div className="flex items-center gap-3">
@@ -146,7 +147,7 @@ export default function AccountTypeDetails({ account, symbol }: AccountTypeDetai
         );
     }
 
-    if (account.account_type === 'Investment') {
+    if (account.account_type === ACCOUNT_TYPE.INVESTMENT) {
         return <InvestmentDetails account={account} symbol={symbol} />;
     }
 

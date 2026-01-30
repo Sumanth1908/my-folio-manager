@@ -143,7 +143,7 @@ const SankeyChart = memo(({ inflows, outflows, symbol }: SankeyChartProps) => {
                 strokeWidth={Math.max(2, linkWidth)}
                 fill="none"
                 opacity={0.8}
-                className="transition-all duration-300 hover:opacity-100"
+                className="hover:opacity-100 transition-opacity duration-300"
             />
         );
     };

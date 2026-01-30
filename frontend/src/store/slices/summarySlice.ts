@@ -3,7 +3,9 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import api from '../../api';
 import type { SummaryResponse } from '../../types';
 
-export type SummaryTimeRange = 'thisMonth' | 'lastMonth' | 'allTime';
+import { TIME_RANGES } from '../../constants';
+
+export type SummaryTimeRange = typeof TIME_RANGES[number];
 
 interface SummaryState {
     data: SummaryResponse | null;

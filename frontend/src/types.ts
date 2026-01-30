@@ -83,6 +83,7 @@ export interface Account {
     account_type: string;
     currency: string;
     status: string;
+    is_interest_enabled: boolean;
     created_at: string;
     // Nested account details
     savings_account?: SavingsAccount;

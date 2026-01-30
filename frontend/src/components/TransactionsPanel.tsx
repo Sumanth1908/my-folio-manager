@@ -19,6 +19,9 @@ interface TransactionsPanelProps {
     onSearchChange: (query: string) => void;
     selectedCategoryId: string; // 'all' or categoryId
     onCategoryChange: (categoryId: string) => void;
+    startDate?: string;
+    endDate?: string;
+    onDateChange?: (start: string, end: string) => void;
     categories: Category[];
     // Config
     currencies?: Currency[];
@@ -41,6 +44,9 @@ export default function TransactionsPanel({
     onSearchChange,
     selectedCategoryId,
     onCategoryChange,
+    startDate,
+    endDate,
+    onDateChange,
     categories,
     currencies,
     defaultCurrencySymbol = '$',
@@ -60,14 +66,14 @@ export default function TransactionsPanel({
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     {/* Title */}
                     <div>
-                        {title && <h2 className="text-xl font-black tracking-tight">{title}</h2>}
+                        {title && <h1 className="text-3xl font-bold tracking-tight text-foreground">{title}</h1>}
                         {description && <p className="text-sm text-muted-foreground">{description}</p>}
                     </div>
 
                     {/* Actions: Search & New */}
                     <div className="flex items-center gap-3 w-full md:w-auto">
                         <div className={cn(
-                            "flex items-center bg-background border border-border/50 rounded-xl px-3 transition-all duration-300 overflow-hidden",
+                            "flex items-center bg-background border border-border/50 rounded-xl px-3 transition-[width,background-color] duration-300 overflow-hidden",
                             isSearchOpen ? "w-full md:w-64" : "w-10 h-10 md:w-11 md:h-11 justify-center p-0 hover:bg-muted/50"
                         )}>
                             <Search
@@ -127,7 +133,7 @@ export default function TransactionsPanel({
                 </div>
 
                 {/* Filters */}
-                {categories && categories.length > 0 && (
+                {(categories && categories.length > 0 || onDateChange) && (
                     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none mask-fade-right">
                         <div className="flex items-center gap-2 pr-4 text-muted-foreground/50 text-xs font-bold uppercase tracking-widest">
                             <Filter size={12} />
@@ -136,7 +142,7 @@ export default function TransactionsPanel({
                         <button
                             onClick={() => onCategoryChange('all')}
                             className={cn(
-                                "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border",
+                                "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors border",
                                 selectedCategoryId === 'all'
                                     ? "bg-primary text-primary-foreground border-primary"
                                     : "bg-background text-muted-foreground border-border hover:border-primary/50"
@@ -144,12 +150,29 @@ export default function TransactionsPanel({
                         >
                             All
                         </button>
+                        {onDateChange && (
+                            <div className="flex items-center gap-2 ml-2 border-l border-border/50 pl-4">
+                                <input
+                                    type="date"
+                                    value={startDate || ''}
+                                    onChange={(e) => onDateChange(e.target.value, endDate || '')}
+                                    className="bg-background border border-border rounded-lg px-2 py-1 text-[10px] uppercase font-bold tracking-widest text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                                <span className="text-muted-foreground/50 text-[10px] font-bold">-</span>
+                                <input
+                                    type="date"
+                                    value={endDate || ''}
+                                    onChange={(e) => onDateChange(startDate || '', e.target.value)}
+                                    className="bg-background border border-border rounded-lg px-2 py-1 text-[10px] uppercase font-bold tracking-widest text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                            </div>
+                        )}
                         {categories.map(cat => (
                             <button
                                 key={cat.category_id}
                                 onClick={() => onCategoryChange(cat.category_id.toString())}
                                 className={cn(
-                                    "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border",
+                                    "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors border",
                                     selectedCategoryId === cat.category_id.toString()
                                         ? "bg-primary text-primary-foreground border-primary"
                                         : "bg-background text-muted-foreground border-border hover:border-primary/50"

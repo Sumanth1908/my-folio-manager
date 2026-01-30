@@ -18,7 +18,7 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-background text-foreground transition-colors duration-500">
+        <div className="min-h-screen bg-background text-foreground">
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
@@ -87,7 +87,7 @@ function App() {
             } />
           </Routes>
         </div>
-        <Toaster position="top-right" />
+        <Toaster position="top-center" />
       </AuthProvider>
     </Router>
   );

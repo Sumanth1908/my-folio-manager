@@ -7,6 +7,15 @@ import { type RootState } from '../store';
 import { createTransaction, createTransfer, updateTransaction } from '../store/slices/transactionsSlice';
 import { fetchAccounts } from '../store/slices/accountsSlice';
 import { fetchCategories } from '../store/slices/categoriesSlice';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
+} from './ui/Select';
 
 interface TransactionFormProps {
     accountId?: string; // If provided, locks the account selection
@@ -64,7 +73,7 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
                         transaction_type: type,
                         description,
                         account_id: selectedAccountId,
-                        category_id: selectedCategoryId ? parseInt(selectedCategoryId) : null,
+                        category_id: (selectedCategoryId && selectedCategoryId !== 'none') ? parseInt(selectedCategoryId) : null,
                         transaction_date: date ? new Date(date).toISOString() : undefined
                     }
                 })).unwrap();
@@ -76,7 +85,7 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
                         to_account_id: toAccountId,
                         amount: parseFloat(amount),
                         description,
-                        category_id: selectedCategoryId ? parseInt(selectedCategoryId) : null,
+                        category_id: (selectedCategoryId && selectedCategoryId !== 'none') ? parseInt(selectedCategoryId) : null,
                         transaction_date: date ? new Date(date).toISOString() : undefined
                     })).unwrap();
                 } else {
@@ -85,7 +94,7 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
                         amount: parseFloat(amount),
                         transaction_type: type,
                         description,
-                        category_id: selectedCategoryId ? parseInt(selectedCategoryId) : null,
+                        category_id: (selectedCategoryId && selectedCategoryId !== 'none') ? parseInt(selectedCategoryId) : null,
                         transaction_date: date ? new Date(date).toISOString() : undefined
                     })).unwrap();
                 }
@@ -105,16 +114,23 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
             {/* Transaction Type */}
             <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Transaction Type</label>
-                <select
+                <Select
                     value={type}
-                    onChange={(e) => setType(e.target.value as any)}
-                    disabled={!!transactionToEdit} // Disable type change on edit for simplicity
-                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground disabled:opacity-50 transition"
+                    onValueChange={(value: any) => setType(value)}
+                    disabled={!!transactionToEdit}
                 >
-                    <option value="Debit">Debit</option>
-                    <option value="Credit">Credit</option>
-                    {!transactionToEdit && <option value="Transfer">Transfer</option>}
-                </select>
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            <SelectLabel>Type</SelectLabel>
+                            <SelectItem value="Debit">Debit</SelectItem>
+                            <SelectItem value="Credit">Credit</SelectItem>
+                            {!transactionToEdit && <SelectItem value="Transfer">Transfer</SelectItem>}
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
             </div>
 
             {/* Account Selection Logic */}
@@ -122,46 +138,70 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">From Account</label>
-                        <select
+                        <Select
                             value={selectedAccountId}
-                            onChange={(e) => setSelectedAccountId(e.target.value)}
-                            disabled={!!accountId} // Lock if accountId passed
-                            className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground disabled:opacity-50 transition"
+                            onValueChange={setSelectedAccountId}
+                            disabled={!!accountId}
                         >
-                            <option value="">Select Account</option>
-                            {accounts.map(acc => (
-                                <option key={acc.account_id} value={acc.account_id}>{acc.account_name} ({acc.account_type})</option>
-                            ))}
-                        </select>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select Account" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectLabel>Accounts</SelectLabel>
+                                    {accounts.map(acc => (
+                                        <SelectItem key={acc.account_id} value={acc.account_id.toString()}>
+                                            {acc.account_name} ({acc.account_type})
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">To Account</label>
-                        <select
+                        <Select
                             value={toAccountId}
-                            onChange={(e) => setToAccountId(e.target.value)}
-                            className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground transition"
+                            onValueChange={setToAccountId}
                         >
-                            <option value="">Select Account</option>
-                            {accounts.map(acc => (
-                                <option key={acc.account_id} value={acc.account_id}>{acc.account_name} ({acc.account_type})</option>
-                            ))}
-                        </select>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select Account" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectLabel>Accounts</SelectLabel>
+                                    {accounts.map(acc => (
+                                        <SelectItem key={acc.account_id} value={acc.account_id.toString()}>
+                                            {acc.account_name} ({acc.account_type})
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
             ) : (
                 <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Account</label>
-                    <select
+                    <Select
                         value={selectedAccountId}
-                        onChange={(e) => setSelectedAccountId(e.target.value)}
+                        onValueChange={setSelectedAccountId}
                         disabled={!!accountId}
-                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground disabled:opacity-50 transition"
                     >
-                        <option value="">Select Account</option>
-                        {accounts.map(acc => (
-                            <option key={acc.account_id} value={acc.account_id}>{acc.account_name} ({acc.account_type})</option>
-                        ))}
-                    </select>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select Account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectLabel>Accounts</SelectLabel>
+                                {accounts.map(acc => (
+                                    <SelectItem key={acc.account_id} value={acc.account_id.toString()}>
+                                        {acc.account_name} ({acc.account_type})
+                                    </SelectItem>
+                                ))}
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
                 </div>
             )}
 
@@ -173,7 +213,7 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
-                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground transition"
+                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground placeholder:text-muted-foreground/30"
                     />
                 </div>
 
@@ -186,7 +226,7 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
                         placeholder="0.00"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
-                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground tabular-nums transition placeholder:text-muted-foreground/30"
+                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground tabular-nums placeholder:text-muted-foreground/30"
                         autoFocus
                     />
                 </div>
@@ -195,18 +235,25 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
             {/* Category - For all types now */}
             <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Category</label>
-                <select
+                <Select
                     value={selectedCategoryId}
-                    onChange={(e) => setSelectedCategoryId(e.target.value)}
-                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground transition"
+                    onValueChange={setSelectedCategoryId}
                 >
-                    <option value="">Select Category (Optional)</option>
-                    {categories.map(category => (
-                        <option key={category.category_id} value={category.category_id}>
-                            {category.name}
-                        </option>
-                    ))}
-                </select>
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Category (Optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            <SelectLabel>Categories</SelectLabel>
+                            <SelectItem value="none">None</SelectItem>
+                            {categories.map(category => (
+                                <SelectItem key={category.category_id} value={category.category_id.toString()}>
+                                    {category.name}
+                                </SelectItem>
+                            ))}
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
             </div>
 
             {/* Description */}
@@ -217,7 +264,7 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
                     placeholder="Rent, Groceries, etc."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground transition placeholder:text-muted-foreground/30"
+                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground placeholder:text-muted-foreground/30"
                 />
             </div>
 

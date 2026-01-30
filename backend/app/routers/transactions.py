@@ -135,10 +135,12 @@ def read_transactions(
     account_id: Optional[str] = None,
     search: Optional[str] = None,
     category_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Get all transactions for current user, optionally filtered by account, search, and category."""
+    """Get all transactions for current user, optionally filtered by account, search, category, and date range."""
     
     # Base query joined with Account to filter by user_id
     base_query = select(Transaction).join(Account).where(Account.user_id == current_user.user_id)
@@ -151,6 +153,16 @@ def read_transactions(
         
     if category_id:
         base_query = base_query.where(Transaction.category_id == category_id)
+
+    if start_date:
+        base_query = base_query.where(Transaction.transaction_date >= start_date)
+
+    if end_date:
+        # Assuming end_date is inclusive, and if it's just a date string, we might want to ensure it covers the whole day.
+        # However, for simple "YYYY-MM-DD" comparison against a datetime column, exact usage depends on DB. 
+        # Typically simplest is just <= end_date. If end_date is '2023-01-01', it might mean midnight.
+        # But let's stick to simple comparison for now as per typical API patterns.
+        base_query = base_query.where(Transaction.transaction_date <= end_date)
     
     # Count total
     count_query = select(func.count()).select_from(base_query.subquery())

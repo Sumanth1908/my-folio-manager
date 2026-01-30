@@ -1,5 +1,6 @@
 import { useState, useMemo, memo, useEffect } from 'react';
 import type { Account } from '../types';
+import { ACCOUNT_TYPE } from '../constants';
 import {
     ChevronDown,
     ChevronRight,
@@ -113,32 +114,32 @@ export default function Portfolio() {
         }
 
         const assetItems: Record<string, { total: number, accounts: Account[], color: string, icon: React.ReactNode }> = {
-            'Savings': { total: 0, accounts: [], color: '#8b5cf6', icon: <Wallet size={16} /> },
-            'Fixed Deposit': { total: 0, accounts: [], color: '#06b6d4', icon: <Building2 size={16} /> },
-            'Investment': { total: 0, accounts: [], color: '#3b82f6', icon: <TrendingUp size={16} /> },
+            [ACCOUNT_TYPE.SAVINGS]: { total: 0, accounts: [], color: '#8b5cf6', icon: <Wallet size={16} /> },
+            [ACCOUNT_TYPE.FIXED_DEPOSIT]: { total: 0, accounts: [], color: '#06b6d4', icon: <Building2 size={16} /> },
+            [ACCOUNT_TYPE.INVESTMENT]: { total: 0, accounts: [], color: '#3b82f6', icon: <TrendingUp size={16} /> },
         };
 
         const liabilityItems: Record<string, { total: number, accounts: Account[], color: string, icon: React.ReactNode }> = {
-            'Loan': { total: 0, accounts: [], color: '#f43f5e', icon: <TrendingDown size={16} /> },
+            [ACCOUNT_TYPE.LOAN]: { total: 0, accounts: [], color: '#f43f5e', icon: <TrendingDown size={16} /> },
         };
 
         accounts.forEach(account => {
             let balance = 0;
-            if (account.account_type === 'Savings' && account.savings_account) {
+            if (account.account_type === ACCOUNT_TYPE.SAVINGS && account.savings_account) {
                 balance = Number(account.savings_account.balance);
-            } else if (account.account_type === 'Fixed Deposit' && account.fixed_deposit_account) {
+            } else if (account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT && account.fixed_deposit_account) {
                 balance = Number(account.fixed_deposit_account.principal_amount);
-            } else if (account.account_type === 'Investment' && account.investment_holdings) {
+            } else if (account.account_type === ACCOUNT_TYPE.INVESTMENT && account.investment_holdings) {
                 balance = account.investment_holdings.reduce((sum, h) => sum + (Number(h.quantity) * (Number(h.current_price) || Number(h.average_price))), 0);
-            } else if (account.account_type === 'Loan' && account.loan_account) {
+            } else if (account.account_type === ACCOUNT_TYPE.LOAN && account.loan_account) {
                 balance = Number(account.loan_account.outstanding_amount);
             }
 
             const convertedValue = convert(balance, account.currency);
 
-            if (account.account_type === 'Loan') {
-                liabilityItems['Loan'].total += convertedValue;
-                liabilityItems['Loan'].accounts.push(account);
+            if (account.account_type === ACCOUNT_TYPE.LOAN) {
+                liabilityItems[ACCOUNT_TYPE.LOAN].total += convertedValue;
+                liabilityItems[ACCOUNT_TYPE.LOAN].accounts.push(account);
             } else if (assetItems[account.account_type]) {
                 assetItems[account.account_type].total += convertedValue;
                 assetItems[account.account_type].accounts.push(account);
@@ -153,9 +154,9 @@ export default function Portfolio() {
                 let bal = 0;
                 let hds: SubHolding[] = [];
 
-                if (acc.account_type === 'Savings' && acc.savings_account) bal = Number(acc.savings_account.balance);
-                else if (acc.account_type === 'Fixed Deposit' && acc.fixed_deposit_account) bal = Number(acc.fixed_deposit_account.principal_amount);
-                else if (acc.account_type === 'Investment' && acc.investment_holdings) {
+                if (acc.account_type === ACCOUNT_TYPE.SAVINGS && acc.savings_account) bal = Number(acc.savings_account.balance);
+                else if (acc.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT && acc.fixed_deposit_account) bal = Number(acc.fixed_deposit_account.principal_amount);
+                else if (acc.account_type === ACCOUNT_TYPE.INVESTMENT && acc.investment_holdings) {
                     bal = acc.investment_holdings.reduce((sum, h) => sum + (Number(h.quantity) * (Number(h.current_price) || Number(h.average_price))), 0);
                     const accountTotalVal = bal;
                     hds = acc.investment_holdings.map(h => {
@@ -170,7 +171,7 @@ export default function Portfolio() {
                         };
                     }).sort((a, b) => b.value - a.value);
                 }
-                else if (acc.account_type === 'Loan' && acc.loan_account) bal = Number(acc.loan_account.outstanding_amount);
+                else if (acc.account_type === ACCOUNT_TYPE.LOAN && acc.loan_account) bal = Number(acc.loan_account.outstanding_amount);
 
                 const convertedAccountTotal = convert(bal, acc.currency);
                 return {
@@ -279,7 +280,7 @@ export default function Portfolio() {
     return (
         <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
             {/* Standard Header - matching Dashboard styling */}
-            <Card className="p-6 backdrop-blur-xl bg-background/60 shadow-none border-border/50">
+            <Card className="p-6 bg-background/90 shadow-none border-border/50">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div>
                         <CardTitle className="text-3xl font-bold tracking-tight text-foreground">Portfolio</CardTitle>
@@ -296,7 +297,7 @@ export default function Portfolio() {
             </Card>
 
             {/* Allocation Overview Bar */}
-            <Card className="p-6 md:p-8 space-y-6 bg-background/40 backdrop-blur-md">
+            <Card className="p-6 md:p-8 space-y-6 bg-background/80">
                 <div className="flex items-center gap-2 mb-2">
                     <LayoutGrid size={20} className="text-primary" />
                     <h3 className="text-lg font-bold">Wealth Distribution</h3>
@@ -336,7 +337,7 @@ export default function Portfolio() {
                 {/* Main Content Column */}
                 <div className="lg:col-span-8 space-y-8">
                     {/* Balance Sheet Hierarchy */}
-                    <Card className="overflow-hidden border-border/50 bg-background/50 backdrop-blur-xl p-0 shadow-lg rounded-2xl">
+                    <Card className="overflow-hidden border-border/50 bg-background/90 p-0 shadow-lg rounded-2xl">
                         <div className="divide-y divide-border/50">
                             <BalanceSectionView
                                 section={assets}
@@ -510,7 +511,7 @@ const AccountRow = memo(({ acc }: { acc: SubAccount }) => {
         <div key={acc.id}>
             <div
                 className={cn(
-                    "grid grid-cols-12 p-3 px-8 md:px-12 items-center hover:bg-accent/10 transition-all group/acc",
+                    "grid grid-cols-12 p-3 px-8 md:px-12 items-center hover:bg-accent/10 transition-colors group/acc",
                     hasHoldings ? "cursor-pointer" : "cursor-default"
                 )}
                 onClick={(e) => {
@@ -560,7 +561,7 @@ const CategoryRow = memo(({ item }: { item: BalanceItem }) => {
         <div key={item.id}>
             <div
                 className={cn(
-                    "grid grid-cols-12 p-4 items-center hover:bg-accent/30 transition-all cursor-pointer group",
+                    "grid grid-cols-12 p-4 items-center hover:bg-accent/30 transition-colors cursor-pointer group",
                     isExpanded && "bg-accent/10"
                 )}
                 onClick={(e) => {

@@ -17,7 +17,7 @@ export default function Navbar() {
     ];
 
     return (
-        <nav className="bg-background/80 border-b border-border backdrop-blur-xl sticky top-0 z-50 transition-colors duration-300">
+        <nav className="bg-background/95 border-b border-border sticky top-0 z-50 transition-colors duration-300">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-20">
                     <Link to="/" className="flex items-center gap-2 group">
@@ -39,11 +39,16 @@ export default function Navbar() {
                                     variant={isActive ? "secondary" : "ghost"}
                                     asChild
                                     className={cn(
-                                        "font-bold transition-all duration-300",
-                                        isActive ? "bg-accent text-accent-foreground shadow-sm px-5" : "text-muted-foreground hover:text-foreground"
+                                        "font-bold transition-all relative h-10 px-6",
+                                        isActive ? "text-foreground shadow-sm bg-accent/50" : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
-                                    <Link to={item.path}>{item.label}</Link>
+                                    <Link to={item.path}>
+                                        {item.label}
+                                        {isActive && (
+                                            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-0.5 bg-primary rounded-full" />
+                                        )}
+                                    </Link>
                                 </Button>
                             );
                         })}
@@ -66,13 +71,16 @@ export default function Navbar() {
                                 size="sm"
                                 asChild
                                 className={cn(
-                                    "gap-2 px-3",
+                                    "gap-2 px-3 relative h-8",
                                     location.pathname === '/settings' && "bg-accent text-accent-foreground shadow-sm"
                                 )}
                             >
-                                <Link to="/settings">
+                                <Link to="/settings" className="flex items-center gap-2">
                                     <UserIcon className={cn("h-4 w-4", location.pathname === '/settings' ? "text-primary" : "text-muted-foreground")} />
                                     <span className="font-bold hidden sm:inline">{user?.full_name?.split(' ')[0] || user?.email?.split('@')[0]}</span>
+                                    {location.pathname === '/settings' && (
+                                        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-0.5 bg-primary rounded-full" />
+                                    )}
                                 </Link>
                             </Button>
                             <Button

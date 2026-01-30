@@ -8,6 +8,15 @@ import { type RootState } from '../store';
 import { fetchCategories } from '../store/slices/categoriesSlice';
 import { fetchAccounts } from '../store/slices/accountsSlice';
 import { createRule, updateRule } from '../store/slices/rulesSlice';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
+} from './ui/Select';
 
 interface RuleFormProps {
     accountId: string;
@@ -113,7 +122,7 @@ export default function RuleForm({ accountId, ruleToEdit, onSuccess, onCancel }:
                     type="button"
                     onClick={() => setRuleType(RuleType.CATEGORIZATION)}
                     className={cn(
-                        "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+                        "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors",
                         ruleType === RuleType.CATEGORIZATION
                             ? "bg-background text-primary shadow-sm"
                             : "text-muted-foreground hover:text-foreground"
@@ -125,7 +134,7 @@ export default function RuleForm({ accountId, ruleToEdit, onSuccess, onCancel }:
                     type="button"
                     onClick={() => setRuleType(RuleType.TRANSACTION)}
                     className={cn(
-                        "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+                        "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors",
                         ruleType === RuleType.TRANSACTION
                             ? "bg-background text-primary shadow-sm"
                             : "text-muted-foreground hover:text-foreground"
@@ -165,17 +174,22 @@ export default function RuleForm({ accountId, ruleToEdit, onSuccess, onCancel }:
 
                     <div className="space-y-2">
                         <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Category</label>
-                        <select
-                            value={categoryId}
-                            onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : '')}
-                            className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold appearance-none cursor-pointer"
-                            required
+                        <Select
+                            value={categoryId.toString()}
+                            onValueChange={(value) => setCategoryId(value ? Number(value) : '')}
                         >
-                            <option value="">Select Category</option>
-                            {categories.map(cat => (
-                                <option key={cat.category_id} value={cat.category_id}>{cat.name}</option>
-                            ))}
-                        </select>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select Category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectLabel>Categories</SelectLabel>
+                                    {categories.map(cat => (
+                                        <SelectItem key={cat.category_id} value={cat.category_id.toString()}>{cat.name}</SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
             ) : (
@@ -184,44 +198,63 @@ export default function RuleForm({ accountId, ruleToEdit, onSuccess, onCancel }:
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Frequency</label>
-                            <select
+                            <Select
                                 value={frequency}
-                                onChange={(e) => setFrequency(e.target.value as Frequency)}
-                                className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold appearance-none cursor-pointer"
+                                onValueChange={(value) => setFrequency(value as Frequency)}
                             >
-                                {Object.values(Frequency).map(f => (
-                                    <option key={f} value={f}>{f}</option>
-                                ))}
-                            </select>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Frequency" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectLabel>Frequency</SelectLabel>
+                                        {Object.values(Frequency).map(f => (
+                                            <SelectItem key={f} value={f}>{f}</SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="space-y-2">
                             <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Direction</label>
-                            <select
+                            <Select
                                 value={txType}
-                                onChange={(e) => setTxType(e.target.value as any)}
-                                className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold appearance-none cursor-pointer"
+                                onValueChange={(value: any) => setTxType(value)}
                             >
-                                <option value="Debit">Debit</option>
-                                <option value="Credit">Credit</option>
-                                <option value="Transfer">Transfer</option>
-                            </select>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Direction" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectLabel>Type</SelectLabel>
+                                        <SelectItem value="Debit">Debit</SelectItem>
+                                        <SelectItem value="Credit">Credit</SelectItem>
+                                        <SelectItem value="Transfer">Transfer</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 
                     {txType === 'Transfer' && (
                         <div className="space-y-2">
                             <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Destination</label>
-                            <select
+                            <Select
                                 value={targetAccountId}
-                                onChange={(e) => setTargetAccountId(e.target.value)}
-                                className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold appearance-none cursor-pointer"
-                                required
+                                onValueChange={setTargetAccountId}
                             >
-                                <option value="">Select Account</option>
-                                {accounts.filter(a => a.account_id !== accountId).map(acc => (
-                                    <option key={acc.account_id} value={acc.account_id}>{acc.account_name}</option>
-                                ))}
-                            </select>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select Account" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectLabel>Accounts</SelectLabel>
+                                        {accounts.filter(a => a.account_id !== accountId).map(acc => (
+                                            <SelectItem key={acc.account_id} value={acc.account_id}>{acc.account_name}</SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
                         </div>
                     )}
 
@@ -252,16 +285,23 @@ export default function RuleForm({ accountId, ruleToEdit, onSuccess, onCancel }:
 
                     <div className="space-y-2">
                         <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Category (Optional)</label>
-                        <select
-                            value={categoryId}
-                            onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : '')}
-                            className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold appearance-none cursor-pointer"
+                        <Select
+                            value={categoryId.toString()}
+                            onValueChange={(value) => setCategoryId(value === 'none' ? '' : Number(value))}
                         >
-                            <option value="">N/A</option>
-                            {categories.map(cat => (
-                                <option key={cat.category_id} value={cat.category_id}>{cat.name}</option>
-                            ))}
-                        </select>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="N/A" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectLabel>Categories</SelectLabel>
+                                    <SelectItem value="none">N/A</SelectItem>
+                                    {categories.map(cat => (
+                                        <SelectItem key={cat.category_id} value={cat.category_id.toString()}>{cat.name}</SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
             )}
