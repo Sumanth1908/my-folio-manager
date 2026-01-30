@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import SankeyChart from '../components/SankeyChart';
-import SpendingBreakdown from '../components/SpendingBreakdown';
+import SankeyChart from '../components/dashboard/SankeyChart';
+import SpendingBreakdown from '../components/dashboard/SpendingBreakdown';
 import { useAuth } from '../context/AuthContext';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardTitle } from '../components/ui/Card';
@@ -12,7 +12,7 @@ import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchSettings } from '../store/slices/settingsSlice';
 import { fetchRates } from '../store/slices/converterSlice';
 import type { RootState } from '../store';
-import { ACCOUNT_TYPES, TIME_RANGES } from '../constants';
+import { ACCOUNT_TYPES, TIME_RANGES, TRANSACTION_TYPE } from '../constants';
 
 export default function Dashboard() {
     const dispatch = useAppDispatch();
@@ -59,17 +59,17 @@ export default function Dashboard() {
             summaryData.accounts.forEach((account) => {
                 account.categories.forEach((cat) => {
                     const convertedAmount = convert(cat.total_amount, account.currency);
-                    const map = cat.transaction_type === 'Credit' ? inflowsMap : outflowsMap;
+                    const map = cat.transaction_type === TRANSACTION_TYPE.CREDIT ? inflowsMap : outflowsMap;
                     map.set(cat.name, (map.get(cat.name) || 0) + convertedAmount);
                 });
             });
         }
 
         const inflows = Array.from(inflowsMap.entries()).map(([name, amount]) => ({
-            name, total_amount: amount, transaction_type: 'Credit' as const
+            name, total_amount: amount, transaction_type: TRANSACTION_TYPE.CREDIT
         }));
         const outflows = Array.from(outflowsMap.entries()).map(([name, amount]) => ({
-            name, total_amount: amount, transaction_type: 'Debit' as const
+            name, total_amount: amount, transaction_type: TRANSACTION_TYPE.DEBIT
         }));
 
         return { globalInflows: inflows, globalOutflows: outflows };

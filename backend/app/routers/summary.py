@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session, select, col
 from sqlalchemy import func
@@ -39,8 +39,12 @@ def get_accounts_summary(
          .where(Transaction.account_id == account.account_id)
         
         if from_date:
+            if from_date.tzinfo:
+                from_date = from_date.astimezone(timezone.utc).replace(tzinfo=None)
             tx_query = tx_query.where(Transaction.transaction_date >= from_date)
         if to_date:
+            if to_date.tzinfo:
+                to_date = to_date.astimezone(timezone.utc).replace(tzinfo=None)
             tx_query = tx_query.where(Transaction.transaction_date <= to_date)
             
         tx_query = tx_query.group_by(Category.name, Transaction.transaction_type)

@@ -40,8 +40,15 @@ export const fetchSummary = createAsyncThunk(
 
             if (timeRange === 'thisMonth') {
                 const now = new Date();
-                apiParams.from_date = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-                apiParams.to_date = now.toISOString();
+                const thirtyDaysAgo = new Date(now);
+                thirtyDaysAgo.setDate(now.getDate() - 29); // 30 days including today
+                thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+                const endOfToday = new Date(now);
+                endOfToday.setHours(23, 59, 59, 999);
+
+                apiParams.from_date = thirtyDaysAgo.toISOString();
+                apiParams.to_date = endOfToday.toISOString();
             } else if (timeRange === 'lastMonth') {
                 const now = new Date();
                 apiParams.from_date = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();

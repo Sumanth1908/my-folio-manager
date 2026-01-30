@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from dateutil.relativedelta import relativedelta
 from sqlmodel import Session, select
@@ -24,7 +24,7 @@ def process_automation_rules():
     logger.info("Starting automation rules processing...")
     
     with Session(engine) as session:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         # Find active transaction rules that are due
         query = select(Rule).where(
@@ -53,6 +53,9 @@ def process_single_rule(session: Session, rule: Rule):
     # 1. Execute the Rule Logic (Creation/Transfer)
     description = f"Auto: {rule.name}"
     
+    # Use the rule's next_run_at as the transaction date
+    transaction_date = rule.next_run_at or datetime.now(timezone.utc).replace(tzinfo=None)
+    
     # Check if it's a transfer
     if rule.target_account_id:
         transfer_request = TransferRequest(
@@ -60,7 +63,8 @@ def process_single_rule(session: Session, rule: Rule):
             to_account_id=rule.target_account_id,
             amount=rule.transaction_amount,
             description=description,
-            category_id=rule.category_id
+            category_id=rule.category_id,
+            transaction_date=transaction_date
         )
         try:
             logger.info(f"Executing transfer for rule {rule.rule_id}")
@@ -76,7 +80,7 @@ def process_single_rule(session: Session, rule: Rule):
             transaction_type=rule.transaction_type,
             description=description,
             category_id=rule.category_id,
-            transaction_date=datetime.now()
+            transaction_date=transaction_date
         )
         try:
             logger.info(f"Executing transaction for rule {rule.rule_id}")
@@ -94,7 +98,7 @@ def process_single_rule(session: Session, rule: Rule):
         rule.next_run_at = None
     else:
         # Calculate next date
-        current_run = rule.next_run_at or datetime.now()
+        current_run = rule.next_run_at or datetime.now(timezone.utc).replace(tzinfo=None)
         
         if rule.frequency == Frequency.DAILY:
             rule.next_run_at = current_run + relativedelta(days=1)
@@ -106,3 +110,5 @@ def process_single_rule(session: Session, rule: Rule):
            rule.next_run_at = current_run + relativedelta(years=1)
             
     session.add(rule)
+    session.commit()
+    session.refresh(rule)

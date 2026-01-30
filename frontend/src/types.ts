@@ -1,3 +1,5 @@
+import { TRANSACTION_TYPE, RULE_TYPE, FREQUENCY, ACCOUNT_TYPE } from './constants';
+
 export interface PaginatedResponse<T> {
     items: T[];
     total: number;
@@ -80,7 +82,7 @@ export type CreateHoldingDTO = Omit<InvestmentHolding, 'holding_id' | 'account_i
 export interface Account {
     account_id: string;
     account_name?: string;
-    account_type: string;
+    account_type: typeof ACCOUNT_TYPE[keyof typeof ACCOUNT_TYPE];
     currency: string;
     status: string;
     is_interest_enabled: boolean;
@@ -96,7 +98,7 @@ export interface Transaction {
     transaction_id: number;
     account_id: string;
     amount: number;
-    transaction_type: 'Debit' | 'Credit';
+    transaction_type: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT;
     description?: string;
     category_id?: number | null;
     category?: Category;
@@ -109,20 +111,8 @@ export type CreateTransactionDTO = Omit<Transaction, 'transaction_id' | 'transac
 
 
 
-export const RuleType = {
-    CATEGORIZATION: "Categorization",
-    TRANSACTION: "Transaction"
-} as const;
-export type RuleType = typeof RuleType[keyof typeof RuleType];
-
-export const Frequency = {
-    DAILY: "Daily",
-    WEEKLY: "Weekly",
-    MONTHLY: "Monthly",
-    YEARLY: "Yearly",
-    ONE_TIME: "One Time"
-} as const;
-export type Frequency = typeof Frequency[keyof typeof Frequency];
+export type RuleType = typeof RULE_TYPE[keyof typeof RULE_TYPE];
+export type Frequency = typeof FREQUENCY[keyof typeof FREQUENCY];
 
 export interface Rule {
     rule_id: number;
@@ -140,7 +130,7 @@ export interface Rule {
     frequency?: Frequency;
     next_run_at?: string;
     transaction_amount?: number;
-    transaction_type?: 'Debit' | 'Credit' | 'Transfer';
+    transaction_type?: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT | typeof TRANSACTION_TYPE.TRANSFER;
     target_account_id?: string;
 }
 
@@ -156,20 +146,20 @@ export interface CreateRuleDTO {
     frequency?: Frequency;
     next_run_at?: string;
     transaction_amount?: number;
-    transaction_type?: 'Debit' | 'Credit' | 'Transfer';
+    transaction_type?: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT | typeof TRANSACTION_TYPE.TRANSFER;
 }
 
 // Summary API Types
 export interface CategorySummary {
     name: string;
     total_amount: number;
-    transaction_type: 'Debit' | 'Credit';
+    transaction_type: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT;
 }
 
 export interface AccountSummary {
     account_id: string;
     account_name?: string;
-    account_type: string;
+    account_type: typeof ACCOUNT_TYPE[keyof typeof ACCOUNT_TYPE];
     currency: string;
     categories: CategorySummary[];
 }

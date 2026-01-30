@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import type { Transaction } from '../types';
-import Modal from '../components/Modal';
-import TransactionForm from '../components/TransactionForm';
-import ConfirmModal from '../components/ConfirmModal';
-import TransactionsPanel from '../components/TransactionsPanel';
+import Modal from '../components/common/Modal';
+import CreateTransactionForm from '../components/transactions/CreateTransactionForm';
+import EditTransactionForm from '../components/transactions/EditTransactionForm';
+import ConfirmModal from '../components/common/ConfirmModal';
+import TransactionsPanel from '../components/transactions/TransactionsPanel';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchTransactions, deleteTransaction, setFilters } from '../store/slices/transactionsSlice';
@@ -13,7 +14,7 @@ import { fetchCategories } from '../store/slices/categoriesSlice';
 import { openModal, closeModal as closeReduxModal } from '../store/slices/uiSlice';
 import type { RootState } from '../store';
 
-export default function AllTransactions() {
+const AllTransactions = () => {
     const dispatch = useAppDispatch();
     const isModalOpen = useAppSelector((state: RootState) => state.ui.modals['transactionAction']);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -145,11 +146,18 @@ export default function AllTransactions() {
             />
 
             <Modal isOpen={isModalOpen} onClose={closeModal} title={editingTransaction ? "Edit Transaction" : "New Transaction"}>
-                <TransactionForm
-                    transactionToEdit={editingTransaction}
-                    onSuccess={closeModal}
-                    onCancel={closeModal}
-                />
+                {editingTransaction ? (
+                    <EditTransactionForm
+                        transaction={editingTransaction}
+                        onSuccess={closeModal}
+                        onCancel={closeModal}
+                    />
+                ) : (
+                    <CreateTransactionForm
+                        onSuccess={closeModal}
+                        onCancel={closeModal}
+                    />
+                )}
             </Modal>
 
             <ConfirmModal
@@ -163,3 +171,5 @@ export default function AllTransactions() {
         </div>
     );
 }
+
+export default AllTransactions;

@@ -118,6 +118,7 @@ def read_holding(
     return holding
 
 @router.put("/{holding_id}", response_model=InvestmentHoldingRead)
+@router.patch("/{holding_id}", response_model=InvestmentHoldingRead)
 def update_holding(
     holding_id: int,
     holding_in: InvestmentHoldingCreate,

@@ -1,18 +1,20 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import Navbar from './components/Navbar';
+import Navbar from './components/layout/Navbar';
 import Accounts from './pages/Accounts';
 import AccountDetails from './pages/AccountDetails';
 import AllTransactions from './pages/AllTransactions';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import Portfolio from './pages/Portfolio';
-import ErrorBoundary from './components/ErrorBoundary';
+import Assistant from './pages/Assistant';
+import NotFound from './pages/NotFound';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 import { AuthProvider } from './context/AuthContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute from './components/common/ProtectedRoute';
 
 function App() {
   return (
@@ -81,6 +83,28 @@ function App() {
                   <>
                     <Navbar />
                     <Portfolio />
+                  </>
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+            <Route path="/assistant" element={
+              <ProtectedRoute>
+                <ErrorBoundary>
+                  <>
+                    <Navbar />
+                    <Assistant />
+                  </>
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+
+            {/* 404 Route */}
+            <Route path="*" element={
+              <ProtectedRoute>
+                <ErrorBoundary>
+                  <>
+                    <Navbar />
+                    <NotFound />
                   </>
                 </ErrorBoundary>
               </ProtectedRoute>

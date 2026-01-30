@@ -9,8 +9,8 @@ from sqlmodel import Field, SQLModel
 
 class TransactionType(str, Enum):
     """Transaction type enumeration."""
-    DEBIT = "Debit"
-    CREDIT = "Credit"
+    DEBIT = "DEBIT"
+    CREDIT = "CREDIT"
 
 
 class Transaction(SQLModel, table=True):

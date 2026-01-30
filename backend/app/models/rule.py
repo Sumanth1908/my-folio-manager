@@ -10,15 +10,15 @@ from app.models.transaction import TransactionType
 
 
 class RuleType(str, Enum):
-    CATEGORIZATION = "Categorization"
-    TRANSACTION = "Transaction"
+    CATEGORIZATION = "CATEGORIZATION"
+    TRANSACTION = "TRANSACTION"
 
 class Frequency(str, Enum):
-    DAILY = "Daily"
-    WEEKLY = "Weekly"
-    MONTHLY = "Monthly"
-    YEARLY = "Yearly"
-    ONE_TIME = "One Time"
+    DAILY = "DAILY"
+    WEEKLY = "WEEKLY"
+    MONTHLY = "MONTHLY"
+    YEARLY = "YEARLY"
+    ONE_TIME = "ONE_TIME"
 
 class Rule(SQLModel, table=True):
     """Rule model for account-based automations."""
@@ -42,5 +42,4 @@ class Rule(SQLModel, table=True):
     transaction_amount: Optional[Decimal] = Field(default=None, max_digits=15, decimal_places=2)
     transaction_type: Optional[TransactionType] = None
     target_account_id: Optional[str] = Field(default=None, sa_column=Column(String(36), ForeignKey("accounts.account_id", ondelete="CASCADE"), nullable=True))
-    
     is_active: bool = Field(default=True)

@@ -56,6 +56,7 @@ def read_rules(
 
 
 @router.put("/{rule_id}", response_model=RuleRead)
+@router.patch("/{rule_id}", response_model=RuleRead)
 def update_rule(
     rule_id: int, 
     rule_update: RuleUpdate, 

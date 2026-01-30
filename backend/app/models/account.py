@@ -8,10 +8,10 @@ from sqlmodel import Field, SQLModel
 
 class AccountType(str, Enum):
     """Account type enumeration."""
-    SAVINGS = "Savings"
-    INVESTMENT = "Investment"
-    LOAN = "Loan"
-    FIXED_DEPOSIT = "Fixed Deposit"
+    SAVINGS = "SAVINGS"
+    INVESTMENT = "INVESTMENT"
+    LOAN = "LOAN"
+    FIXED_DEPOSIT = "FIXED_DEPOSIT"
 
 class Account(SQLModel, table=True):
     """Base Account model corresponding to 'accounts' table."""

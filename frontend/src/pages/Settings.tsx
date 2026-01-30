@@ -2,25 +2,25 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Trash2, User, Layers, Settings as SettingsIcon, Tag, Plus } from 'lucide-react';
 import { handleApiError } from '../api';
-import Modal from '../components/Modal';
+import Modal from '../components/common/Modal';
 import { useAuth } from '../context/AuthContext';
-import ConfirmModal from '../components/ConfirmModal';
-import { PreferencesSettings } from '../components/PreferencesSettings';
+import ConfirmModal from '../components/common/ConfirmModal';
+import { PreferencesSettings } from '../components/settings/PreferencesSettings';
+import CategoryForm from '../components/settings/CategoryForm';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { fetchCategories, createCategory, deleteCategory } from '../store/slices/categoriesSlice';
+import { fetchCategories, deleteCategory } from '../store/slices/categoriesSlice';
 import type { RootState } from '../store';
 
-export default function Settings() {
+const Settings = () => {
     const { user } = useAuth();
     const dispatch = useAppDispatch();
     const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'preferences'>('categories');
 
     // Category State
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-    const [newCategoryName, setNewCategoryName] = useState('');
     const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
 
     const { items: categories, loading: isLoading } = useAppSelector((state: RootState) => state.categories);
@@ -28,17 +28,6 @@ export default function Settings() {
     useEffect(() => {
         dispatch(fetchCategories());
     }, [dispatch]);
-
-    const handleCreateCategory = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            await dispatch(createCategory({ name: newCategoryName })).unwrap();
-            toast.success('Category created successfully!');
-            closeCategoryModal();
-        } catch (err) {
-            toast.error(handleApiError(err, 'Failed to create category'));
-        }
-    };
 
     const handleDeleteCategory = async () => {
         if (!categoryToDelete) return;
@@ -53,7 +42,6 @@ export default function Settings() {
 
     const closeCategoryModal = () => {
         setIsCategoryModalOpen(false);
-        setNewCategoryName('');
     };
 
     return (
@@ -192,35 +180,7 @@ export default function Settings() {
             </div>
 
             <Modal isOpen={isCategoryModalOpen} onClose={closeCategoryModal} title="New Category">
-                <form onSubmit={handleCreateCategory} className="space-y-6">
-                    <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Category Identifier</label>
-                        <input
-                            type="text"
-                            placeholder="e.g. Wellness, Exploration"
-                            value={newCategoryName}
-                            onChange={(e) => setNewCategoryName(e.target.value)}
-                            className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none transition text-foreground placeholder:text-muted-foreground/30 font-bold"
-                            autoFocus
-                        />
-                    </div>
-
-                    <div className="pt-6 flex justify-end gap-3 border-t border-border/50">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={closeCategoryModal}
-                        >
-                            Dismiss
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={!newCategoryName || isLoading}
-                        >
-                            {isLoading ? 'Propagating...' : 'Map Category'}
-                        </Button>
-                    </div>
-                </form>
+                <CategoryForm onSuccess={closeCategoryModal} onCancel={closeCategoryModal} />
             </Modal>
 
             <ConfirmModal
@@ -234,3 +194,5 @@ export default function Settings() {
         </div>
     );
 }
+
+export default Settings;

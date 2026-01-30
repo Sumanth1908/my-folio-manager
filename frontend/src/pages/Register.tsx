@@ -15,7 +15,7 @@ export default function Register() {
         e.preventDefault();
         try {
             await register(email, password, fullName);
-            navigate('/dashboard');
+            navigate('/');
         } catch (error) {
             // Error handled in AuthContext
         }

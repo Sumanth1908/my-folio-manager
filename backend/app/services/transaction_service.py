@@ -71,7 +71,7 @@ def create_transfer_core(session: Session, transfer: TransferRequest) -> dict:
         currency=from_account.currency,
         description=f"Transfer to {to_account.account_name or 'Account'}: {transfer.description or ''}",
         category_id=transfer.category_id,
-        transaction_date=datetime.now()
+        transaction_date=transfer.transaction_date or datetime.now()
     )
 
     # Create Credit to destination
@@ -82,7 +82,7 @@ def create_transfer_core(session: Session, transfer: TransferRequest) -> dict:
         currency=to_account.currency,
         description=f"Transfer from {from_account.account_name or 'Account'}: {transfer.description or ''}",
         category_id=transfer.category_id,
-        transaction_date=datetime.now()
+        transaction_date=transfer.transaction_date or datetime.now()
     )
 
     session.add(debit_tx)
