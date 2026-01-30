@@ -1,7 +1,6 @@
 import { Wand2, Play, Power, Pencil, Trash2 } from 'lucide-react';
 import type { Rule } from '../../types';
 import { Button } from '../ui/Button';
-import { Card } from '../ui/Card';
 import { cn } from '../../lib/utils';
 import LoadingSpinner from '../LoadingSpinner';
 
@@ -13,7 +12,6 @@ interface AccountRulesProps {
     onToggle: (rule: Rule) => void;
     onEdit: (rule: Rule) => void;
     onDelete: (id: number) => void;
-    onNew: () => void;
     isExecuting?: boolean;
 }
 
@@ -25,7 +23,6 @@ export default function AccountRules({
     onToggle,
     onEdit,
     onDelete,
-    onNew,
     isExecuting = false
 }: AccountRulesProps) {
     return (

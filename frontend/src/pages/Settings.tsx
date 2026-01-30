@@ -1,9 +1,7 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Trash2, User, Layers, Settings as SettingsIcon, Tag, Plus } from 'lucide-react';
-import api, { handleApiError } from '../api';
-import type { Category } from '../types';
+import { handleApiError } from '../api';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/ConfirmModal';
@@ -11,11 +9,13 @@ import { PreferencesSettings } from '../components/PreferencesSettings';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
-
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { fetchCategories, createCategory, deleteCategory } from '../store/slices/categoriesSlice';
+import type { RootState } from '../store';
 
 export default function Settings() {
     const { user } = useAuth();
-    const queryClient = useQueryClient();
+    const dispatch = useAppDispatch();
     const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'preferences'>('categories');
 
     // Category State
@@ -23,52 +23,32 @@ export default function Settings() {
     const [newCategoryName, setNewCategoryName] = useState('');
     const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
 
-    const { data: categories, isLoading } = useQuery<Category[]>({
-        queryKey: ['categories'],
-        queryFn: async () => {
-            const res = await api.get('/categories/');
-            return res.data;
-        }
-    });
+    const { items: categories, loading: isLoading } = useAppSelector((state: RootState) => state.categories);
 
-    const createCategoryMutation = useMutation({
-        mutationFn: async (data: { name: string }) => {
-            await api.post('/categories/', data);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['categories'] });
-            closeCategoryModal();
-        }
-    });
-
-    const deleteCategoryMutation = useMutation({
-        mutationFn: async (id: number) => {
-            await api.delete(`/categories/${id}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['categories'] });
-            setCategoryToDelete(null);
-        }
-    });
+    useEffect(() => {
+        dispatch(fetchCategories());
+    }, [dispatch]);
 
     const handleCreateCategory = async (e: React.FormEvent) => {
         e.preventDefault();
-        const promise = createCategoryMutation.mutateAsync({ name: newCategoryName });
-        await toast.promise(promise, {
-            loading: 'Creating category...',
-            success: 'Category created successfully!',
-            error: (err) => handleApiError(err, 'Failed to create category')
-        });
+        try {
+            await dispatch(createCategory({ name: newCategoryName })).unwrap();
+            toast.success('Category created successfully!');
+            closeCategoryModal();
+        } catch (err) {
+            toast.error(handleApiError(err, 'Failed to create category'));
+        }
     };
 
     const handleDeleteCategory = async () => {
         if (!categoryToDelete) return;
-        const promise = deleteCategoryMutation.mutateAsync(categoryToDelete);
-        await toast.promise(promise, {
-            loading: 'Deleting category...',
-            success: 'Category deleted successfully!',
-            error: (err) => handleApiError(err, 'Failed to delete category')
-        });
+        try {
+            await dispatch(deleteCategory(categoryToDelete)).unwrap();
+            toast.success('Category deleted successfully!');
+            setCategoryToDelete(null);
+        } catch (err) {
+            toast.error(handleApiError(err, 'Failed to delete category'));
+        }
     };
 
     const closeCategoryModal = () => {
@@ -235,9 +215,9 @@ export default function Settings() {
                         </Button>
                         <Button
                             type="submit"
-                            disabled={!newCategoryName || createCategoryMutation.isPending}
+                            disabled={!newCategoryName || isLoading}
                         >
-                            {createCategoryMutation.isPending ? 'Propagating...' : 'Map Category'}
+                            {isLoading ? 'Propagating...' : 'Map Category'}
                         </Button>
                     </div>
                 </form>
@@ -250,7 +230,6 @@ export default function Settings() {
                 message="Are you sure you want to delete this category? Transactions using this category may obtain a NULL category."
                 variant="danger"
                 onConfirm={handleDeleteCategory}
-                isLoading={deleteCategoryMutation.isPending}
             />
         </div>
     );

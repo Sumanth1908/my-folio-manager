@@ -1,37 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { ArrowLeft } from 'lucide-react';
-import api from '../api';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { Transaction, Rule } from '../types';
 import Modal from '../components/Modal';
 import TransactionForm from '../components/TransactionForm';
 import RuleForm from '../components/RuleForm';
-import { useTransactions } from '../hooks/useTransactions';
-import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmModal from '../components/ConfirmModal';
-import { useCurrencies } from '../hooks/useCurrencies';
 import AccountInfoCard from '../components/account/AccountInfoCard';
 import AccountActivityPanel from '../components/account/AccountActivityPanel';
 import AccountTypeDetails from '../components/account/AccountTypeDetails';
 import AccountEditForm from '../components/account/AccountEditForm';
 import { Button } from '../components/ui/Button';
-
-
-// ... (inside the component)
-
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { type RootState } from '../store';
+import { openModal, closeModal as closeReduxModal } from '../store/slices/uiSlice';
+import { fetchTransactions, deleteTransaction } from '../store/slices/transactionsSlice';
+import { fetchRules, deleteRule, executeRule, updateRule } from '../store/slices/rulesSlice';
+import { fetchAccounts, deleteAccount } from '../store/slices/accountsSlice';
+import { fetchCurrencies } from '../store/slices/currenciesSlice';
+import { fetchSettings } from '../store/slices/settingsSlice';
+import { fetchRates } from '../store/slices/converterSlice';
 
 export default function AccountDetails() {
-    const { id } = useParams<{ id: string }>();
-    const accountId = id || null;
+    const { id: accountId } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
+    const dispatch = useAppDispatch();
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const isModalOpen = useAppSelector((state: RootState) => state.ui.modals['accountAction']);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [modalType, setModalType] = useState<'transaction' | 'rule' | 'edit-account'>('transaction');
     const [editingRule, setEditingRule] = useState<Rule | null>(null);
+
+    const {
+        items: transactions,
+        loading: isTransactionsLoading,
+        loadingMore: isFetchingNextPage,
+        hasNextPage
+    } = useAppSelector((state: RootState) => state.transactions);
+    const { items: rules, loading: isRulesLoading } = useAppSelector((state: RootState) => state.rules);
+    const { items: accounts, loading: isAccountsLoading } = useAppSelector((state: RootState) => state.accounts);
+    const { items: currencies } = useAppSelector((state: RootState) => state.currencies);
+
+    const account = accounts?.find(a => a.account_id === accountId);
 
     // Confirm Modal State
     const [confirmModal, setConfirmModal] = useState<{
@@ -48,107 +59,28 @@ export default function AccountDetails() {
         variant: 'primary'
     });
 
-    const { data: account, isLoading: isAccountLoading, error: accountError } = useQuery({
-        queryKey: ['account', accountId],
-        queryFn: async () => {
-            if (!accountId) return null;
-            const res = await api.get(`/accounts/${accountId}`);
-            return res.data;
-        },
-        enabled: !!accountId
-    });
-
-    const { data: currencies } = useCurrencies();
-
-    const { data: rules, isLoading: isRulesLoading } = useQuery<Rule[]>({
-        queryKey: ['rules', accountId],
-        queryFn: async () => {
-            if (!accountId) return [];
-            const res = await api.get(`/rules/?account_id=${accountId}`);
-            return res.data;
-        },
-        enabled: !!accountId
-    });
-
-    const {
-        data: transactionsData,
-        isLoading: isTransactionsLoading,
-        fetchNextPage,
-        hasNextPage,
-        isFetchingNextPage
-    } = useTransactions({ accountId });
-
-    const deleteTransactionMutation = useMutation({
-        mutationFn: async (id: number) => {
-            await api.delete(`/transactions/${id}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['transactions', accountId] });
-            queryClient.invalidateQueries({ queryKey: ['transactions', 'all'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
-            queryClient.invalidateQueries({ queryKey: ['account', accountId] });
+    useEffect(() => {
+        if (accountId) {
+            dispatch(fetchTransactions({ accountId }));
+            dispatch(fetchRules(accountId));
+            if (accounts.length === 0) {
+                dispatch(fetchAccounts());
+            }
+            dispatch(fetchCurrencies());
+            dispatch(fetchSettings());
         }
-    });
+    }, [dispatch, accountId, accounts.length]);
 
-    const deleteAccountMutation = useMutation({
-        mutationFn: async () => {
-            if (!accountId) return;
-            await api.delete(`/accounts/${accountId}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
-            navigate('/accounts');
+    // Fetch rates when settings are loaded and default currency is available
+    const { data: settings } = useAppSelector((state: RootState) => state.settings);
+    useEffect(() => {
+        if (settings?.default_currency) {
+            dispatch(fetchRates(settings.default_currency));
         }
-    });
-
-    const executeRuleMutation = useMutation({
-        mutationFn: async (ruleId: number) => {
-            await api.post(`/rules/${ruleId}/execute`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['rules', accountId] });
-            queryClient.invalidateQueries({ queryKey: ['transactions', accountId] });
-            queryClient.invalidateQueries({ queryKey: ['transactions', 'all'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
-            queryClient.invalidateQueries({ queryKey: ['account', accountId] });
-            toast.success('Rule executed successfully');
-        },
-        onError: (err) => {
-            console.error("Failed to execute rule:", err);
-            toast.error('Failed to execute rule');
-        }
-    });
-
-    const deleteRuleMutation = useMutation({
-        mutationFn: async (ruleId: number) => {
-            await api.delete(`/rules/${ruleId}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['rules', accountId] });
-            toast.success('Rule deleted');
-            closeConfirmModal();
-        },
-        onError: () => toast.error('Failed to delete rule')
-    });
-
-    const toggleRuleMutation = useMutation({
-        mutationFn: async (rule: Rule) => {
-            await api.put(`/rules/${rule.rule_id}`, { is_active: !rule.is_active });
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['rules', accountId] });
-            toast.success('Rule updated');
-        },
-        onError: () => toast.error('Failed to update rule')
-    });
-
-    const transactions = transactionsData?.pages.flatMap(page => page.items) || [];
+    }, [dispatch, settings?.default_currency]);
 
     const closeModal = () => {
-        setIsModalOpen(false);
+        dispatch(closeReduxModal('accountAction'));
         setEditingTransaction(null);
         setEditingRule(null);
     };
@@ -160,27 +92,33 @@ export default function AccountDetails() {
     const startEditing = (tx: Transaction) => {
         setEditingTransaction(tx);
         setModalType('transaction');
-        setIsModalOpen(true);
+        dispatch(openModal('accountAction'));
     };
 
     const handleDeleteAccount = async () => {
+        if (!accountId) return;
         closeConfirmModal();
-        const promise = deleteAccountMutation.mutateAsync();
-        await toast.promise(promise, {
-            loading: 'Deleting account...',
-            success: 'Account deleted successfully',
-            error: 'Failed to delete account'
-        });
+        try {
+            await dispatch(deleteAccount(accountId)).unwrap();
+            toast.success('Account deleted successfully');
+            navigate('/accounts');
+        } catch (error) {
+            toast.error('Failed to delete account');
+        }
     };
 
     const handleDeleteTransaction = async (id: number) => {
         closeConfirmModal();
-        const promise = deleteTransactionMutation.mutateAsync(id);
-        await toast.promise(promise, {
-            loading: 'Deleting transaction...',
-            success: 'Transaction deleted',
-            error: 'Failed to delete transaction'
-        });
+        try {
+            await dispatch(deleteTransaction(id)).unwrap();
+            toast.success('Transaction deleted');
+            if (accountId) {
+                dispatch(fetchTransactions({ accountId }));
+                dispatch(fetchAccounts()); // Refresh balances
+            }
+        } catch (error) {
+            toast.error('Failed to delete transaction');
+        }
     };
 
     const handleDeleteAccountConfirm = () => {
@@ -215,42 +153,58 @@ export default function AccountDetails() {
 
     const handleDeleteRule = async (id: number) => {
         closeConfirmModal();
-        const promise = deleteRuleMutation.mutateAsync(id);
-        await toast.promise(promise, {
-            loading: 'Deleting rule...',
-            success: 'Rule deleted',
-            error: 'Failed to delete rule'
-        });
+        try {
+            await dispatch(deleteRule({ id, accountId })).unwrap();
+            toast.success('Rule deleted');
+        } catch (error) {
+            toast.error('Failed to delete rule');
+        }
     };
 
     const handleExecuteRule = async (ruleId: number) => {
-        const promise = executeRuleMutation.mutateAsync(ruleId);
-        await toast.promise(promise, {
-            loading: 'Executing rule...',
-            success: 'Rule executed successfully',
-            error: (err: any) => err.response?.data?.detail || 'Failed to execute rule'
-        });
+        try {
+            await dispatch(executeRule({ id: ruleId, accountId })).unwrap();
+            toast.success('Rule executed successfully');
+            if (accountId) {
+                dispatch(fetchTransactions({ accountId }));
+                dispatch(fetchAccounts());
+            }
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to execute rule');
+        }
     };
 
     const handleToggleRule = async (rule: Rule) => {
-        const promise = toggleRuleMutation.mutateAsync(rule);
-        await toast.promise(promise, {
-            loading: rule.is_active ? 'Disabling rule...' : 'Enabling rule...',
-            success: 'Rule updated',
-            error: 'Failed to update rule'
-        });
+        try {
+            await dispatch(updateRule({ id: rule.rule_id, data: { is_active: !rule.is_active }, accountId })).unwrap();
+            toast.success('Rule updated');
+        } catch (err) {
+            toast.error('Failed to update rule');
+        }
     };
 
     const startEditingRule = (rule: Rule) => {
         setEditingRule(rule);
         setModalType('rule');
-        setIsModalOpen(true);
+        dispatch(openModal('accountAction'));
+    };
+
+    const handleLoadMore = () => {
+        if (!isFetchingNextPage && !isTransactionsLoading && hasNextPage) {
+            const nextPage = Math.floor(transactions.length / 20) + 1;
+            dispatch(fetchTransactions({
+                accountId,
+                page: nextPage,
+                append: true
+            }));
+        }
     };
 
     const getBalance = () => {
         if (!transactions) return 0;
         return transactions.reduce((balance: number, tx: Transaction) => {
-            return tx.transaction_type === 'Credit' ? balance + tx.amount : balance - tx.amount;
+            const amount = Number(tx.amount || 0);
+            return tx.transaction_type === 'Credit' ? balance + amount : balance - amount;
         }, 0);
     };
 
@@ -259,27 +213,28 @@ export default function AccountDetails() {
         return currencies.find(c => c.code === account.currency)?.symbol || '$';
     };
 
-    if (isAccountLoading) {
+    if (isAccountsLoading && !account) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[50vh]">
-                <LoadingSpinner size="large" />
-                <p className="mt-4 text-gray-500">Loading account details...</p>
+                <Loader2 className="animate-spin text-primary" size={48} />
+                <p className="mt-4 text-muted-foreground">Loading account details...</p>
             </div>
         );
     }
 
-    if (accountError || !account) {
+    if (!account && !isAccountsLoading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[50vh]">
-                <div className="text-red-500 bg-red-50 p-4 rounded-xl mb-4">
+                <div className="text-red-500 bg-red-500/10 p-4 rounded-xl mb-4 font-bold border border-red-500/20">
                     Account not found or failed to load.
                 </div>
-                <button
+                <Button
+                    variant="ghost"
                     onClick={() => navigate('/accounts')}
-                    className="text-blue-600 hover:underline flex items-center gap-2"
+                    className="gap-2"
                 >
                     <ArrowLeft size={16} /> Return to Accounts
-                </button>
+                </Button>
             </div>
         );
     }
@@ -300,18 +255,18 @@ export default function AccountDetails() {
 
 
             <AccountInfoCard
-                account={account}
+                account={account!}
                 balance={balance}
                 currencies={currencies}
                 onDelete={handleDeleteAccountConfirm}
                 onEdit={() => {
                     setModalType('edit-account');
-                    setIsModalOpen(true);
+                    dispatch(openModal('accountAction'));
                 }}
             />
 
 
-            <AccountTypeDetails account={account} symbol={symbol} />
+            <AccountTypeDetails account={account!} symbol={symbol} />
 
             <AccountActivityPanel
                 transactions={transactions}
@@ -324,7 +279,7 @@ export default function AccountDetails() {
                 onNewTransaction={() => {
                     setEditingTransaction(null);
                     setModalType('transaction');
-                    setIsModalOpen(true);
+                    dispatch(openModal('accountAction'));
                 }}
                 onExecuteRule={handleExecuteRule}
                 onToggleRule={handleToggleRule}
@@ -334,10 +289,10 @@ export default function AccountDetails() {
                     setEditingTransaction(null);
                     setEditingRule(null);
                     setModalType('rule');
-                    setIsModalOpen(true);
+                    dispatch(openModal('accountAction'));
                 }}
-                isExecutingRule={executeRuleMutation.isPending}
-                onLoadMore={fetchNextPage}
+                isExecutingRule={isRulesLoading}
+                onLoadMore={handleLoadMore}
                 hasMore={hasNextPage}
                 isFetchingNextPage={isFetchingNextPage}
             />
@@ -348,7 +303,7 @@ export default function AccountDetails() {
                     modalType === 'transaction'
                         ? (editingTransaction ? "Edit Transaction" : "New Transaction")
                         : modalType === 'rule'
-                            ? "New Rule"
+                            ? (editingRule ? "Edit Rule" : "New Rule")
                             : "Edit Account Details"
                 }
             >
@@ -368,7 +323,7 @@ export default function AccountDetails() {
                     />
                 ) : (
                     <AccountEditForm
-                        account={account}
+                        account={account!}
                         onSuccess={closeModal}
                         onCancel={closeModal}
                     />
@@ -382,7 +337,7 @@ export default function AccountDetails() {
                 title={confirmModal.title}
                 message={confirmModal.message}
                 variant={confirmModal.variant}
-                isLoading={deleteTransactionMutation.isPending || deleteAccountMutation.isPending || deleteRuleMutation.isPending}
+                isLoading={false} // Handled by individual thunks if needed
             />
         </div>
     );

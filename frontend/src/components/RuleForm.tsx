@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import api, { handleApiError } from '../api';
-import { type Category, type CreateRuleDTO, type Rule, RuleType, Frequency, type Account } from '../types';
+import { type Rule, RuleType, Frequency } from '../types';
 import { Button } from './ui/Button';
 import { cn } from '../lib/utils';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { type RootState } from '../store';
+import { fetchCategories } from '../store/slices/categoriesSlice';
+import { fetchAccounts } from '../store/slices/accountsSlice';
+import { createRule, updateRule } from '../store/slices/rulesSlice';
 
 interface RuleFormProps {
     accountId: string;
@@ -14,7 +17,10 @@ interface RuleFormProps {
 }
 
 export default function RuleForm({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps) {
-    const queryClient = useQueryClient();
+    const dispatch = useAppDispatch();
+
+    const { items: categories } = useAppSelector((state: RootState) => state.categories);
+    const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
 
     // Common State
     const [name, setName] = useState('');
@@ -52,54 +58,18 @@ export default function RuleForm({ accountId, ruleToEdit, onSuccess, onCancel }:
                 setCategoryId(ruleToEdit.category_id || '');
                 setTargetAccountId(ruleToEdit.target_account_id || '');
             }
-        } else {
-            // Reset logic if needed or handled by key/unmount
         }
     }, [ruleToEdit]);
 
-    // Fetch Categories
-    const { data: categories } = useQuery<Category[]>({
-        queryKey: ['categories'],
-        queryFn: async () => {
-            const res = await api.get('/categories/');
-            return res.data;
-        }
-    });
-
-    // Fetch Accounts (for Transfer)
-    const { data: accounts } = useQuery<Account[]>({
-        queryKey: ['accounts'],
-        queryFn: async () => {
-            const res = await api.get('/accounts/');
-            return res.data;
-        },
-        enabled: ruleType === RuleType.TRANSACTION && txType === 'Transfer'
-    });
-
-    const createRuleMutation = useMutation({
-        mutationFn: async (data: CreateRuleDTO) => {
-            await api.post('/rules/', data);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['rules', accountId] });
-            onSuccess();
-        }
-    });
-
-    const updateRuleMutation = useMutation({
-        mutationFn: async (data: any) => {
-            await api.put(`/rules/${ruleToEdit!.rule_id}`, data);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['rules', accountId] });
-            onSuccess();
-        }
-    });
+    useEffect(() => {
+        if (categories.length === 0) dispatch(fetchCategories());
+        if (accounts.length === 0) dispatch(fetchAccounts());
+    }, [dispatch, categories.length, accounts.length]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const payload: any = {
+        const data: any = {
             account_id: accountId,
             name,
             rule_type: ruleType,
@@ -108,27 +78,30 @@ export default function RuleForm({ accountId, ruleToEdit, onSuccess, onCancel }:
 
         if (ruleType === RuleType.CATEGORIZATION) {
             if (!descriptionContains || !categoryId) return;
-            payload.description_contains = descriptionContains;
-            payload.category_id = Number(categoryId);
+            data.description_contains = descriptionContains;
+            data.category_id = Number(categoryId);
         } else {
             if (!amount || !nextRunAt) return;
-            payload.frequency = frequency;
-            payload.transaction_amount = parseFloat(amount);
-            payload.transaction_type = txType;
-            payload.next_run_at = new Date(nextRunAt).toISOString();
-            if (categoryId) payload.category_id = Number(categoryId);
-            if (txType === 'Transfer') payload.target_account_id = targetAccountId;
+            data.frequency = frequency;
+            data.transaction_amount = parseFloat(amount);
+            data.transaction_type = txType;
+            data.next_run_at = new Date(nextRunAt).toISOString();
+            if (categoryId) data.category_id = Number(categoryId);
+            if (txType === 'Transfer') data.target_account_id = targetAccountId;
         }
 
-        const promise = ruleToEdit
-            ? updateRuleMutation.mutateAsync(payload)
-            : createRuleMutation.mutateAsync(payload);
-
-        await toast.promise(promise, {
-            loading: ruleToEdit ? 'Updating rule...' : 'Creating rule...',
-            success: () => ruleToEdit ? 'Rule updated successfully!' : 'Rule created successfully!',
-            error: (err) => handleApiError(err, ruleToEdit ? 'Failed to update rule' : 'Failed to create rule')
-        });
+        try {
+            if (ruleToEdit) {
+                await dispatch(updateRule({ id: ruleToEdit.rule_id, data, accountId })).unwrap();
+                toast.success('Rule updated successfully!');
+            } else {
+                await dispatch(createRule({ ...data, account_id: accountId })).unwrap();
+                toast.success('Rule created successfully!');
+            }
+            onSuccess();
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to save rule');
+        }
     };
 
     return (
@@ -199,7 +172,7 @@ export default function RuleForm({ accountId, ruleToEdit, onSuccess, onCancel }:
                             required
                         >
                             <option value="">Select Category</option>
-                            {categories?.map(cat => (
+                            {categories.map(cat => (
                                 <option key={cat.category_id} value={cat.category_id}>{cat.name}</option>
                             ))}
                         </select>
@@ -245,7 +218,7 @@ export default function RuleForm({ accountId, ruleToEdit, onSuccess, onCancel }:
                                 required
                             >
                                 <option value="">Select Account</option>
-                                {accounts?.filter(a => a.account_id !== accountId).map(acc => (
+                                {accounts.filter(a => a.account_id !== accountId).map(acc => (
                                     <option key={acc.account_id} value={acc.account_id}>{acc.account_name}</option>
                                 ))}
                             </select>
@@ -285,7 +258,7 @@ export default function RuleForm({ accountId, ruleToEdit, onSuccess, onCancel }:
                             className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold appearance-none cursor-pointer"
                         >
                             <option value="">N/A</option>
-                            {categories?.map(cat => (
+                            {categories.map(cat => (
                                 <option key={cat.category_id} value={cat.category_id}>{cat.name}</option>
                             ))}
                         </select>
@@ -314,9 +287,8 @@ export default function RuleForm({ accountId, ruleToEdit, onSuccess, onCancel }:
                 </Button>
                 <Button
                     type="submit"
-                    disabled={createRuleMutation.isPending || updateRuleMutation.isPending || !name}
                 >
-                    {createRuleMutation.isPending || updateRuleMutation.isPending ? 'Syncing...' : 'Save Configuration'}
+                    Save Configuration
                 </Button>
             </div>
         </form>

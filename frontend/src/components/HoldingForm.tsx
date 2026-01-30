@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import api from '../api';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { createHolding } from '../store/slices/holdingsSlice';
+import { type RootState } from '../store';
 
 interface HoldingFormProps {
     accountId: string;
@@ -13,27 +14,15 @@ interface HoldingFormProps {
 }
 
 export default function HoldingForm({ accountId, currencySymbol, currencyCode, prefill, onSuccess, onCancel }: HoldingFormProps) {
-    const queryClient = useQueryClient();
+    const dispatch = useAppDispatch();
+    const { loading: isHoldingsLoading } = useAppSelector((state: RootState) => state.holdings);
 
     const [symbol, setSymbol] = useState(prefill?.symbol || '');
     const [name, setName] = useState(prefill?.name || '');
     const [quantity, setQuantity] = useState('');
     const [price, setPrice] = useState('');
 
-
-    const mutation = useMutation({
-        mutationFn: async (data: any) => {
-            await api.post('/holdings/', data);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['account', accountId] });
-            toast.success('Purchase confirmed');
-            onSuccess();
-        },
-        onError: () => toast.error('Failed to save holding')
-    });
-
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const data = {
             account_id: accountId,
@@ -43,7 +32,14 @@ export default function HoldingForm({ accountId, currencySymbol, currencyCode, p
             average_price: parseFloat(price),
             currency: currencyCode
         };
-        mutation.mutate(data);
+
+        try {
+            await dispatch(createHolding(data)).unwrap();
+            toast.success('Purchase confirmed');
+            onSuccess();
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to save holding');
+        }
     };
 
     return (
@@ -121,10 +117,10 @@ export default function HoldingForm({ accountId, currencySymbol, currencyCode, p
                 </button>
                 <button
                     type="submit"
-                    disabled={mutation.isPending}
+                    disabled={isHoldingsLoading}
                     className="flex-[2] px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition font-black shadow-lg shadow-primary/20 disabled:opacity-50"
                 >
-                    {mutation.isPending ? 'Processing...' : 'CONFIRM PURCHASE'}
+                    {isHoldingsLoading ? 'Processing...' : 'CONFIRM PURCHASE'}
                 </button>
             </div>
         </form>

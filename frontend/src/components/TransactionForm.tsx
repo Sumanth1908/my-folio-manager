@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import api, { handleApiError } from '../api';
-import type { Transaction, Account, Category, PaginatedResponse } from '../types';
+import type { Transaction } from '../types';
 import { Button } from './ui/Button';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { type RootState } from '../store';
+import { createTransaction, createTransfer, updateTransaction } from '../store/slices/transactionsSlice';
+import { fetchAccounts } from '../store/slices/accountsSlice';
+import { fetchCategories } from '../store/slices/categoriesSlice';
 
 interface TransactionFormProps {
     accountId?: string; // If provided, locks the account selection
@@ -13,7 +16,10 @@ interface TransactionFormProps {
 }
 
 export default function TransactionForm({ accountId, transactionToEdit, onSuccess, onCancel }: TransactionFormProps) {
-    const queryClient = useQueryClient();
+    const dispatch = useAppDispatch();
+
+    const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
+    const { items: categories } = useAppSelector((state: RootState) => state.categories);
 
     // Form State
     const [type, setType] = useState<'Debit' | 'Credit' | 'Transfer'>('Debit');
@@ -41,91 +47,56 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
         }
     }, [transactionToEdit, accountId]);
 
-    // Fetch Data
-    const { data: accounts } = useQuery<PaginatedResponse<Account>>({
-        queryKey: ['accounts'],
-        queryFn: async () => {
-            const res = await api.get('/accounts/', { params: { limit: 100 } });
-            return res.data;
-        }
-    });
+    useEffect(() => {
+        if (accounts.length === 0) dispatch(fetchAccounts());
+        if (categories.length === 0) dispatch(fetchCategories());
+    }, [dispatch, accounts.length, categories.length]);
 
-    const { data: categories } = useQuery<Category[]>({
-        queryKey: ['categories'],
-        queryFn: async () => {
-            const res = await api.get('/categories/');
-            return res.data;
-        }
-    });
-
-    // Mutations
-    const createTransactionMutation = useMutation({
-        mutationFn: async () => {
-            if (type === 'Transfer') {
-                return await api.post('/transactions/transfer/', {
-                    from_account_id: selectedAccountId,
-                    to_account_id: toAccountId,
-                    amount: parseFloat(amount),
-                    description,
-                    category_id: selectedCategoryId ? parseInt(selectedCategoryId) : null,
-                    transaction_date: date ? new Date(date).toISOString() : undefined
-                });
-            } else {
-                return await api.post('/transactions/', {
-                    account_id: selectedAccountId,
-                    amount: parseFloat(amount),
-                    transaction_type: type,
-                    description,
-                    category_id: selectedCategoryId ? parseInt(selectedCategoryId) : null,
-                    transaction_date: date ? new Date(date).toISOString() : undefined
-                });
-            }
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
-            toast.success('Transaction created successfully');
-            onSuccess();
-        },
-        onError: (err) => {
-            toast.error(handleApiError(err, 'Failed to create transaction'));
-        }
-    });
-
-    const updateTransactionMutation = useMutation({
-        mutationFn: async ({ id, data }: { id: number; data: any }) => {
-            return await api.put(`/transactions/${id}`, data);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
-            toast.success('Transaction updated successfully');
-            onSuccess();
-        },
-        onError: (err) => {
-            toast.error(handleApiError(err, 'Failed to update transaction'));
-        }
-    });
-
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (transactionToEdit) {
-            updateTransactionMutation.mutate({
-                id: transactionToEdit.transaction_id,
-                data: {
-                    amount: parseFloat(amount),
-                    transaction_type: type,
-                    description,
-                    account_id: selectedAccountId,
-                    category_id: selectedCategoryId ? parseInt(selectedCategoryId) : null,
-                    transaction_date: date ? new Date(date).toISOString() : undefined
+        try {
+            if (transactionToEdit) {
+                await dispatch(updateTransaction({
+                    id: transactionToEdit.transaction_id,
+                    data: {
+                        amount: parseFloat(amount),
+                        transaction_type: type,
+                        description,
+                        account_id: selectedAccountId,
+                        category_id: selectedCategoryId ? parseInt(selectedCategoryId) : null,
+                        transaction_date: date ? new Date(date).toISOString() : undefined
+                    }
+                })).unwrap();
+                toast.success('Transaction updated successfully');
+            } else {
+                if (type === 'Transfer') {
+                    await dispatch(createTransfer({
+                        from_account_id: selectedAccountId,
+                        to_account_id: toAccountId,
+                        amount: parseFloat(amount),
+                        description,
+                        category_id: selectedCategoryId ? parseInt(selectedCategoryId) : null,
+                        transaction_date: date ? new Date(date).toISOString() : undefined
+                    })).unwrap();
+                } else {
+                    await dispatch(createTransaction({
+                        account_id: selectedAccountId,
+                        amount: parseFloat(amount),
+                        transaction_type: type,
+                        description,
+                        category_id: selectedCategoryId ? parseInt(selectedCategoryId) : null,
+                        transaction_date: date ? new Date(date).toISOString() : undefined
+                    })).unwrap();
                 }
-            });
-        } else {
-            createTransactionMutation.mutate();
+                toast.success('Transaction created successfully');
+            }
+
+            // Refresh accounts for balance updates
+            dispatch(fetchAccounts());
+            onSuccess();
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to save transaction');
         }
     };
 
@@ -158,7 +129,7 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
                             className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground disabled:opacity-50 transition"
                         >
                             <option value="">Select Account</option>
-                            {accounts?.items.map(acc => (
+                            {accounts.map(acc => (
                                 <option key={acc.account_id} value={acc.account_id}>{acc.account_name} ({acc.account_type})</option>
                             ))}
                         </select>
@@ -171,7 +142,7 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
                             className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground transition"
                         >
                             <option value="">Select Account</option>
-                            {accounts?.items.map(acc => (
+                            {accounts.map(acc => (
                                 <option key={acc.account_id} value={acc.account_id}>{acc.account_name} ({acc.account_type})</option>
                             ))}
                         </select>
@@ -187,7 +158,7 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
                         className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground disabled:opacity-50 transition"
                     >
                         <option value="">Select Account</option>
-                        {accounts?.items.map(acc => (
+                        {accounts.map(acc => (
                             <option key={acc.account_id} value={acc.account_id}>{acc.account_name} ({acc.account_type})</option>
                         ))}
                     </select>
@@ -230,7 +201,7 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
                     className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground transition"
                 >
                     <option value="">Select Category (Optional)</option>
-                    {categories?.map(category => (
+                    {categories.map(category => (
                         <option key={category.category_id} value={category.category_id}>
                             {category.name}
                         </option>
@@ -261,7 +232,7 @@ export default function TransactionForm({ accountId, transactionToEdit, onSucces
                 </Button>
                 <Button
                     type="submit"
-                    disabled={!amount || !selectedAccountId || (type === 'Transfer' && !toAccountId) || createTransactionMutation.isPending || updateTransactionMutation.isPending}
+                    disabled={!amount || !selectedAccountId || (type === 'Transfer' && !toAccountId)}
                 >
                     {transactionToEdit ? 'Update Transaction' : 'Create Transaction'}
                 </Button>

@@ -1,4 +1,3 @@
-import { Tag, Plus } from 'lucide-react';
 import { Card } from '../ui/Card';
 import InvestmentDetails from './InvestmentDetails';
 import type { Account } from '../../types';

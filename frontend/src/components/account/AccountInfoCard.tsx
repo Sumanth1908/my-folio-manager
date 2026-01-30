@@ -3,7 +3,8 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { cn } from '../../lib/utils';
 import type { Account, Currency } from '../../types';
-import { useSettings } from '../../hooks/useSettings';
+import { useAppSelector } from '../../store/hooks';
+import type { RootState } from '../../store';
 import { useExchangeRate } from '../../hooks/useExchangeRate';
 
 interface AccountInfoCardProps {
@@ -15,7 +16,7 @@ interface AccountInfoCardProps {
 }
 
 export default function AccountInfoCard({ account, balance, currencies, onDelete, onEdit }: AccountInfoCardProps) {
-    const { settings } = useSettings();
+    const { data: settings } = useAppSelector((state: RootState) => state.settings);
     const targetCurrency = settings?.default_currency;
     const currency = account.currency;
     const { convert, isEnabled: isConversionEnabled, rate, isLoading: isRateLoading } = useExchangeRate(currency, targetCurrency);

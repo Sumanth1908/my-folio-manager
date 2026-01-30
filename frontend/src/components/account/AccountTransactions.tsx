@@ -1,10 +1,12 @@
 import { Plus, Pencil, Trash2, Tag } from 'lucide-react';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useEffect } from 'react';
 import type { Transaction, Currency } from '../../types';
 import { Button } from '../ui/Button';
 import { cn } from '../../lib/utils';
 import LoadingSpinner from '../LoadingSpinner';
-import { useAccounts } from '../../hooks/useAccounts';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { fetchAccounts } from '../../store/slices/accountsSlice';
+import type { RootState } from '../../store';
 
 interface AccountTransactionsProps {
     transactions: Transaction[] | undefined;
@@ -62,7 +64,7 @@ const TransactionRow = memo(({
                 "font-black text-lg tabular-nums tracking-tighter",
                 tx.transaction_type === 'Credit' ? 'text-emerald-500' : 'text-foreground'
             )}>
-                {tx.transaction_type === 'Credit' ? '+' : '-'}{currencySymbol}{tx.amount.toFixed(2)}
+                {tx.transaction_type === 'Credit' ? '+' : '-'}{currencySymbol}{Number(tx.amount || 0).toFixed(2)}
             </span>
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {onEdit && (
@@ -101,11 +103,18 @@ const AccountTransactions = memo(({
     onDelete,
     showAccountName = false
 }: AccountTransactionsProps) => {
-    const { data: accounts } = useAccounts();
+    const dispatch = useAppDispatch();
+    const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
+
+    useEffect(() => {
+        if (showAccountName && accounts.length === 0) {
+            dispatch(fetchAccounts());
+        }
+    }, [dispatch, showAccountName, accounts.length]);
 
     const accountsMap = useMemo(() => {
         const map = new Map<string, string>();
-        accounts?.items.forEach(a => {
+        accounts.forEach(a => {
             if (a.account_id) map.set(a.account_id, a.account_name || 'Unknown Account');
         });
         return map;

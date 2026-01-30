@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Plus, Search, Filter, X } from 'lucide-react';
 import type { Transaction, Currency, Category } from '../types';
 import { Button } from './ui/Button';

@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '../../api';
 import type { Account, InvestmentHolding } from '../../types';
 import Modal from '../Modal';
 import HoldingForm from '../HoldingForm';
 import ConfirmModal from '../ConfirmModal';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { sellHolding, deleteHolding } from '../../store/slices/holdingsSlice';
+import type { RootState } from '../../store';
 
 interface InvestmentDetailsProps {
     account: Account;
@@ -14,7 +15,9 @@ interface InvestmentDetailsProps {
 }
 
 export default function InvestmentDetails({ account, symbol }: InvestmentDetailsProps) {
-    const queryClient = useQueryClient();
+    const dispatch = useAppDispatch();
+    const { loading: isHoldingsLoading } = useAppSelector((state: RootState) => state.holdings);
+
     const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
     const [buyMoreHolding, setBuyMoreHolding] = useState<{ symbol: string, name: string } | null>(null);
     const [sellingHolding, setSellingHolding] = useState<InvestmentHolding | null>(null);
@@ -22,35 +25,9 @@ export default function InvestmentDetails({ account, symbol }: InvestmentDetails
     const [sellPrice, setSellPrice] = useState('');
     const [confirmDeleteHolding, setConfirmDeleteHolding] = useState<InvestmentHolding | null>(null);
 
-    const sellHoldingMutation = useMutation({
-        mutationFn: async ({ holdingId, quantity, price }: { holdingId: number, quantity: number, price: number }) => {
-            await api.post(`/holdings/${holdingId}/sell`, { quantity, price });
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['account', account.account_id] });
-            toast.success('Sale confirmed');
-            setSellingHolding(null);
-            setSellQuantity('');
-            setSellPrice('');
-        },
-        onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to sell holding')
-    });
-
-    const deleteHoldingMutation = useMutation({
-        mutationFn: async (holdingId: number) => {
-            await api.delete(`/holdings/${holdingId}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['account', account.account_id] });
-            toast.success('Holding deleted');
-            setConfirmDeleteHolding(null);
-        },
-        onError: () => toast.error('Failed to delete holding')
-    });
-
     const holdings = account.investment_holdings || [];
-    const totalValue = holdings.reduce((sum, h) => sum + (h.quantity * (h.current_price || h.average_price)), 0);
-    const totalCost = holdings.reduce((sum, h) => sum + (h.quantity * h.average_price), 0);
+    const totalValue = holdings.reduce((sum, h) => sum + (Number(h.quantity || 0) * (Number(h.current_price || 0) || Number(h.average_price || 0))), 0);
+    const totalCost = holdings.reduce((sum, h) => sum + (Number(h.quantity || 0) * Number(h.average_price || 0)), 0);
     const totalProfit = totalValue - totalCost;
     const profitPercentage = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
 
@@ -65,14 +42,34 @@ export default function InvestmentDetails({ account, symbol }: InvestmentDetails
         setSellPrice((holding.current_price || holding.average_price).toString());
     };
 
-    const handleConfirmSell = (e: React.FormEvent) => {
+    const handleConfirmSell = async (e: React.FormEvent) => {
         e.preventDefault();
         if (sellingHolding) {
-            sellHoldingMutation.mutate({
-                holdingId: sellingHolding.holding_id,
-                quantity: parseFloat(sellQuantity),
-                price: parseFloat(sellPrice)
-            });
+            try {
+                await dispatch(sellHolding({
+                    holdingId: sellingHolding.holding_id,
+                    quantity: parseFloat(sellQuantity),
+                    price: parseFloat(sellPrice)
+                })).unwrap();
+                toast.success('Sale confirmed');
+                setSellingHolding(null);
+                setSellQuantity('');
+                setSellPrice('');
+            } catch (err: any) {
+                toast.error(err.message || 'Failed to sell holding');
+            }
+        }
+    };
+
+    const handleConfirmDelete = async () => {
+        if (confirmDeleteHolding) {
+            try {
+                await dispatch(deleteHolding(confirmDeleteHolding.holding_id)).unwrap();
+                toast.success('Holding deleted');
+                setConfirmDeleteHolding(null);
+            } catch (err: any) {
+                toast.error(err.message || 'Failed to delete holding');
+            }
         }
     };
 
@@ -134,8 +131,11 @@ export default function InvestmentDetails({ account, symbol }: InvestmentDetails
                         </thead>
                         <tbody className="divide-y divide-border">
                             {holdings.map((holding) => {
-                                const marketValue = holding.quantity * (holding.current_price || holding.average_price);
-                                const cost = holding.quantity * holding.average_price;
+                                const q = Number(holding.quantity || 0);
+                                const ap = Number(holding.average_price || 0);
+                                const cp = Number(holding.current_price || 0) || ap;
+                                const marketValue = q * cp;
+                                const cost = q * ap;
                                 const profit = marketValue - cost;
                                 const pPercentage = cost > 0 ? (profit / cost) * 100 : 0;
 
@@ -145,9 +145,9 @@ export default function InvestmentDetails({ account, symbol }: InvestmentDetails
                                             <div className="font-bold text-foreground">{holding.symbol}</div>
                                             <div className="text-xs text-muted-foreground">{holding.name}</div>
                                         </td>
-                                        <td className="px-6 py-4 text-right font-medium text-foreground">{holding.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
-                                        <td className="px-6 py-4 text-right text-muted-foreground">{symbol}{holding.average_price.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-right font-medium text-foreground">{symbol}{(holding.current_price || holding.average_price).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-right font-medium text-foreground">{q.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
+                                        <td className="px-6 py-4 text-right text-muted-foreground">{symbol}{ap.toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-right font-medium text-foreground">{symbol}{cp.toLocaleString()}</td>
                                         <td className="px-6 py-4 text-right font-bold text-foreground">{symbol}{marketValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                         <td className={`px-6 py-4 text-right font-semibold ${profit >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
                                             <div>{profit >= 0 ? '+' : '-'}{symbol}{Math.abs(profit).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
@@ -203,10 +203,7 @@ export default function InvestmentDetails({ account, symbol }: InvestmentDetails
                     currencySymbol={symbol}
                     currencyCode={account.currency}
                     prefill={buyMoreHolding || undefined}
-                    onSuccess={() => {
-                        setIsBuyModalOpen(false);
-                        queryClient.invalidateQueries({ queryKey: ['account', account.account_id] });
-                    }}
+                    onSuccess={() => setIsBuyModalOpen(false)}
                     onCancel={() => setIsBuyModalOpen(false)}
                 />
             </Modal>
@@ -264,10 +261,10 @@ export default function InvestmentDetails({ account, symbol }: InvestmentDetails
                         </button>
                         <button
                             type="submit"
-                            disabled={sellHoldingMutation.isPending}
+                            disabled={isHoldingsLoading}
                             className="flex-[2] px-6 py-3 bg-destructive text-white rounded-xl hover:bg-destructive/90 transition font-black shadow-lg shadow-destructive/20 disabled:opacity-50"
                         >
-                            {sellHoldingMutation.isPending ? 'Confirming...' : 'CONFIRM SALE'}
+                            {isHoldingsLoading ? 'Confirming...' : 'CONFIRM SALE'}
                         </button>
                     </div>
                 </form>
@@ -276,11 +273,11 @@ export default function InvestmentDetails({ account, symbol }: InvestmentDetails
             <ConfirmModal
                 isOpen={!!confirmDeleteHolding}
                 onClose={() => setConfirmDeleteHolding(null)}
-                onConfirm={() => confirmDeleteHolding && deleteHoldingMutation.mutate(confirmDeleteHolding.holding_id)}
+                onConfirm={handleConfirmDelete}
                 title="Delete Holding"
                 message={`Are you sure you want to delete your holding of ${confirmDeleteHolding?.symbol}? This cannot be undone.`}
                 variant="danger"
-                isLoading={deleteHoldingMutation.isPending}
+                isLoading={isHoldingsLoading}
             />
         </div>
     );

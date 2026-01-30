@@ -25,16 +25,19 @@ const SpendingBreakdown = memo(({ data, symbol }: SpendingBreakdownProps) => {
     const [isExpanded, setIsExpanded] = useState(true);
 
     const chartData = useMemo(() => {
-        const totalOutflow = data.reduce((acc, item) => acc + item.total_amount, 0);
+        const totalOutflow = data.reduce((acc, item) => acc + Number(item.total_amount || 0), 0);
 
         const sortedData = [...data]
-            .sort((a, b) => b.total_amount - a.total_amount)
-            .map((item, index) => ({
-                ...item,
-                value: item.total_amount,
-                percentage: (item.total_amount / totalOutflow) * 100,
-                color: COLORS[index % COLORS.length]
-            }));
+            .sort((a, b) => Number(b.total_amount || 0) - Number(a.total_amount || 0))
+            .map((item, index) => {
+                const val = Number(item.total_amount || 0);
+                return {
+                    ...item,
+                    value: val,
+                    percentage: totalOutflow > 0 ? (val / totalOutflow) * 100 : 0,
+                    color: COLORS[index % COLORS.length]
+                };
+            });
 
         return { items: sortedData, total: totalOutflow };
     }, [data]);

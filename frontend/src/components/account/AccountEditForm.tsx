@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useUpdateAccount } from '../../hooks/useAccounts';
+import { useAppDispatch } from '../../store/hooks';
+import { updateAccount } from '../../store/slices/accountsSlice';
 import type { Account } from '../../types';
 import { Button } from '../ui/Button';
 import toast from 'react-hot-toast';
@@ -11,7 +12,8 @@ interface AccountEditFormProps {
 }
 
 export default function AccountEditForm({ account, onSuccess, onCancel }: AccountEditFormProps) {
-    const updateAccount = useUpdateAccount();
+    const dispatch = useAppDispatch();
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [name, setName] = useState(account.account_name || '');
     const [status, setStatus] = useState(account.status || 'Active');
 
@@ -57,12 +59,15 @@ export default function AccountEditForm({ account, onSuccess, onCancel }: Accoun
             };
         }
 
+        setIsSubmitting(true);
         try {
-            await updateAccount.mutateAsync({ id: account.account_id, data });
+            await dispatch(updateAccount({ id: account.account_id, data })).unwrap();
             toast.success('Account updated successfully');
             onSuccess();
         } catch (error) {
             toast.error('Failed to update account');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -145,7 +150,7 @@ export default function AccountEditForm({ account, onSuccess, onCancel }: Accoun
 
             <div className="flex justify-end gap-3 pt-4">
                 <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
-                <Button type="submit" isLoading={updateAccount.isPending}>Save Changes</Button>
+                <Button type="submit" isLoading={isSubmitting}>Save Changes</Button>
             </div>
         </form>
     );

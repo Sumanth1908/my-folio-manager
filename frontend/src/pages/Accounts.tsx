@@ -1,30 +1,41 @@
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Plus, Loader2 } from 'lucide-react';
-import api, { handleApiError } from '../api';
+import { handleApiError } from '../api';
 import Modal from '../components/Modal';
-import { useAccounts } from '../hooks/useAccounts';
-import { useSummary, type SummaryTimeRange } from '../hooks/useSummary';
-import { useCurrencies } from '../hooks/useCurrencies';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import AccountSummaryPanel from '../components/AccountSummaryPanel';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import type { RootState } from '../store';
+import { openModal, closeModal as closeReduxModal } from '../store/slices/uiSlice';
+import { fetchAccounts, createAccount } from '../store/slices/accountsSlice';
+import { fetchCurrencies } from '../store/slices/currenciesSlice';
+import { fetchSummary, setSummaryTimeRange } from '../store/slices/summarySlice';
 import { cn } from '../lib/utils';
 
 const ACCOUNT_TYPES = ['Savings', 'Investment', 'Fixed Deposit', 'Loan'];
 
 export default function Accounts() {
-    const queryClient = useQueryClient();
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [timeRange, setTimeRange] = useState<SummaryTimeRange>('thisMonth');
+    const dispatch = useAppDispatch();
+    const isModalOpen = useAppSelector((state: RootState) => state.ui.modals['createAccount']);
+    const { items: accounts, loading: isAccountsLoading } = useAppSelector((state: RootState) => state.accounts);
+    const { data: summaryData, loading: isSummaryLoading, filters: summaryFilters } = useAppSelector((state: RootState) => state.summary);
+    const { items: currencies } = useAppSelector((state: RootState) => state.currencies);
 
-    // Fetch accounts and summary
-    const { data: accounts } = useAccounts();
-    const { data: summaryData, isLoading: isSummaryLoading } = useSummary({
-        timeRange,
-        accountTypes: ACCOUNT_TYPES
-    });
+    const timeRange = summaryFilters.timeRange;
+
+    useEffect(() => {
+        dispatch(fetchAccounts());
+        dispatch(fetchCurrencies());
+    }, [dispatch]);
+
+    useEffect(() => {
+        dispatch(fetchSummary({
+            timeRange,
+            accountTypes: ACCOUNT_TYPES
+        }));
+    }, [dispatch, timeRange]);
 
     // Form State
     const [newAccountName, setNewAccountName] = useState('');
@@ -59,7 +70,6 @@ export default function Accounts() {
         const R_annual = parseFloat(loanInterestRate);
         const T_months = parseFloat(loanTenure);
 
-        // Calculate EMI if P, R, T are present
         if (P && R_annual && T_months) {
             const R = R_annual / 12 / 100;
             const emi = (P * R * Math.pow(1 + R, T_months)) / (Math.pow(1 + R, T_months) - 1);
@@ -84,7 +94,6 @@ export default function Accounts() {
             const diffYears = diffDays / 365;
 
             if (diffDays > 0) {
-                // Simple Interest Formula: A = P(1 + rt)
                 const interest = P * (R / 100) * diffYears;
                 const maturity = P + interest;
                 if (!document.activeElement?.getAttribute('placeholder')?.includes('0.00')) {
@@ -93,19 +102,6 @@ export default function Accounts() {
             }
         }
     }, [fdPrincipal, fdInterestRate, fdStartDate, fdMaturityDate, accountType]);
-
-    const { data: currencies } = useCurrencies();
-
-    const createAccountMutation = useMutation({
-        mutationFn: async (data: any) => {
-            await api.post('/accounts/', data);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
-            closeModal();
-        }
-    });
 
     const handleCreateAccount = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -127,11 +123,11 @@ export default function Accounts() {
             } else if (accountType === 'Loan') {
                 payload.loan_account = {
                     loan_amount: parseFloat(loanAmount),
-                    outstanding_amount: parseFloat(loanAmount), // Initially same as loan amount
+                    outstanding_amount: parseFloat(loanAmount),
                     interest_rate: parseFloat(loanInterestRate),
                     tenure_months: parseInt(loanTenure),
                     emi_amount: parseFloat(loanEMI),
-                    start_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+                    start_date: new Date().toISOString().split('T')[0],
                     interest_accrual_day: parseInt(loanAccrualDay)
                 };
             } else if (accountType === 'Fixed Deposit') {
@@ -145,18 +141,21 @@ export default function Accounts() {
                 };
             }
 
-            const promise = createAccountMutation.mutateAsync(payload);
+            const promise = dispatch(createAccount(payload)).unwrap();
 
             await toast.promise(promise, {
                 loading: 'Creating account...',
                 success: 'Account created successfully!',
                 error: (err) => handleApiError(err, 'Failed to create account')
             });
+
+            dispatch(fetchSummary({ timeRange, accountTypes: ACCOUNT_TYPES }));
+            closeModal();
         }
     };
 
     const closeModal = () => {
-        setIsModalOpen(false);
+        dispatch(closeReduxModal('createAccount'));
         setNewAccountName('');
         setAccountType('Savings');
         setCurrency('USD');
@@ -192,7 +191,7 @@ export default function Accounts() {
                                     key={range}
                                     variant={timeRange === range ? "default" : "ghost"}
                                     size="sm"
-                                    onClick={() => setTimeRange(range)}
+                                    onClick={() => dispatch(setSummaryTimeRange(range))}
                                     className={cn(
                                         "text-[10px] font-bold uppercase tracking-wider px-4 rounded-lg transition-all duration-200 h-8",
                                         timeRange !== range && "text-muted-foreground hover:text-foreground"
@@ -206,7 +205,7 @@ export default function Accounts() {
                         <Button
                             size="icon"
                             className="rounded-full h-10 w-10 shadow-md hover:bg-primary/90 transition-colors"
-                            onClick={() => setIsModalOpen(true)}
+                            onClick={() => dispatch(openModal('createAccount'))}
                             title="New Account"
                         >
                             <Plus size={20} />
@@ -214,12 +213,12 @@ export default function Accounts() {
                     </div>
                 </div>
 
-                {isSummaryLoading ? (
+                {isSummaryLoading || isAccountsLoading ? (
                     <div className="flex items-center justify-center p-20">
                         <Loader2 className="animate-spin text-primary" size={40} />
                     </div>
                 ) : summaryData ? (
-                    <AccountSummaryPanel data={summaryData} accountsData={accounts?.items} />
+                    <AccountSummaryPanel data={summaryData} accountsData={accounts} />
                 ) : (
                     <div className="text-center py-20 bg-muted/10 rounded-3xl border-2 border-dashed border-border/50">
                         <p className="text-muted-foreground">No account data found for this period.</p>

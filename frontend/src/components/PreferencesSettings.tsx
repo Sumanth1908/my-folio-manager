@@ -1,22 +1,21 @@
-
-import { useQuery } from '@tanstack/react-query';
-import type { Currency } from '../types';
-import api from '../api';
-import { useSettings } from '../hooks/useSettings';
+import { useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { fetchSettings, updateSettings } from '../store/slices/settingsSlice';
+import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Card } from '../components/ui/Card';
-
+import type { RootState } from '../store';
+import type { UserSettings } from '../types';
 
 export function PreferencesSettings() {
-    const { settings, updateSettings, isUpdating, isLoading: isSettingsLoading } = useSettings();
+    const dispatch = useAppDispatch();
+    const { data: settings, loading: isSettingsLoading } = useAppSelector((state: RootState) => state.settings);
+    const { items: currencies, loading: isCurrenciesLoading } = useAppSelector((state: RootState) => state.currencies);
 
-    const { data: currencies, isLoading: isCurrenciesLoading } = useQuery<Currency[]>({
-        queryKey: ['currencies'],
-        queryFn: async () => {
-            const res = await api.get('/currencies/');
-            return res.data;
-        }
-    });
+    useEffect(() => {
+        dispatch(fetchSettings());
+        dispatch(fetchCurrencies());
+    }, [dispatch]);
 
     if (isSettingsLoading || isCurrenciesLoading || !settings) {
         return (
@@ -26,8 +25,8 @@ export function PreferencesSettings() {
         );
     }
 
-    const handleChange = (key: keyof typeof settings, value: string) => {
-        updateSettings({ ...settings, [key]: value });
+    const handleChange = (key: keyof UserSettings, value: string) => {
+        dispatch(updateSettings({ ...settings, [key]: value }));
     };
 
     return (
@@ -45,7 +44,6 @@ export function PreferencesSettings() {
                         value={settings.default_currency}
                         onChange={(e) => handleChange('default_currency', e.target.value)}
                         className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none transition text-foreground font-bold appearance-none cursor-pointer hover:bg-muted/30"
-                        disabled={isUpdating}
                     >
                         {currencies?.map(currency => (
                             <option key={currency.code} value={currency.code} className="bg-background">
@@ -62,7 +60,6 @@ export function PreferencesSettings() {
                         value={settings.exchange_provider}
                         onChange={(e) => handleChange('exchange_provider', e.target.value)}
                         className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none transition text-foreground font-bold appearance-none cursor-pointer hover:bg-muted/30"
-                        disabled={isUpdating}
                     >
                         <option value="Manual" className="bg-background">Manual (Fixed Rates)</option>
                         <option value="OpenExchangeRates" className="bg-background">Open Exchange Rates</option>

@@ -21,7 +21,9 @@ import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 import Modal from './Modal';
 import type { SummaryResponse, AccountSummary, Account } from '../types';
-import { useDeleteAccount, useUpdateAccount } from '../hooks/useAccounts';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { deleteAccount, updateAccount } from '../store/slices/accountsSlice';
+import type { RootState } from '../store';
 
 interface AccountSummaryPanelProps {
     data: SummaryResponse;
@@ -52,8 +54,8 @@ const AccountCard = memo(({
         navigate(`/accounts/${account.account_id}`);
     };
 
-    const inTotal = account.categories.filter(c => c.transaction_type === 'Credit').reduce((acc, c) => acc + c.total_amount, 0);
-    const outTotal = account.categories.filter(c => c.transaction_type === 'Debit').reduce((acc, c) => acc + c.total_amount, 0);
+    const inTotal = (account.categories || []).filter(c => c.transaction_type === 'Credit').reduce((acc, c) => acc + Number(c.total_amount || 0), 0);
+    const outTotal = (account.categories || []).filter(c => c.transaction_type === 'Debit').reduce((acc, c) => acc + Number(c.total_amount || 0), 0);
 
     return (
         <Card className={`overflow-hidden border-border/40 transition-all duration-300 ${isDeleting ? 'opacity-50 scale-[0.98] pointer-events-none' : 'opacity-100'}`}>
@@ -147,7 +149,7 @@ const AccountCard = memo(({
                                         </div>
                                         <div className="col-span-6 text-sm font-medium text-foreground">{cat.name}</div>
                                         <div className={`col-span-5 text-right text-sm font-bold tabular-nums ${cat.transaction_type === 'Credit' ? 'text-emerald-500' : 'text-foreground'}`}>
-                                            {cat.transaction_type === 'Credit' ? '+' : ''}{cat.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            {cat.transaction_type === 'Credit' ? '+' : ''}{Number(cat.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </div>
                                     </div>
                                 ))
@@ -171,8 +173,8 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
     const [editName, setEditName] = useState('');
     const [deleteConfirmAccount, setDeleteConfirmAccount] = useState<AccountSummary | null>(null);
 
-    const deleteAccountMutation = useDeleteAccount();
-    const updateAccountMutation = useUpdateAccount();
+    const dispatch = useAppDispatch();
+    const { loading: isAccountsLoading } = useAppSelector((state: RootState) => state.accounts);
 
     const toggleAccount = useCallback((accountId: string) => {
         setExpandedAccounts(prev => ({
@@ -211,7 +213,7 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
         setDeleteConfirmAccount(null);
 
         try {
-            await deleteAccountMutation.mutateAsync(accountId);
+            await dispatch(deleteAccount(accountId)).unwrap();
             toast.success('Account deleted successfully');
         } catch (err) {
             toast.error('Failed to delete account');
@@ -223,10 +225,10 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
     const saveEdit = async () => {
         if (!editAccount) return;
         try {
-            await updateAccountMutation.mutateAsync({
+            await dispatch(updateAccount({
                 id: editAccount.account_id,
                 data: { account_name: editName }
-            });
+            })).unwrap();
             toast.success('Account updated successfully');
             setEditAccount(null);
         } catch (err) {
@@ -405,7 +407,7 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
                             <Button
                                 className="flex-1 rounded-xl h-12 shadow-lg shadow-primary/20 text-xs uppercase tracking-widest font-bold"
                                 onClick={saveEdit}
-                                isLoading={updateAccountMutation.isPending}
+                                isLoading={isAccountsLoading}
                             >
                                 Save Changes
                             </Button>
@@ -457,7 +459,7 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
                             <Button
                                 className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl h-12 shadow-lg shadow-destructive/20 text-xs uppercase tracking-widest font-bold"
                                 onClick={confirmDelete}
-                                isLoading={deleteAccountMutation.isPending}
+                                isLoading={isAccountsLoading}
                             >
                                 Delete Forever
                             </Button>

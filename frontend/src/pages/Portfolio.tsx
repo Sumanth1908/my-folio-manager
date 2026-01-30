@@ -1,8 +1,4 @@
-import { useState, useMemo, memo } from 'react';
-import { useAccounts } from '../hooks/useAccounts';
-import { useSettings } from '../hooks/useSettings';
-import { useCurrencyConverter } from '../hooks/useCurrencyConverter';
-import { useCurrencies } from '../hooks/useCurrencies';
+import { useState, useMemo, memo, useEffect } from 'react';
 import type { Account } from '../types';
 import {
     ChevronDown,
@@ -20,6 +16,12 @@ import {
 } from 'lucide-react';
 import { Card, CardTitle } from '../components/ui/Card';
 import { cn } from '../lib/utils';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { fetchAccounts } from '../store/slices/accountsSlice';
+import { fetchSettings } from '../store/slices/settingsSlice';
+import { fetchCurrencies } from '../store/slices/currenciesSlice';
+import { fetchRates } from '../store/slices/converterSlice';
+import type { RootState } from '../store';
 
 // --- Types for Balance Sheet View ---
 interface SubHolding {
@@ -70,21 +72,45 @@ interface AggregatedHolding {
 }
 
 export default function Portfolio() {
+    const dispatch = useAppDispatch();
     const [isAssetsExpanded, setIsAssetsExpanded] = useState(true);
     const [isLiabilitiesExpanded, setIsLiabilitiesExpanded] = useState(true);
 
-    const { data: accounts, isLoading: isAccountsLoading } = useAccounts();
-    const { settings } = useSettings();
+    const { items: accounts, loading: isAccountsLoading } = useAppSelector((state: RootState) => state.accounts);
+    const { data: settings } = useAppSelector((state: RootState) => state.settings);
+    const { items: currencies } = useAppSelector((state: RootState) => state.currencies);
+    const { rates, loading: isRatesLoading } = useAppSelector((state: RootState) => state.converter);
+
     const defaultCurrency = settings?.default_currency || 'USD';
-    const { convert, isLoading: isRatesLoading } = useCurrencyConverter(defaultCurrency);
-
-    const { data: currencies } = useCurrencies();
-
     const currencySymbol = currencies?.find(c => c.code === defaultCurrency)?.symbol || defaultCurrency;
+
+    useEffect(() => {
+        dispatch(fetchAccounts());
+        dispatch(fetchSettings());
+        dispatch(fetchCurrencies());
+    }, [dispatch]);
+
+    useEffect(() => {
+        if (defaultCurrency) {
+            dispatch(fetchRates(defaultCurrency));
+        }
+    }, [dispatch, defaultCurrency]);
+
+    const convert = useMemo(() => (amount: number, fromCurrency: string) => {
+        if (fromCurrency === defaultCurrency) return amount;
+        const rate = rates[fromCurrency];
+        if (!rate) return amount;
+        return amount / rate;
+    }, [rates, defaultCurrency]);
 
     // --- Compute Balance Sheet Data ---
     const { assets, liabilities } = useMemo(() => {
-        if (!accounts?.items || isRatesLoading) return { assets: { title: 'Assets', total: 0, items: [] }, liabilities: { title: 'Liabilities', total: 0, items: [] } };
+        if (!accounts || accounts.length === 0 || Object.keys(rates).length === 0) {
+            return {
+                assets: { title: 'Assets', total: 0, items: [] },
+                liabilities: { title: 'Liabilities', total: 0, items: [] }
+            };
+        }
 
         const assetItems: Record<string, { total: number, accounts: Account[], color: string, icon: React.ReactNode }> = {
             'Savings': { total: 0, accounts: [], color: '#8b5cf6', icon: <Wallet size={16} /> },
@@ -96,7 +122,7 @@ export default function Portfolio() {
             'Loan': { total: 0, accounts: [], color: '#f43f5e', icon: <TrendingDown size={16} /> },
         };
 
-        accounts.items.forEach(account => {
+        accounts.forEach(account => {
             let balance = 0;
             if (account.account_type === 'Savings' && account.savings_account) {
                 balance = Number(account.savings_account.balance);
@@ -187,17 +213,17 @@ export default function Portfolio() {
         };
 
         return { assets: finalizedAssets, liabilities: finalizedLiabilities };
-    }, [accounts, convert, isRatesLoading]);
+    }, [accounts, convert, rates]);
 
     // --- Compute Investments Data ---
     const { aggregatedHoldings, totalInvestmentValue, totalInvestmentProfit } = useMemo(() => {
-        if (!accounts?.items || isRatesLoading) {
+        if (!accounts || accounts.length === 0 || Object.keys(rates).length === 0) {
             return { aggregatedHoldings: [], totalInvestmentValue: 0, totalInvestmentProfit: 0 };
         }
 
         const holdingsMap = new Map<string, AggregatedHolding>();
 
-        accounts.items.forEach(account => {
+        accounts.forEach(account => {
             if (account.investment_holdings) {
                 account.investment_holdings.forEach(holding => {
                     const currentPrice = holding.current_price || holding.average_price;
@@ -238,7 +264,7 @@ export default function Portfolio() {
         const p = v - c;
 
         return { aggregatedHoldings: holdings, totalInvestmentValue: v, totalInvestmentProfit: p };
-    }, [accounts, convert, isRatesLoading]);
+    }, [accounts, convert, rates]);
 
     if (isAccountsLoading || isRatesLoading) {
         return (
@@ -367,7 +393,7 @@ export default function Portfolio() {
                                             <td className="px-6 py-5 text-right">
                                                 <div className={cn(
                                                     "inline-flex items-center gap-1 font-bold text-[10px] px-2 py-0.5 rounded-md",
-                                                    holding.profit >= 0 ? "text-green-500 bg-green-500/10" : "text-red-500 bg-red-500/10"
+                                                    holding.profit >= 0 ? "text-green-500 bg-green-500/10" : "text-red-500 bg-green-500/10"
                                                 )}>
                                                     {holding.profitPercent.toFixed(1)}%
                                                 </div>
@@ -412,7 +438,7 @@ export default function Portfolio() {
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Portfolio Allocation %</p>
                                 <div className="space-y-4 pt-2">
                                     {aggregatedHoldings.slice(0, 5).map((holding) => {
-                                        const weight = (holding.totalValue / totalInvestmentValue) * 100;
+                                        const weight = totalInvestmentValue > 0 ? (holding.totalValue / totalInvestmentValue) * 100 : 0;
                                         return (
                                             <div key={holding.symbol} className="space-y-1">
                                                 <div className="flex justify-between items-end">
@@ -441,13 +467,13 @@ export default function Portfolio() {
                         </CardTitle>
                         <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
                             <p>
-                                Assets account for <span className="text-foreground font-bold">{Math.round((assets.total / (assets.total + liabilities.total)) * 100)}%</span> of your gross balance.
-                                Your debt ratio is <span className="text-foreground font-bold">{Math.round((liabilities.total / assets.total) * 100)}%</span> relative to your assets.
+                                Assets account for <span className="text-foreground font-bold">{assets.total + liabilities.total > 0 ? Math.round((assets.total / (assets.total + liabilities.total)) * 100) : 0}%</span> of your gross balance.
+                                Your debt ratio is <span className="text-foreground font-bold">{assets.total > 0 ? Math.round((liabilities.total / assets.total) * 100) : 0}%</span> relative to your assets.
                             </p>
                             <p>
                                 {totalInvestmentProfit >= 0 ? 'Your market positions are performing well with ' : 'Market conditions have decreased your asset value by '}
                                 <span className={cn("font-bold font-mono", totalInvestmentProfit >= 0 ? "text-green-500" : "text-red-500")}>
-                                    {Math.abs(totalInvestmentProfit / totalInvestmentValue * 100).toFixed(1)}%
+                                    {totalInvestmentValue > 0 ? Math.abs(totalInvestmentProfit / totalInvestmentValue * 100).toFixed(1) : 0}%
                                 </span>
                                 overall.
                             </p>
@@ -476,7 +502,7 @@ const HoldingRow = memo(({ h }: { h: SubHolding }) => (
     </div>
 ));
 
-const AccountRow = memo(({ acc, symbol }: { acc: SubAccount, symbol: string }) => {
+const AccountRow = memo(({ acc }: { acc: SubAccount }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const hasHoldings = acc.holdings.length > 0;
 
@@ -527,7 +553,7 @@ const AccountRow = memo(({ acc, symbol }: { acc: SubAccount, symbol: string }) =
     );
 });
 
-const CategoryRow = memo(({ item, symbol }: { item: BalanceItem, symbol: string }) => {
+const CategoryRow = memo(({ item }: { item: BalanceItem }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
@@ -572,7 +598,7 @@ const CategoryRow = memo(({ item, symbol }: { item: BalanceItem, symbol: string 
             {isExpanded && (
                 <div className="bg-muted/5 divide-y divide-border/5 animate-in slide-in-from-top-1 duration-300">
                     {item.accounts.map((acc) => (
-                        <AccountRow key={acc.id} acc={acc} symbol={symbol} />
+                        <AccountRow key={acc.id} acc={acc} />
                     ))}
                 </div>
             )}
@@ -617,7 +643,7 @@ const BalanceSectionView = memo(({ section, isExpanded, onToggle, symbol }: {
 
                         <div className="divide-y divide-border/10">
                             {section.items.map((item) => (
-                                <CategoryRow key={item.id} item={item} symbol={symbol} />
+                                <CategoryRow key={item.id} item={item} />
                             ))}
                         </div>
                     </div>

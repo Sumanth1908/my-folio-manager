@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Plus, Search, Filter, X, Wand2 } from 'lucide-react';
-import type { Transaction, Rule, PaginatedResponse } from '../../types';
+import type { Transaction, Rule } from '../../types';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { cn } from '../../lib/utils';
@@ -262,7 +262,6 @@ export default function AccountActivityPanel({
                         onToggle={onToggleRule}
                         onEdit={onEditRule}
                         onDelete={onDeleteRule}
-                        onNew={onNewRule}
                         isExecuting={isExecutingRule}
                     />
                 )}
