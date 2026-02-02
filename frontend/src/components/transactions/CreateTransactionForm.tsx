@@ -31,6 +31,7 @@ interface CreateFormData {
     description: string;
     selectedAccountId: string;
     toAccountId: string;
+    toAmount: string; // New field for received amount in target currency
     selectedCategoryId: string;
     date: string;
 }
@@ -48,6 +49,7 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
         description: '',
         selectedAccountId: accountId ?? '',
         toAccountId: '',
+        toAmount: '',
         selectedCategoryId: '',
         date: todayString()
     }));
@@ -76,11 +78,16 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
     const isTransfer = formData.type === TRANSACTION_TYPE.TRANSFER;
     const isAccountLocked = !!accountId;
 
+    const sourceAccount = accounts.find(a => a.account_id === formData.selectedAccountId);
+    const targetAccount = accounts.find(a => a.account_id === formData.toAccountId);
+    const isMultiCurrencyTransfer = isTransfer && sourceAccount && targetAccount && sourceAccount.currency !== targetAccount.currency;
+
     const isValid = useMemo(() => {
         if (!formData.amount || !formData.selectedAccountId) return false;
         if (isTransfer && !formData.toAccountId) return false;
+        if (isMultiCurrencyTransfer && !formData.toAmount) return false;
         return true;
-    }, [formData.amount, formData.selectedAccountId, formData.toAccountId, isTransfer]);
+    }, [formData.amount, formData.selectedAccountId, formData.toAccountId, isTransfer, isMultiCurrencyTransfer, formData.toAmount]);
 
     // Submit handler
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -99,6 +106,7 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
                     from_account_id: selectedAccountId,
                     to_account_id: toAccountId,
                     amount: parseFloat(amount),
+                    to_amount: isMultiCurrencyTransfer ? parseFloat(formData.toAmount) : undefined,
                     description,
                     category_id: categoryId,
                     transaction_date: txDate
@@ -153,24 +161,38 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
 
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Transaction Type */}
-            <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                    Transaction Type
-                </label>
-                <Select value={formData.type} onValueChange={v => updateField('type', v as TransactionTypeValue)}>
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectGroup>
-                            <SelectLabel>Type</SelectLabel>
-                            <SelectItem value={TRANSACTION_TYPE.DEBIT}>DEBIT</SelectItem>
-                            <SelectItem value={TRANSACTION_TYPE.CREDIT}>CREDIT</SelectItem>
-                            <SelectItem value={TRANSACTION_TYPE.TRANSFER}>TRANSFER</SelectItem>
-                        </SelectGroup>
-                    </SelectContent>
-                </Select>
+            {/* Transaction Type & Date */}
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                        Type
+                    </label>
+                    <Select value={formData.type} onValueChange={v => updateField('type', v as TransactionTypeValue)}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectLabel>Type</SelectLabel>
+                                <SelectItem value={TRANSACTION_TYPE.DEBIT}>DEBIT</SelectItem>
+                                <SelectItem value={TRANSACTION_TYPE.CREDIT}>CREDIT</SelectItem>
+                                <SelectItem value={TRANSACTION_TYPE.TRANSFER}>TRANSFER</SelectItem>
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                        Date
+                    </label>
+                    <input
+                        type="date"
+                        value={formData.date}
+                        onChange={e => updateField('date', e.target.value)}
+                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground placeholder:text-muted-foreground/30"
+                    />
+                </div>
             </div>
 
             {/* Account Selection */}
@@ -183,59 +205,126 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
                 renderAccountSelect('Account', formData.selectedAccountId, 'selectedAccountId', isAccountLocked)
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-                {/* Date */}
-                <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        Date
-                    </label>
-                    <input
-                        type="date"
-                        value={formData.date}
-                        onChange={e => updateField('date', e.target.value)}
-                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground placeholder:text-muted-foreground/30"
-                    />
-                </div>
+            {/* Amount(s) & Category */}
+            <div className="space-y-4">
+                {isMultiCurrencyTransfer ? (
+                    <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                                <label className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 pl-1">
+                                    Sent Amount ({sourceAccount?.currency})
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                        value={formData.amount}
+                                        onChange={e => updateField('amount', e.target.value)}
+                                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold tabular-nums"
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
 
-                {/* Amount */}
-                <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        Amount
-                    </label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={formData.amount}
-                        onChange={e => updateField('amount', e.target.value)}
-                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground tabular-nums placeholder:text-muted-foreground/30"
-                        autoFocus
-                    />
-                </div>
+                            <div className="flex items-center mt-6 text-primary/40">
+                                <div className="w-8 h-[2px] bg-primary/20 rounded-full" />
+                            </div>
+
+                            <div className="flex-1">
+                                <label className="block text-[10px] font-bold uppercase tracking-widest text-primary mb-1.5 pl-1">
+                                    Received Amount ({targetAccount?.currency})
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                        value={formData.toAmount}
+                                        onChange={e => updateField('toAmount', e.target.value)}
+                                        className="w-full p-3 bg-background border-primary/30 border-2 rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold tabular-nums shadow-sm shadow-primary/10"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {formData.amount && formData.toAmount && (
+                            <div className="text-center">
+                                <span className="text-[10px] font-bold text-muted-foreground/60 bg-background/50 px-2 py-1 rounded-md">
+                                    Exchange Rate: 1 {sourceAccount?.currency} = {(parseFloat(formData.toAmount) / parseFloat(formData.amount)).toFixed(4)} {targetAccount?.currency}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                                Amount {sourceAccount ? `(${sourceAccount.currency})` : ''}
+                            </label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={formData.amount}
+                                onChange={e => updateField('amount', e.target.value)}
+                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold tabular-nums"
+                                autoFocus
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                                Category
+                            </label>
+                            <Select value={formData.selectedCategoryId || 'none'} onValueChange={v => updateField('selectedCategoryId', v === 'none' ? '' : v)}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Optional" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectLabel>Categories</SelectLabel>
+                                        <SelectItem value="none">None</SelectItem>
+                                        {categories.map(({ category_id, name }) => (
+                                            <SelectItem key={category_id} value={category_id.toString()}>
+                                                {name.toUpperCase()}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Category */}
-            <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                    Category
-                </label>
-                <Select value={formData.selectedCategoryId || 'none'} onValueChange={v => updateField('selectedCategoryId', v === 'none' ? '' : v)}>
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Category (Optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectGroup>
-                            <SelectLabel>Categories</SelectLabel>
-                            <SelectItem value="none">None</SelectItem>
-                            {categories.map(({ category_id, name }) => (
-                                <SelectItem key={category_id} value={category_id.toString()}>
-                                    {name.toUpperCase()}
-                                </SelectItem>
-                            ))}
-                        </SelectGroup>
-                    </SelectContent>
-                </Select>
-            </div>
+            {!isMultiCurrencyTransfer && (
+                <div className="h-px" /> // Spacer to maintain consistent vertical flow
+            )}
+
+            {isMultiCurrencyTransfer && (
+                <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                        Category
+                    </label>
+                    <Select value={formData.selectedCategoryId || 'none'} onValueChange={v => updateField('selectedCategoryId', v === 'none' ? '' : v)}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select Category (Optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectLabel>Categories</SelectLabel>
+                                <SelectItem value="none">None</SelectItem>
+                                {categories.map(({ category_id, name }) => (
+                                    <SelectItem key={category_id} value={category_id.toString()}>
+                                        {name.toUpperCase()}
+                                    </SelectItem>
+                                ))}
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
 
             {/* Description */}
             <div>

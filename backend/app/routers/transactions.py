@@ -104,9 +104,12 @@ def create_transfer(
         )
         
         # Credit
+        # Use to_amount if specified (for cross-currency transfers), otherwise use source amount
+        credit_amount = transfer.to_amount if transfer.to_amount is not None else transfer.amount
+        
         credit_tx = Transaction(
             account_id=target.account_id,
-            amount=transfer.amount,
+            amount=credit_amount,
             transaction_type=TransactionType.CREDIT,
             currency=target.currency,
             description=f"Transfer from {source.account_name}: {desc}",

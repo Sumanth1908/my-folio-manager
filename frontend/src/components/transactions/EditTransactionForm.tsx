@@ -112,23 +112,37 @@ const EditTransactionForm = ({ transaction, onSuccess, onCancel }: EditTransacti
 
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Transaction Type */}
-            <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                    Transaction Type
-                </label>
-                <Select value={formData.type} onValueChange={v => updateField('type', v as EditFormData['type'])}>
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectGroup>
-                            <SelectLabel>Type</SelectLabel>
-                            <SelectItem value={TRANSACTION_TYPE.DEBIT}>DEBIT</SelectItem>
-                            <SelectItem value={TRANSACTION_TYPE.CREDIT}>CREDIT</SelectItem>
-                        </SelectGroup>
-                    </SelectContent>
-                </Select>
+            {/* Transaction Type & Date */}
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                        Type
+                    </label>
+                    <Select value={formData.type} onValueChange={v => updateField('type', v as EditFormData['type'])}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectLabel>Type</SelectLabel>
+                                <SelectItem value={TRANSACTION_TYPE.DEBIT}>DEBIT</SelectItem>
+                                <SelectItem value={TRANSACTION_TYPE.CREDIT}>CREDIT</SelectItem>
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                        Date
+                    </label>
+                    <input
+                        type="date"
+                        value={formData.date}
+                        onChange={e => updateField('date', e.target.value)}
+                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground placeholder:text-muted-foreground/30"
+                    />
+                </div>
             </div>
 
             {/* Account - Read Only */}
@@ -141,24 +155,11 @@ const EditTransactionForm = ({ transaction, onSuccess, onCancel }: EditTransacti
                 </div>
             </div>
 
+            {/* Amount & Category */}
             <div className="grid grid-cols-2 gap-4">
-                {/* Date */}
                 <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        Date
-                    </label>
-                    <input
-                        type="date"
-                        value={formData.date}
-                        onChange={e => updateField('date', e.target.value)}
-                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground placeholder:text-muted-foreground/30"
-                    />
-                </div>
-
-                {/* Amount */}
-                <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        Amount
+                        Amount ({transaction.currency})
                     </label>
                     <input
                         type="number"
@@ -166,34 +167,34 @@ const EditTransactionForm = ({ transaction, onSuccess, onCancel }: EditTransacti
                         placeholder="0.00"
                         value={formData.amount}
                         onChange={e => updateField('amount', e.target.value)}
-                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground tabular-nums placeholder:text-muted-foreground/30"
+                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold tabular-nums"
                         autoFocus
                     />
                 </div>
+
+                <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                        Category
+                    </label>
+                    <Select value={formData.selectedCategoryId} onValueChange={v => updateField('selectedCategoryId', v)}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Optional" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectLabel>Categories</SelectLabel>
+                                <SelectItem value="none">None</SelectItem>
+                                {categories.map(({ category_id, name }) => (
+                                    <SelectItem key={category_id} value={category_id.toString()}>
+                                        {name.toUpperCase()}
+                                    </SelectItem>
+                                ))}
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
 
-            {/* Category */}
-            <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                    Category
-                </label>
-                <Select value={formData.selectedCategoryId} onValueChange={v => updateField('selectedCategoryId', v)}>
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Category (Optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectGroup>
-                            <SelectLabel>Categories</SelectLabel>
-                            <SelectItem value="none">None</SelectItem>
-                            {categories.map(({ category_id, name }) => (
-                                <SelectItem key={category_id} value={category_id.toString()}>
-                                    {name.toUpperCase()}
-                                </SelectItem>
-                            ))}
-                        </SelectGroup>
-                    </SelectContent>
-                </Select>
-            </div>
 
             {/* Description */}
             <div>
