@@ -2,7 +2,7 @@
 Celery tasks for interest accrual on accounts.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from celery import shared_task
@@ -32,7 +32,8 @@ def process_daily_interest_accruals():
     Returns:
         dict: Summary of processed accounts and total interest applied
     """
-    today = datetime.utcnow().day
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    today = now.day
     
     processed_loans = 0
     processed_savings = 0
@@ -163,7 +164,7 @@ def accrue_loan_interest(session: Session, account: Account, loan: LoanAccount) 
         transaction_type=TransactionType.DEBIT,
         currency=account.currency,
         description="Monthly Interest Charge",
-        transaction_date=datetime.utcnow()
+        transaction_date=datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
     )
     
     try:
@@ -209,7 +210,7 @@ def accrue_savings_interest(session: Session, account: Account, savings: Savings
         transaction_type=TransactionType.CREDIT,
         currency=account.currency,
         description="Monthly Interest Credit",
-        transaction_date=datetime.utcnow()
+        transaction_date=datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
     )
 
     try:
@@ -257,7 +258,7 @@ def accrue_fd_interest(session: Session, account: Account, fd: FixedDepositAccou
         transaction_type=TransactionType.CREDIT,
         currency=account.currency,
         description="FD Monthly Interest",
-        transaction_date=datetime.utcnow()
+        transaction_date=datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
     )
     session.add(interest_transaction)
     

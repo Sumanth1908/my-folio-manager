@@ -71,18 +71,21 @@ def create_transfer_core(session: Session, transfer: TransferRequest) -> dict:
         currency=from_account.currency,
         description=f"Transfer to {to_account.account_name or 'Account'}: {transfer.description or ''}",
         category_id=transfer.category_id,
-        transaction_date=datetime.now()
+        transaction_date=transfer.transaction_date or datetime.now()
     )
 
     # Create Credit to destination
+    # Use to_amount if specified (for cross-currency transfers), otherwise use source amount
+    credit_amount = transfer.to_amount if transfer.to_amount is not None else transfer.amount
+    
     credit_tx = Transaction(
         account_id=transfer.to_account_id,
-        amount=transfer.amount,
+        amount=credit_amount,
         transaction_type=TransactionType.CREDIT,
         currency=to_account.currency,
         description=f"Transfer from {from_account.account_name or 'Account'}: {transfer.description or ''}",
         category_id=transfer.category_id,
-        transaction_date=datetime.now()
+        transaction_date=transfer.transaction_date or datetime.now()
     )
 
     session.add(debit_tx)

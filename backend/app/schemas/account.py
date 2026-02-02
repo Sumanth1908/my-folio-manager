@@ -88,6 +88,7 @@ class AccountBase(BaseModel):
     account_type: AccountType = AccountType.SAVINGS
     currency: str = "USD"
     status: str = "Active"
+    is_interest_enabled: bool = False
 
 class AccountCreate(AccountBase):
     savings_account: SavingsAccountCreate | None = None

@@ -1,22 +1,24 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../api';
+import { useState, useEffect } from 'react';
 import type { Transaction } from '../types';
-import Modal from '../components/Modal';
-import TransactionForm from '../components/TransactionForm';
-import ConfirmModal from '../components/ConfirmModal';
-import { useAccounts } from '../hooks/useAccounts';
-import { useTransactions } from '../hooks/useTransactions';
-import { useCurrencies } from '../hooks/useCurrencies';
-import TransactionsPanel from '../components/TransactionsPanel';
+import Modal from '../components/common/Modal';
+import CreateTransactionForm from '../components/transactions/CreateTransactionForm';
+import EditTransactionForm from '../components/transactions/EditTransactionForm';
+import ConfirmModal from '../components/common/ConfirmModal';
+import TransactionsPanel from '../components/transactions/TransactionsPanel';
 import toast from 'react-hot-toast';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { fetchTransactions, deleteTransaction, setFilters } from '../store/slices/transactionsSlice';
+import { fetchAccounts } from '../store/slices/accountsSlice';
+import { fetchCurrencies } from '../store/slices/currenciesSlice';
+import { fetchCategories } from '../store/slices/categoriesSlice';
+import { openModal, closeModal as closeReduxModal } from '../store/slices/uiSlice';
+import type { RootState } from '../store';
 
-export default function AllTransactions() {
-    const queryClient = useQueryClient();
-    const [isModalOpen, setIsModalOpen] = useState(false);
+const AllTransactions = () => {
+    const dispatch = useAppDispatch();
+    const isModalOpen = useAppSelector((state: RootState) => state.ui.modals['transactionAction']);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
-    // Confirm Modal State
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
         title: string;
@@ -31,49 +33,57 @@ export default function AllTransactions() {
         variant: 'primary'
     });
 
-    // State for filtering
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCategoryId, setSelectedCategoryId] = useState('all');
-
-    const { isLoading: isLoadingAccounts } = useAccounts();
     const {
-        data: transactionsData,
-        isLoading: isLoadingTransactions,
-        fetchNextPage,
+        items: transactions,
+        loading: isLoadingTransactions,
         hasNextPage,
-        isFetchingNextPage
-    } = useTransactions({
-        search: searchQuery,
-        categoryId: selectedCategoryId
-    });
+        loadingMore: isFetchingNextPage,
+        filters: transactionFilters
+    } = useAppSelector((state: RootState) => state.transactions);
 
-    // Flatten transactions for display
-    const transactions = transactionsData?.pages.flatMap(page => page.items) || [];
+    const { items: currencies } = useAppSelector((state: RootState) => state.currencies);
+    const { items: categories } = useAppSelector((state: RootState) => state.categories);
 
-    const { data: currencies } = useCurrencies();
+    useEffect(() => {
+        dispatch(fetchAccounts());
+        dispatch(fetchCurrencies());
+        dispatch(fetchCategories());
+    }, [dispatch]);
 
-    // Fetch categories for filter
-    const { data: categories } = useQuery<any[]>({
-        queryKey: ['categories'],
-        queryFn: async () => {
-            const res = await api.get('/categories/');
-            return res.data;
+    useEffect(() => {
+        dispatch(fetchTransactions({
+            ...transactionFilters,
+            page: 1,
+            append: false
+        }));
+    }, [dispatch, transactionFilters.search, transactionFilters.categoryId, transactionFilters.startDate, transactionFilters.endDate]);
+
+    const handleSearchChange = (query: string) => {
+        dispatch(setFilters({ search: query, page: 1 }));
+    };
+
+    const handleCategoryChange = (catId: string) => {
+        dispatch(setFilters({ categoryId: catId, page: 1 }));
+    };
+
+    const handleDateChange = (start: string, end: string) => {
+        dispatch(setFilters({ startDate: start, endDate: end, page: 1 }));
+    };
+
+    const handleLoadMore = () => {
+        if (!isFetchingNextPage && hasNextPage) {
+            const nextPage = transactionFilters.page + 1;
+            dispatch(setFilters({ page: nextPage }));
+            dispatch(fetchTransactions({
+                ...transactionFilters,
+                page: nextPage,
+                append: true
+            }));
         }
-    });
-
-    const deleteTransactionMutation = useMutation({
-        mutationFn: async (id: number) => {
-            await api.delete(`/transactions/${id}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['accountSummary'] });
-        }
-    });
+    };
 
     const closeModal = () => {
-        setIsModalOpen(false);
+        dispatch(closeReduxModal('transactionAction'));
         setEditingTransaction(null);
     };
 
@@ -83,12 +93,12 @@ export default function AllTransactions() {
 
     const onNewTransaction = () => {
         setEditingTransaction(null);
-        setIsModalOpen(true);
+        dispatch(openModal('transactionAction'));
     };
 
     const onEditTransaction = (tx: Transaction) => {
         setEditingTransaction(tx);
-        setIsModalOpen(true);
+        dispatch(openModal('transactionAction'));
     };
 
     const onDeleteTransactionConfirm = (id: number) => {
@@ -99,38 +109,35 @@ export default function AllTransactions() {
             variant: 'danger',
             onConfirm: async () => {
                 closeConfirmModal();
-                const promise = deleteTransactionMutation.mutateAsync(id);
-                await toast.promise(promise, {
-                    loading: 'Deleting transaction...',
-                    success: 'Transaction deleted',
-                    error: 'Failed to delete transaction'
-                });
+                try {
+                    await dispatch(deleteTransaction(id)).unwrap();
+                    toast.success('Transaction deleted');
+                } catch {
+                    toast.error('Failed to delete transaction');
+                }
             }
         });
     };
 
-    if (isLoadingAccounts) {
-        return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
-    }
 
     return (
-        <div className="max-w-5xl mx-auto p-6 md:p-10 space-y-8">
+        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
             <TransactionsPanel
                 title="Financial Stream"
                 description="Chronological view of all your movements"
                 transactions={transactions}
                 isLoading={isLoadingTransactions}
-                // Pagination
-                onLoadMore={fetchNextPage}
+                onLoadMore={handleLoadMore}
                 hasMore={hasNextPage}
                 isFetchingNextPage={isFetchingNextPage}
-                // Filters
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                selectedCategoryId={selectedCategoryId}
-                onCategoryChange={setSelectedCategoryId}
-                categories={categories || []}
-                // Config
+                searchQuery={transactionFilters.search}
+                onSearchChange={handleSearchChange}
+                selectedCategoryId={transactionFilters.categoryId}
+                onCategoryChange={handleCategoryChange}
+                startDate={transactionFilters.startDate}
+                endDate={transactionFilters.endDate}
+                onDateChange={handleDateChange}
+                categories={categories}
                 currencies={currencies}
                 showAccountName={true}
                 onNew={onNewTransaction}
@@ -139,11 +146,18 @@ export default function AllTransactions() {
             />
 
             <Modal isOpen={isModalOpen} onClose={closeModal} title={editingTransaction ? "Edit Transaction" : "New Transaction"}>
-                <TransactionForm
-                    transactionToEdit={editingTransaction}
-                    onSuccess={closeModal}
-                    onCancel={closeModal}
-                />
+                {editingTransaction ? (
+                    <EditTransactionForm
+                        transaction={editingTransaction}
+                        onSuccess={closeModal}
+                        onCancel={closeModal}
+                    />
+                ) : (
+                    <CreateTransactionForm
+                        onSuccess={closeModal}
+                        onCancel={closeModal}
+                    />
+                )}
             </Modal>
 
             <ConfirmModal
@@ -153,8 +167,9 @@ export default function AllTransactions() {
                 title={confirmModal.title}
                 message={confirmModal.message}
                 variant={confirmModal.variant}
-                isLoading={deleteTransactionMutation.isPending}
             />
         </div>
     );
 }
+
+export default AllTransactions;

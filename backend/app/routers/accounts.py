@@ -208,6 +208,7 @@ def delete_account(
     return {"message": "Account deleted successfully"}
 
 
+@router.put("/{account_id}", response_model=AccountRead)
 @router.patch("/{account_id}", response_model=AccountRead)
 def update_account(
     account_id: str,

@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -40,8 +41,7 @@ def create_transaction(
             
         # Ensure date is set if not provided
         if not transaction_data.get('transaction_date'):
-            from datetime import datetime
-            transaction_data['transaction_date'] = datetime.utcnow()
+            transaction_data['transaction_date'] = datetime.now(timezone.utc).replace(tzinfo=None)
             
         db_transaction = Transaction(**transaction_data)
         
@@ -104,9 +104,12 @@ def create_transfer(
         )
         
         # Credit
+        # Use to_amount if specified (for cross-currency transfers), otherwise use source amount
+        credit_amount = transfer.to_amount if transfer.to_amount is not None else transfer.amount
+        
         credit_tx = Transaction(
             account_id=target.account_id,
-            amount=transfer.amount,
+            amount=credit_amount,
             transaction_type=TransactionType.CREDIT,
             currency=target.currency,
             description=f"Transfer from {source.account_name}: {desc}",
@@ -135,10 +138,12 @@ def read_transactions(
     account_id: Optional[str] = None,
     search: Optional[str] = None,
     category_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Get all transactions for current user, optionally filtered by account, search, and category."""
+    """Get all transactions for current user, optionally filtered by account, search, category, and date range."""
     
     # Base query joined with Account to filter by user_id
     base_query = select(Transaction).join(Account).where(Account.user_id == current_user.user_id)
@@ -151,6 +156,31 @@ def read_transactions(
         
     if category_id:
         base_query = base_query.where(Transaction.category_id == category_id)
+
+    if start_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            if start_dt.tzinfo:
+                start_dt = start_dt.astimezone(timezone.utc).replace(tzinfo=None)
+            base_query = base_query.where(Transaction.transaction_date >= start_dt)
+        except ValueError:
+            # Fallback for plain YYYY-MM-DD strings
+            base_query = base_query.where(Transaction.transaction_date >= start_date)
+
+    if end_date:
+        try:
+            # If it's a timestamp, parse it; if just a date, make it end of day
+            if 'T' in end_date:
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            else:
+                end_dt = datetime.fromisoformat(end_date)
+                end_dt = end_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            if end_dt.tzinfo:
+                end_dt = end_dt.astimezone(timezone.utc).replace(tzinfo=None)
+            base_query = base_query.where(Transaction.transaction_date <= end_dt)
+        except ValueError:
+            base_query = base_query.where(Transaction.transaction_date <= end_date)
     
     # Count total
     count_query = select(func.count()).select_from(base_query.subquery())
@@ -179,6 +209,7 @@ def read_transactions(
 
 
 @router.put("/{transaction_id}", response_model=TransactionRead)
+@router.patch("/{transaction_id}", response_model=TransactionRead)
 def update_transaction(
     transaction_id: int, 
     transaction_update: TransactionUpdate, 

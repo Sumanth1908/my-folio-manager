@@ -8,10 +8,10 @@ from sqlmodel import Field, SQLModel
 
 class AccountType(str, Enum):
     """Account type enumeration."""
-    SAVINGS = "Savings"
-    INVESTMENT = "Investment"
-    LOAN = "Loan"
-    FIXED_DEPOSIT = "Fixed Deposit"
+    SAVINGS = "SAVINGS"
+    INVESTMENT = "INVESTMENT"
+    LOAN = "LOAN"
+    FIXED_DEPOSIT = "FIXED_DEPOSIT"
 
 class Account(SQLModel, table=True):
     """Base Account model corresponding to 'accounts' table."""
@@ -23,4 +23,5 @@ class Account(SQLModel, table=True):
     account_name: str | None = Field(default=None, max_length=30)
     currency: str = Field(default="USD", max_length=10)
     status: str = Field(default="Active", max_length=20)
+    is_interest_enabled: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)

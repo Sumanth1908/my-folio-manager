@@ -57,6 +57,7 @@ def get_category(
 
 
 @router.put("/{category_id}", response_model=CategoryRead)
+@router.patch("/{category_id}", response_model=CategoryRead)
 def update_category(
     category_id: int, 
     updated_category: CategoryCreate, 

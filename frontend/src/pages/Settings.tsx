@@ -1,83 +1,51 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Trash2, User, Layers, Settings as SettingsIcon, Tag, Plus } from 'lucide-react';
-import api, { handleApiError } from '../api';
-import type { Category } from '../types';
-import Modal from '../components/Modal';
+import { handleApiError } from '../api';
+import Modal from '../components/common/Modal';
 import { useAuth } from '../context/AuthContext';
-import ConfirmModal from '../components/ConfirmModal';
-import { PreferencesSettings } from '../components/PreferencesSettings';
+import ConfirmModal from '../components/common/ConfirmModal';
+import { PreferencesSettings } from '../components/settings/PreferencesSettings';
+import CategoryForm from '../components/settings/CategoryForm';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { fetchCategories, deleteCategory } from '../store/slices/categoriesSlice';
+import type { RootState } from '../store';
 
-
-export default function Settings() {
+const Settings = () => {
     const { user } = useAuth();
-    const queryClient = useQueryClient();
+    const dispatch = useAppDispatch();
     const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'preferences'>('categories');
 
     // Category State
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-    const [newCategoryName, setNewCategoryName] = useState('');
     const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
 
-    const { data: categories, isLoading } = useQuery<Category[]>({
-        queryKey: ['categories'],
-        queryFn: async () => {
-            const res = await api.get('/categories/');
-            return res.data;
-        }
-    });
+    const { items: categories, loading: isLoading } = useAppSelector((state: RootState) => state.categories);
 
-    const createCategoryMutation = useMutation({
-        mutationFn: async (data: { name: string }) => {
-            await api.post('/categories/', data);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['categories'] });
-            closeCategoryModal();
-        }
-    });
-
-    const deleteCategoryMutation = useMutation({
-        mutationFn: async (id: number) => {
-            await api.delete(`/categories/${id}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['categories'] });
-            setCategoryToDelete(null);
-        }
-    });
-
-    const handleCreateCategory = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const promise = createCategoryMutation.mutateAsync({ name: newCategoryName });
-        await toast.promise(promise, {
-            loading: 'Creating category...',
-            success: 'Category created successfully!',
-            error: (err) => handleApiError(err, 'Failed to create category')
-        });
-    };
+    useEffect(() => {
+        dispatch(fetchCategories());
+    }, [dispatch]);
 
     const handleDeleteCategory = async () => {
         if (!categoryToDelete) return;
-        const promise = deleteCategoryMutation.mutateAsync(categoryToDelete);
-        await toast.promise(promise, {
-            loading: 'Deleting category...',
-            success: 'Category deleted successfully!',
-            error: (err) => handleApiError(err, 'Failed to delete category')
-        });
+        try {
+            await dispatch(deleteCategory(categoryToDelete)).unwrap();
+            toast.success('Category deleted successfully!');
+            setCategoryToDelete(null);
+        } catch (err) {
+            toast.error(handleApiError(err, 'Failed to delete category'));
+        }
     };
 
     const closeCategoryModal = () => {
         setIsCategoryModalOpen(false);
-        setNewCategoryName('');
     };
 
     return (
-        <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
+        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
             <h1 className="text-4xl font-black text-foreground tracking-tight">Settings</h1>
 
             <div className="flex flex-col md:flex-row gap-10">
@@ -131,7 +99,7 @@ export default function Settings() {
                         <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
                             <div>
                                 <h2 className="text-2xl font-black text-foreground tracking-tight">Identity</h2>
-                                <p className="text-sm text-muted-foreground mt-1 lowercase italic">Your verified profile details</p>
+                                <p className="text-sm text-muted-foreground mt-1 lowercase">Your verified profile details</p>
                             </div>
 
                             <div className="space-y-6 max-w-lg">
@@ -160,7 +128,7 @@ export default function Settings() {
                         <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <h2 className="text-2xl font-black text-foreground tracking-tight italic uppercase tracking-tighter">Taxonomy</h2>
+                                    <h2 className="text-2xl font-black text-foreground tracking-tight uppercase tracking-tighter">Taxonomy</h2>
                                     <p className="text-sm text-muted-foreground mt-1">Classify your financial activity.</p>
                                 </div>
                                 <Button
@@ -212,35 +180,7 @@ export default function Settings() {
             </div>
 
             <Modal isOpen={isCategoryModalOpen} onClose={closeCategoryModal} title="New Category">
-                <form onSubmit={handleCreateCategory} className="space-y-6">
-                    <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Category Identifier</label>
-                        <input
-                            type="text"
-                            placeholder="e.g. Wellness, Exploration"
-                            value={newCategoryName}
-                            onChange={(e) => setNewCategoryName(e.target.value)}
-                            className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none transition text-foreground placeholder:text-muted-foreground/30 font-bold"
-                            autoFocus
-                        />
-                    </div>
-
-                    <div className="pt-6 flex justify-end gap-3 border-t border-border/50">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={closeCategoryModal}
-                        >
-                            Dismiss
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={!newCategoryName || createCategoryMutation.isPending}
-                        >
-                            {createCategoryMutation.isPending ? 'Propagating...' : 'Map Category'}
-                        </Button>
-                    </div>
-                </form>
+                <CategoryForm onSuccess={closeCategoryModal} onCancel={closeCategoryModal} />
             </Modal>
 
             <ConfirmModal
@@ -250,8 +190,9 @@ export default function Settings() {
                 message="Are you sure you want to delete this category? Transactions using this category may obtain a NULL category."
                 variant="danger"
                 onConfirm={handleDeleteCategory}
-                isLoading={deleteCategoryMutation.isPending}
             />
         </div>
     );
 }
+
+export default Settings;

@@ -31,6 +31,7 @@ def get_settings(
 
 
 @router.put("/", response_model=Settings)
+@router.patch("/", response_model=Settings)
 def update_settings(
     settings_update: Settings,
     session: Session = Depends(get_session),

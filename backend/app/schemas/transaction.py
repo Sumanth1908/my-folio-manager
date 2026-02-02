@@ -47,6 +47,7 @@ class TransferRequest(BaseModel):
     from_account_id: str
     to_account_id: str
     amount: Decimal
+    to_amount: Optional[Decimal] = None
     description: Optional[str] = None
     category_id: Optional[int] = None
     transaction_date: Optional[datetime] = None

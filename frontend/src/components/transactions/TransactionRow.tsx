@@ -1,0 +1,88 @@
+import { Plus, Pencil, Trash2, Tag } from 'lucide-react';
+import { memo } from 'react';
+import type { Transaction } from '../../types';
+import { Button } from '../ui/Button';
+import { cn } from '../../lib/utils';
+import { TRANSACTION_TYPE } from '../../constants';
+
+interface TransactionRowProps {
+    tx: Transaction;
+    accountName?: string;
+    currencySymbol: string;
+    onEdit?: (tx: Transaction) => void;
+    onDelete?: (id: number) => void;
+}
+
+const TransactionRow = memo(({
+    tx,
+    accountName,
+    currencySymbol,
+    onEdit,
+    onDelete
+}: TransactionRowProps) => (
+    <div className="group flex justify-between items-center p-6 hover:bg-muted/30 transition-colors">
+        <div className="flex items-center gap-5">
+            <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors shadow-sm",
+                tx.transaction_type === TRANSACTION_TYPE.CREDIT ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
+            )}>
+                {tx.transaction_type === TRANSACTION_TYPE.CREDIT ? <Plus size={20} /> : <div className="w-4 h-0.5 bg-current rounded-full" />}
+            </div>
+            <div>
+                <div className="font-bold text-base text-foreground leading-tight mb-1">{tx.description || 'No Description'}</div>
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">{`ID: ${tx.transaction_id}`}</span>
+                    {accountName && (
+                        <>
+                            <span className="text-primary/70">{accountName}</span>
+                            <span className="text-muted-foreground/30">•</span>
+                        </>
+                    )}
+                    <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">{new Date(tx.transaction_date).toLocaleDateString()}</span>
+                    {tx.category && (
+                        <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">
+                            <Tag size={10} />
+                            {tx.category.name}
+                        </span>
+                    )}
+                </div>
+            </div>
+        </div>
+        <div className="flex items-center gap-6">
+            <span className={cn(
+                "font-black text-lg tabular-nums tracking-tighter",
+                tx.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-emerald-500' : 'text-foreground'
+            )}>
+                {tx.transaction_type === TRANSACTION_TYPE.CREDIT ? '+' : '-'}{currencySymbol}{Number(tx.amount || 0).toFixed(2)}
+            </span>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {onEdit && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEdit(tx)}
+                        className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                        title="Edit Transaction"
+                    >
+                        <Pencil size={14} />
+                    </Button>
+                )}
+                {onDelete && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDelete(tx.transaction_id)}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                        title="Delete Transaction"
+                    >
+                        <Trash2 size={14} />
+                    </Button>
+                )}
+            </div>
+        </div>
+    </div>
+));
+
+TransactionRow.displayName = 'TransactionRow';
+
+export default TransactionRow;
