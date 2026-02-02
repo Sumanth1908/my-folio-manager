@@ -74,6 +74,8 @@ export interface InvestmentHolding {
     average_price: number;
     current_price?: number;
     currency: string;
+    stock_exchange?: string;
+    last_price_update?: string;
 }
 
 export type CreateHoldingDTO = Omit<InvestmentHolding, 'holding_id' | 'account_id'>;

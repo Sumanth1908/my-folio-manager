@@ -1,16 +1,19 @@
 from typing import List, Optional
+from decimal import Decimal, ROUND_HALF_UP
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from app.core.database import get_session
 from app.models.account import Account, AccountType
 from app.models.investment_holding import InvestmentHolding
 from app.models.user import User
-from app.schemas.investment import InvestmentHoldingCreate, InvestmentHoldingRead, InvestmentOperation
+from app.schemas.investment import InvestmentHoldingCreate, InvestmentHoldingRead, InvestmentOperation, StockSymbolSearch
 from app.deps import get_current_user
 from app.models.category import Category
 from app.models.transaction import TransactionType
 from app.schemas.transaction import TransactionCreate
 from app.services.transaction_service import create_transaction_core
+from app.services.stock_service import get_exchange_suffix, get_stock_prices_batch, search_stock_symbols
 
 router = APIRouter(prefix="/holdings", tags=["holdings"])
 
@@ -42,7 +45,7 @@ def buy_holding(
         total_new_cost = holding_in.quantity * holding_in.average_price
         
         existing_holding.quantity += holding_in.quantity
-        existing_holding.average_price = (total_old_cost + total_new_cost) / existing_holding.quantity
+        existing_holding.average_price = ((total_old_cost + total_new_cost) / existing_holding.quantity).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         
         # In case a name update is provided
         if holding_in.name:
@@ -50,12 +53,17 @@ def buy_holding(
             
         holding = existing_holding
     else:
-        holding = InvestmentHolding(**holding_in.model_dump())
+        # Auto-populate exchange suffix if not present
+        exchange_suffix = get_exchange_suffix(holding_in.currency)
+        holding_data = holding_in.model_dump()
+        if '.' not in holding_in.symbol and exchange_suffix:
+            holding_data['stock_exchange'] = exchange_suffix
+        holding = InvestmentHolding(**holding_data)
     
     session.add(holding)
     
     # Automatically create a debit transaction for the purchase using TransactionService
-    total_cost = holding.quantity * holding.average_price
+    total_cost = (holding.quantity * holding.average_price).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     
     # Find the "Investment" category for this user    
     cat_query = select(Category).where(Category.name == "Investment", Category.user_id == current_user.user_id)
@@ -99,6 +107,15 @@ def read_holdings(
     
     holdings = session.exec(query).all()
     return holdings
+
+@router.get("/search-symbols", response_model=List[StockSymbolSearch])
+def search_symbols(
+    q: str = Query(..., min_length=1, description="Search query"),
+    currency: str = Query("USD", description="Currency code for exchange filtering")
+):
+    """Search for stock symbols with autocomplete."""
+    results = search_stock_symbols(q, currency, limit=10)
+    return results
 
 @router.get("/{holding_id}", response_model=InvestmentHoldingRead)
 def read_holding(
@@ -165,7 +182,7 @@ def sell_holding(
     holding.quantity -= sell_in.quantity
     
     # Create a credit transaction for the sale    
-    total_revenue = sell_in.quantity * sell_in.price
+    total_revenue = (sell_in.quantity * sell_in.price).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     
     cat_query = select(Category).where(Category.name == "Investment", Category.user_id == current_user.user_id)
     category = session.exec(cat_query).first()
@@ -215,3 +232,57 @@ def delete_holding(
     session.delete(holding)
     session.commit()
     return {"message": "Holding deleted successfully"}
+
+@router.post("/refresh-prices", response_model=List[InvestmentHoldingRead])
+def refresh_stock_prices(
+    account_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Manually refresh stock prices for all holdings in an account."""
+    account = session.get(Account, account_id)
+    if not account or account.user_id != current_user.user_id:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    if account.account_type != AccountType.INVESTMENT:
+        raise HTTPException(status_code=400, detail="Only investment accounts have stock holdings")
+    
+    # Get all holdings for this account
+    holdings = session.exec(
+        select(InvestmentHolding).where(InvestmentHolding.account_id == account_id)
+    ).all()
+    
+    if not holdings:
+        return []
+    
+    # Build list of symbols with exchange suffix
+    symbols = []
+    for holding in holdings:
+        symbol = holding.symbol
+        if holding.stock_exchange:
+            symbol = f"{symbol}{holding.stock_exchange}"
+        elif '.' not in symbol:  # Add default exchange if needed
+            exchange_suffix = get_exchange_suffix(holding.currency)
+            if exchange_suffix:
+                symbol = f"{symbol}{exchange_suffix}"
+        symbols.append(symbol)
+    
+    # Batch fetch prices
+    prices = get_stock_prices_batch(symbols)
+    
+    # Update holdings with new prices
+    now = datetime.utcnow()
+    for holding, symbol in zip(holdings, symbols):
+        if symbol in prices and prices[symbol] is not None:
+            holding.current_price = prices[symbol]
+            holding.last_price_update = now
+            session.add(holding)
+    
+    session.commit()
+    
+    # Refresh all holdings to get updated data
+    for holding in holdings:
+        session.refresh(holding)
+    
+    return holdings
+

@@ -1,6 +1,7 @@
 import uuid
 from decimal import Decimal
 from typing import Optional
+from datetime import datetime
 from sqlalchemy import Column, ForeignKey, String, Integer
 from sqlmodel import Field, SQLModel
 
@@ -16,3 +17,5 @@ class InvestmentHolding(SQLModel, table=True):
     average_price: Decimal = Field(max_digits=15, decimal_places=2)
     current_price: Optional[Decimal] = Field(default=None, max_digits=15, decimal_places=2)
     currency: str = Field(default="USD", max_length=10)
+    stock_exchange: Optional[str] = Field(default=None, max_length=10)  # Exchange suffix (e.g., .NS, .L)
+    last_price_update: Optional[datetime] = Field(default=None)  # Timestamp of last price fetch

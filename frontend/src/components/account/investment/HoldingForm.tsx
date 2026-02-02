@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { createHolding } from '../../../store/slices/holdingsSlice';
 import { type RootState } from '../../../store';
+import StockSymbolInput from './StockSymbolInput';
 
 interface HoldingFormProps {
     accountId: string;
@@ -62,38 +63,61 @@ const HoldingForm = ({ accountId, currencySymbol, currencyCode, prefill, onSucce
 
     const isPrefilled = !!prefill;
 
+    const handleSymbolSelect = (symbol: string, name: string) => {
+        setFormData(prev => ({ ...prev, symbol, name }));
+    };
+
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        Symbol
-                    </label>
-                    <input
-                        type="text"
-                        required
-                        placeholder="e.g. AAPL"
-                        disabled={isPrefilled}
+            {isPrefilled ? (
+                <>
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                            Symbol
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.symbol}
+                            disabled
+                            className="w-full p-3 bg-background border border-border rounded-xl opacity-50"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                            Name
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.name}
+                            disabled
+                            className="w-full p-3 bg-background border border-border rounded-xl opacity-50"
+                        />
+                    </div>
+                </>
+            ) : (
+                <>
+                    <StockSymbolInput
                         value={formData.symbol}
-                        onChange={e => updateField('symbol', e.target.value.toUpperCase())}
-                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none transition disabled:opacity-50"
+                        name={formData.name}
+                        currency={currencyCode}
+                        disabled={false}
+                        onSelect={handleSymbolSelect}
                     />
-                </div>
-                <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        Name
-                    </label>
-                    <input
-                        type="text"
-                        required
-                        placeholder="e.g. Apple Inc."
-                        disabled={isPrefilled}
-                        value={formData.name}
-                        onChange={e => updateField('name', e.target.value)}
-                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none transition disabled:opacity-50"
-                    />
-                </div>
-            </div>
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                            Company Name
+                        </label>
+                        <input
+                            type="text"
+                            required
+                            placeholder="e.g. Apple Inc."
+                            value={formData.name}
+                            onChange={e => updateField('name', e.target.value)}
+                            className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none transition"
+                        />
+                    </div>
+                </>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
                 <div>

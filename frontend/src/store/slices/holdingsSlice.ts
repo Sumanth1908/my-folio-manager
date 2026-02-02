@@ -51,6 +51,36 @@ export const deleteHolding = createAsyncThunk(
     }
 );
 
+export const refreshStockPrices = createAsyncThunk(
+    'holdings/refreshStockPrices',
+    async (accountId: string, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await api.post('/holdings/refresh-prices', null, {
+                params: { account_id: accountId }
+            });
+            dispatch(fetchAccounts());
+            return res.data;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to refresh prices');
+        }
+    }
+);
+
+export const searchStockSymbols = createAsyncThunk(
+    'holdings/searchStockSymbols',
+    async ({ query, currency }: { query: string, currency: string }, { rejectWithValue }) => {
+        try {
+            const res = await api.get('/holdings/search-symbols', {
+                params: { q: query, currency }
+            });
+            return res.data;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to search symbols');
+        }
+    }
+);
+
+
 export const holdingsSlice = createSlice({
     name: 'holdings',
     initialState,
@@ -92,6 +122,23 @@ export const holdingsSlice = createSlice({
             })
             .addCase(deleteHolding.rejected, (state, action) => {
                 state.loading = false;
+                state.error = action.payload as string;
+            })
+            .addCase(refreshStockPrices.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(refreshStockPrices.fulfilled, (state) => {
+                state.loading = false;
+            })
+            .addCase(refreshStockPrices.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            })
+            .addCase(searchStockSymbols.pending, (state) => {
+                state.error = null;
+            })
+            .addCase(searchStockSymbols.rejected, (state, action) => {
                 state.error = action.payload as string;
             });
     },

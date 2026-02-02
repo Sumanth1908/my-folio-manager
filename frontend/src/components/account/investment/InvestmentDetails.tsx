@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { Account, InvestmentHolding } from '../../../types';
 import Modal from '../../common/Modal';
@@ -7,7 +7,7 @@ import HoldingForm from './HoldingForm';
 import SellHoldingForm from './SellHoldingForm';
 import ConfirmModal from '../../common/ConfirmModal';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
-import { deleteHolding } from '../../../store/slices/holdingsSlice';
+import { deleteHolding, refreshStockPrices } from '../../../store/slices/holdingsSlice';
 import type { RootState } from '../../../store';
 
 interface InvestmentDetailsProps {
@@ -56,6 +56,24 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
         setIsBuyModalOpen(true);
     };
 
+    const handleRefreshPrices = async () => {
+        try {
+            await dispatch(refreshStockPrices(account.account_id)).unwrap();
+            toast.success('Prices updated successfully');
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to refresh prices');
+        }
+    };
+
+    // Calculate last update time (use most recent update among all holdings)
+    const lastUpdate = holdings.reduce((latest: Date | null, h) => {
+        if (h.last_price_update) {
+            const updateDate = new Date(h.last_price_update);
+            return !latest || updateDate > latest ? updateDate : latest;
+        }
+        return latest;
+    }, null as Date | null);
+
     return (
         <div className="space-y-6">
             {/* Investment Summary Cards */}
@@ -85,13 +103,31 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
             {/* Holdings List */}
             <div className="bg-card rounded-2xl shadow-lg overflow-hidden border border-border">
                 <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
-                    <h3 className="text-lg font-bold text-foreground">Holdings</h3>
-                    <button
-                        onClick={handleAddNewHolding}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition shadow-sm text-sm font-medium"
-                    >
-                        <Plus size={18} /> Add Holding
-                    </button>
+                    <div>
+                        <h3 className="text-lg font-bold text-foreground">Holdings</h3>
+                        {lastUpdate && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Last updated: {lastUpdate.toLocaleString()}
+                            </p>
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleRefreshPrices}
+                            disabled={isHoldingsLoading}
+                            className="flex items-center gap-2 px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition shadow-sm text-sm font-medium disabled:opacity-50"
+                            title="Refresh stock prices"
+                        >
+                            <RefreshCw size={18} className={isHoldingsLoading ? 'animate-spin' : ''} />
+                            {isHoldingsLoading ? 'Refreshing...' : 'Refresh Prices'}
+                        </button>
+                        <button
+                            onClick={handleAddNewHolding}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition shadow-sm text-sm font-medium"
+                        >
+                            <Plus size={18} /> Add Holding
+                        </button>
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto">

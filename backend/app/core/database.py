@@ -8,7 +8,7 @@ DATABASE_URL = os.getenv(
     "mysql+pymysql://finance_user:finance_password@127.0.0.1:3306/finance_db"
 )
 
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=False)
 
 
 def get_session() -> Generator[Session, None, None]:

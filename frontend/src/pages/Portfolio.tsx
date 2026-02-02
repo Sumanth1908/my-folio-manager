@@ -22,6 +22,7 @@ import { fetchAccounts } from '../store/slices/accountsSlice';
 import { fetchSettings } from '../store/slices/settingsSlice';
 import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchRates } from '../store/slices/converterSlice';
+import { fetchPortfolioSummary } from '../store/slices/portfolioSlice';
 import type { RootState } from '../store';
 
 // --- Types for Balance Sheet View ---
@@ -89,6 +90,7 @@ export default function Portfolio() {
         dispatch(fetchAccounts());
         dispatch(fetchSettings());
         dispatch(fetchCurrencies());
+        dispatch(fetchPortfolioSummary());
     }, [dispatch]);
 
     useEffect(() => {

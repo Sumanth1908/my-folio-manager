@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.core.database import (create_db_and_tables, seed_categories,
                                seed_currencies)
 from app.routers import (accounts, categories, currencies, jobs, rules,
-                         transactions, auth, settings as settings_router, summary, holdings)
+                         transactions, auth, settings as settings_router, summary, holdings, portfolio)
 
 
 @asynccontextmanager
@@ -49,3 +49,4 @@ app.include_router(rules.router)
 app.include_router(settings_router.router)
 app.include_router(summary.router)
 app.include_router(holdings.router)
+app.include_router(portfolio.router)
