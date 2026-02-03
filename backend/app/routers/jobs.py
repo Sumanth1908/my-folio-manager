@@ -1,7 +1,7 @@
 """Jobs router for manual job triggers."""
 from fastapi import APIRouter
 
-from app.tasks.interest_tasks import process_daily_interest_accruals
+from app.tasks.automation import process_automation_rules
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -15,5 +15,5 @@ def trigger_interest_accrual():
     It will process interest for all accounts whose interest_accrual_day matches today.
     Returns a summary of accounts processed and total interest applied.
     """
-    result = process_daily_interest_accruals()
-    return result
+    process_automation_rules()
+    return {"message": "Automation rules check triggered."}

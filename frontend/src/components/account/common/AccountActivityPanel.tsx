@@ -405,6 +405,7 @@ const AccountActivityPanel = ({
                 isOpen={isRuleModalOpen}
                 onClose={() => setIsRuleModalOpen(false)}
                 title={editingRule ? 'Edit Rule' : 'New Rule'}
+                maxWidth="max-w-2xl"
             >
                 <RuleForm
                     accountId={accountId}

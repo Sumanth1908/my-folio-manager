@@ -1,24 +1,24 @@
-"""Categories router for managing transaction categories."""
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from app.core.database import get_session
-from app.models.category import Category
 from app.models.user import User
 from app.schemas.category import CategoryCreate, CategoryRead
+from app.services import category_service
 from app.deps import get_current_user
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
-@router.get("/")
+@router.get("/", response_model=List[CategoryRead])
 def list_categories(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """Get all categories for current user."""
-    categories = session.exec(select(Category).where(Category.user_id == current_user.user_id)).all()
-    return categories
+    return category_service.get_categories(session, current_user.user_id)
 
 
 @router.post("/", response_model=CategoryRead)
@@ -28,30 +28,21 @@ def create_category(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new category."""
-    # Check if category with same name exists for this user
-    existing = session.exec(
-        select(Category).where(Category.name == category_in.name, Category.user_id == current_user.user_id)
-    ).first()
-    if existing:
+    category = category_service.create_category(session, category_in, current_user.user_id)
+    if not category:
         raise HTTPException(status_code=400, detail="Category with this name already exists")
-    
-    category = Category(**category_in.model_dump(), user_id=current_user.user_id)
-    
-    session.add(category)
-    session.commit()
-    session.refresh(category)
     return category
 
 
-@router.get("/{category_id}")
+@router.get("/{category_id}", response_model=CategoryRead)
 def get_category(
     category_id: int, 
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """Get a specific category by ID."""
-    category = session.get(Category, category_id)
-    if not category or category.user_id != current_user.user_id:
+    category = category_service.get_category_with_ownership(session, category_id, current_user.user_id)
+    if not category:
         raise HTTPException(status_code=404, detail="Category not found")
     return category
 
@@ -65,18 +56,9 @@ def update_category(
     current_user: User = Depends(get_current_user)
 ):
     """Update a category."""
-    category = session.get(Category, category_id)
-    if not category or category.user_id != current_user.user_id:
+    category = category_service.update_category(session, category_id, updated_category, current_user.user_id)
+    if not category:
         raise HTTPException(status_code=404, detail="Category not found")
-    
-    # Update fields
-    category.name = updated_category.name
-    category.color = updated_category.color
-    category.icon = updated_category.icon
-    
-    session.add(category)
-    session.commit()
-    session.refresh(category)
     return category
 
 
@@ -87,10 +69,7 @@ def delete_category(
     current_user: User = Depends(get_current_user)
 ):
     """Delete a category."""
-    category = session.get(Category, category_id)
-    if not category or category.user_id != current_user.user_id:
+    success = category_service.delete_category(session, category_id, current_user.user_id)
+    if not success:
         raise HTTPException(status_code=404, detail="Category not found")
-    
-    session.delete(category)
-    session.commit()
     return {"message": "Category deleted successfully"}

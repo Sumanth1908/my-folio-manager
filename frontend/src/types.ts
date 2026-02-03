@@ -134,6 +134,9 @@ export interface Rule {
     transaction_amount?: number;
     transaction_type?: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT | typeof TRANSACTION_TYPE.TRANSFER;
     target_account_id?: string;
+
+    // Calculation
+    formula?: string;
 }
 
 export interface CreateRuleDTO {
@@ -149,6 +152,7 @@ export interface CreateRuleDTO {
     next_run_at?: string;
     transaction_amount?: number;
     transaction_type?: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT | typeof TRANSACTION_TYPE.TRANSFER;
+    formula?: string;
 }
 
 // Summary API Types

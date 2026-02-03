@@ -12,7 +12,7 @@ import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchSettings } from '../store/slices/settingsSlice';
 import { fetchRates } from '../store/slices/converterSlice';
 import type { RootState } from '../store';
-import { ACCOUNT_TYPES, TIME_RANGES, TRANSACTION_TYPE } from '../constants';
+import { ACCOUNT_TYPE, ACCOUNT_TYPES, TIME_RANGES, TRANSACTION_TYPE } from '../constants';
 
 export default function Dashboard() {
     const dispatch = useAppDispatch();
@@ -50,30 +50,50 @@ export default function Dashboard() {
         return amount / rate;
     }, [rates, defaultCurrency]);
 
-    // Aggregate summary data for global charts
-    const { globalInflows, globalOutflows } = useMemo(() => {
+    // Aggregate summary data for charts
+    const { globalOutflows, savingsInflows, savingsOutflows } = useMemo(() => {
         const inflowsMap = new Map<string, number>();
         const outflowsMap = new Map<string, number>();
+        const savingsInflowsMap = new Map<string, number>();
+        const savingsOutflowsMap = new Map<string, number>();
 
         if (summaryData) {
             summaryData.accounts.forEach((account) => {
+                const isSavings = account.account_type === ACCOUNT_TYPE.SAVINGS;
                 account.categories.forEach((cat) => {
                     const convertedAmount = convert(cat.total_amount, account.currency);
-                    const map = cat.transaction_type === TRANSACTION_TYPE.CREDIT ? inflowsMap : outflowsMap;
-                    map.set(cat.name, (map.get(cat.name) || 0) + convertedAmount);
+                    const isCredit = cat.transaction_type === TRANSACTION_TYPE.CREDIT;
+
+                    // Global maps
+                    const gMap = isCredit ? inflowsMap : outflowsMap;
+                    gMap.set(cat.name, (gMap.get(cat.name) || 0) + convertedAmount);
+
+                    // Savings-only maps
+                    if (isSavings) {
+                        const sMap = isCredit ? savingsInflowsMap : savingsOutflowsMap;
+                        sMap.set(cat.name, (sMap.get(cat.name) || 0) + convertedAmount);
+                    }
                 });
             });
         }
 
-        const inflows = Array.from(inflowsMap.entries()).map(([name, amount]) => ({
-            name, total_amount: amount, transaction_type: TRANSACTION_TYPE.CREDIT
-        }));
         const outflows = Array.from(outflowsMap.entries()).map(([name, amount]) => ({
             name, total_amount: amount, transaction_type: TRANSACTION_TYPE.DEBIT
         }));
 
-        return { globalInflows: inflows, globalOutflows: outflows };
-    }, [summaryData, rates]);
+        const sInflows = Array.from(savingsInflowsMap.entries()).map(([name, amount]) => ({
+            name, total_amount: amount, transaction_type: TRANSACTION_TYPE.CREDIT
+        }));
+        const sOutflows = Array.from(savingsOutflowsMap.entries()).map(([name, amount]) => ({
+            name, total_amount: amount, transaction_type: TRANSACTION_TYPE.DEBIT
+        }));
+
+        return {
+            globalOutflows: outflows,
+            savingsInflows: sInflows,
+            savingsOutflows: sOutflows
+        };
+    }, [summaryData, rates, convert]);
 
     return (
         <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
@@ -127,8 +147,8 @@ export default function Dashboard() {
                         {summaryData && !isRatesLoading && !isSummaryLoading ? (
                             <div className="transform transition-opacity duration-500 ease-out">
                                 <SankeyChart
-                                    inflows={globalInflows}
-                                    outflows={globalOutflows}
+                                    inflows={savingsInflows}
+                                    outflows={savingsOutflows}
                                     symbol={currencySymbol}
                                 />
                             </div>

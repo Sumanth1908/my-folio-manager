@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { type Rule, type RuleType, type Frequency } from '../../types';
-import { RULE_TYPE, FREQUENCY, TRANSACTION_TYPE } from '../../constants';
+import { RULE_TYPE, FREQUENCY, TRANSACTION_TYPE, ACCOUNT_TYPE } from '../../constants';
 import { Button } from '../ui/Button';
 import { Switch } from '../ui/Switch';
 import { cn } from '../../lib/utils';
@@ -38,6 +38,7 @@ interface RuleFormData {
     txType: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT | typeof TRANSACTION_TYPE.TRANSFER;
     nextRunAt: string;
     targetAccountId: string;
+    formula: string;
 }
 
 // Normalize transaction type
@@ -57,12 +58,33 @@ const createInitialFormData = (rule?: Rule | null): RuleFormData => ({
     categoryId: rule?.category_id?.toString() ?? '',
     frequency: (rule?.frequency as Frequency) ?? FREQUENCY.MONTHLY,
     amount: rule?.transaction_amount?.toString() ?? '',
-    txType: normalizeTransactionType(rule?.transaction_type),
+    txType: rule?.target_account_id ? TRANSACTION_TYPE.TRANSFER : normalizeTransactionType(rule?.transaction_type),
     nextRunAt: rule?.next_run_at
         ? new Date(rule.next_run_at).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0],
-    targetAccountId: rule?.target_account_id ?? ''
+    targetAccountId: rule?.target_account_id ?? '',
+    formula: rule?.formula ?? ''
 });
+
+const FORMULA_VARIABLES = {
+    [ACCOUNT_TYPE.SAVINGS]: [
+        { name: 'balance', desc: 'Current Account Balance' },
+        { name: 'interest_rate', desc: 'Annual Interest Rate (%)' },
+        { name: 'min_balance', desc: 'Minimum Balance Requirement' }
+    ],
+    [ACCOUNT_TYPE.LOAN]: [
+        { name: 'outstanding_amount', desc: 'Current Outstanding Balance' },
+        { name: 'loan_amount', desc: 'Original Loan Amount' },
+        { name: 'interest_rate', desc: 'Annual Interest Rate (%)' }
+    ],
+    [ACCOUNT_TYPE.FIXED_DEPOSIT]: [
+        { name: 'principal_amount', desc: 'Principal Deposited Amount' },
+        { name: 'interest_rate', desc: 'Annual Interest Rate (%)' }
+    ],
+    [ACCOUNT_TYPE.INVESTMENT]: [
+        { name: 'balance', desc: 'Current Cash Balance' }
+    ]
+};
 
 const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps) => {
     const dispatch = useAppDispatch();
@@ -79,6 +101,11 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
     // Filter accounts excluding current
     const availableTargetAccounts = useMemo(
         () => accounts.filter(a => a.account_id !== accountId),
+        [accounts, accountId]
+    );
+
+    const currentAccount = useMemo(
+        () => accounts.find(a => a.account_id === accountId),
         [accounts, accountId]
     );
 
@@ -106,12 +133,25 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
             payload.description_contains = descriptionContains;
             payload.category_id = Number(categoryId);
         } else {
-            if (!amount || !nextRunAt) return;
+            // Automation or Calculation
+            if (!nextRunAt) return;
+
             payload.frequency = frequency;
-            payload.transaction_amount = parseFloat(amount);
-            payload.transaction_type = txType;
             payload.next_run_at = new Date(nextRunAt).toISOString();
             if (categoryId) payload.category_id = Number(categoryId);
+
+            if (txType !== TRANSACTION_TYPE.TRANSFER) {
+                payload.transaction_type = txType;
+            }
+
+            if (ruleType === RULE_TYPE.CALCULATION) {
+                if (!formData.formula) return;
+                payload.formula = formData.formula;
+            } else {
+                if (!amount) return;
+                payload.transaction_amount = parseFloat(amount);
+            }
+
             if (txType === TRANSACTION_TYPE.TRANSFER) payload.target_account_id = targetAccountId;
         }
 
@@ -138,7 +178,8 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
             <div className="flex bg-muted p-1 rounded-2xl mb-6">
                 {[
                     { type: RULE_TYPE.CATEGORIZATION, label: 'Categorization' },
-                    { type: RULE_TYPE.TRANSACTION, label: 'Automation' }
+                    { type: RULE_TYPE.TRANSACTION, label: 'Automation' },
+                    { type: RULE_TYPE.CALCULATION, label: 'Formula' }
                 ].map(({ type, label }) => (
                     <button
                         key={type}
@@ -213,52 +254,63 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
                     </div>
                 </div>
             ) : (
-                /* Automation Fields */
-                <div className="space-y-5">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                                Frequency
-                            </label>
-                            <Select value={formData.frequency} onValueChange={v => updateField('frequency', v as Frequency)}>
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Frequency" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectLabel>Frequency</SelectLabel>
-                                        {Object.values(FREQUENCY).map(f => (
-                                            <SelectItem key={f} value={f}>{f}</SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                /* Automation Fields - 3 Column Layout */
+                <div className="grid grid-cols-3 gap-5">
+                    <div className="space-y-2">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                            Frequency
+                        </label>
+                        <Select value={formData.frequency} onValueChange={v => updateField('frequency', v as Frequency)}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Frequency" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectLabel>Frequency</SelectLabel>
+                                    {Object.values(FREQUENCY).map(f => (
+                                        <SelectItem key={f} value={f}>{f}</SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                    </div>
 
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                                Direction
-                            </label>
-                            <Select value={formData.txType} onValueChange={v => updateField('txType', v as typeof formData.txType)}>
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Direction" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectLabel>Type</SelectLabel>
-                                        <SelectItem value={TRANSACTION_TYPE.DEBIT}>DEBIT</SelectItem>
-                                        <SelectItem value={TRANSACTION_TYPE.CREDIT}>CREDIT</SelectItem>
-                                        <SelectItem value={TRANSACTION_TYPE.TRANSFER}>TRANSFER</SelectItem>
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                    <div className="space-y-2">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                            Direction
+                        </label>
+                        <Select value={formData.txType} onValueChange={v => updateField('txType', v as typeof formData.txType)}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Direction" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectLabel>Type</SelectLabel>
+                                    <SelectItem value={TRANSACTION_TYPE.DEBIT}>DEBIT</SelectItem>
+                                    <SelectItem value={TRANSACTION_TYPE.CREDIT}>CREDIT</SelectItem>
+                                    <SelectItem value={TRANSACTION_TYPE.TRANSFER}>TRANSFER</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                            Execution Day
+                        </label>
+                        <input
+                            type="date"
+                            value={formData.nextRunAt}
+                            onChange={e => updateField('nextRunAt', e.target.value)}
+                            className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold h-11"
+                            required
+                        />
                     </div>
 
                     {isTransfer && (
-                        <div className="space-y-2">
+                        <div className="col-span-3 space-y-2">
                             <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                                Destination
+                                Destination Account
                             </label>
                             <Select value={formData.targetAccountId} onValueChange={v => updateField('targetAccountId', v)}>
                                 <SelectTrigger className="w-full">
@@ -276,34 +328,30 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                                Amount
-                            </label>
+                    <div className={cn(formData.ruleType === RULE_TYPE.CALCULATION ? "col-span-2" : "col-span-1", "space-y-2")}>
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                            {formData.ruleType === RULE_TYPE.CALCULATION ? 'Calculation Formula' : 'Fixed Amount'}
+                        </label>
+                        {formData.ruleType === RULE_TYPE.CALCULATION ? (
+                            <input
+                                type="text"
+                                placeholder="balance * 0.05 / 12"
+                                value={formData.formula}
+                                onChange={e => updateField('formula', e.target.value)}
+                                className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-mono font-bold h-11"
+                                required
+                            />
+                        ) : (
                             <input
                                 type="number"
                                 step="0.01"
                                 placeholder="0.00"
                                 value={formData.amount}
                                 onChange={e => updateField('amount', e.target.value)}
-                                className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold"
+                                className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold h-11"
                                 required
                             />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                                Execution Day
-                            </label>
-                            <input
-                                type="date"
-                                value={formData.nextRunAt}
-                                onChange={e => updateField('nextRunAt', e.target.value)}
-                                className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold"
-                                required
-                            />
-                        </div>
+                        )}
                     </div>
 
                     <div className="space-y-2">
@@ -314,7 +362,7 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
                             value={formData.categoryId || 'none'}
                             onValueChange={v => updateField('categoryId', v === 'none' ? '' : v)}
                         >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger className="w-full h-11">
                                 <SelectValue placeholder="N/A" />
                             </SelectTrigger>
                             <SelectContent>
@@ -330,6 +378,27 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {formData.ruleType === RULE_TYPE.CALCULATION && currentAccount && (
+                        <div className="col-span-3 bg-primary/5 rounded-lg border border-primary/10 overflow-hidden">
+                            <div className="px-3 py-2 bg-primary/5 flex justify-between items-center border-b border-primary/5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                                    Available Variables
+                                </p>
+                                <span className="text-[9px] font-mono text-muted-foreground bg-background/50 px-1.5 rounded">
+                                    +, -, *, /, **
+                                </span>
+                            </div>
+                            <div className="p-2 gap-1.5 grid grid-cols-3 max-h-[120px] overflow-y-auto">
+                                {FORMULA_VARIABLES[currentAccount.account_type]?.map(v => (
+                                    <div key={v.name} className="flex flex-col bg-background/40 p-1.5 rounded border border-primary/5">
+                                        <span className="font-mono text-[10px] font-bold text-foreground">{v.name}</span>
+                                        <span className="text-[8px] text-muted-foreground uppercase tracking-tight truncate" title={v.desc}>{v.desc}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

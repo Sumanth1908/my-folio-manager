@@ -12,6 +12,7 @@ from app.models.transaction import TransactionType
 class RuleType(str, Enum):
     CATEGORIZATION = "CATEGORIZATION"
     TRANSACTION = "TRANSACTION"
+    CALCULATION = "CALCULATION"
 
 class Frequency(str, Enum):
     DAILY = "DAILY"
@@ -42,4 +43,8 @@ class Rule(SQLModel, table=True):
     transaction_amount: Optional[Decimal] = Field(default=None, max_digits=15, decimal_places=2)
     transaction_type: Optional[TransactionType] = None
     target_account_id: Optional[str] = Field(default=None, sa_column=Column(String(36), ForeignKey("accounts.account_id", ondelete="CASCADE"), nullable=True))
+    
+    # Calculation Rules (Formula based)
+    formula: Optional[str] = Field(default=None, max_length=500, description="Mathematical formula using account fields")
+    
     is_active: bool = Field(default=True)

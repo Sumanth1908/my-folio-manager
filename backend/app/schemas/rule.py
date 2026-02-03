@@ -23,6 +23,9 @@ class RuleBase(BaseModel):
     transaction_amount: Optional[Decimal] = None
     transaction_type: Optional[TransactionType] = None
     target_account_id: Optional[str] = None
+    
+    # Calculation
+    formula: Optional[str] = None
 
 class RuleCreate(RuleBase):
     account_id: str
@@ -45,3 +48,4 @@ class RuleUpdate(BaseModel):
     transaction_amount: Optional[Decimal] = None
     transaction_type: Optional[TransactionType] = None
     target_account_id: Optional[str] = None
+    formula: Optional[str] = None

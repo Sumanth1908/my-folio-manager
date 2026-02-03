@@ -59,12 +59,28 @@ export default function AccountRules({
                                             <span>→</span>
                                             <span className="text-primary">{rule.category_name}</span>
                                         </div>
+                                    ) : rule.rule_type === RULE_TYPE.CALCULATION ? (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-primary">{rule.frequency}</span>
+                                            <span className="text-muted-foreground/30">•</span>
+                                            <span className="text-foreground font-mono bg-muted px-1.5 py-0.5 rounded border border-border/50 text-[10px] font-bold">
+                                                {rule.formula}
+                                            </span>
+                                            {rule.next_run_at && (
+                                                <span className="ml-2 text-[10px] text-primary/70 italic lowercase">
+                                                    next: {new Date(rule.next_run_at).toLocaleDateString()}
+                                                </span>
+                                            )}
+                                        </div>
                                     ) : (
                                         <div className="flex items-center gap-2">
                                             <span className="text-primary">{rule.frequency}</span>
                                             <span className="text-muted-foreground/30">•</span>
-                                            <span className={cn(rule.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-emerald-500' : 'text-rose-500')}>
-                                                {rule.transaction_type} {symbol}{rule.transaction_amount}
+                                            <span className={cn(
+                                                rule.target_account_id ? 'text-primary' :
+                                                    rule.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-emerald-500' : 'text-rose-500'
+                                            )}>
+                                                {rule.target_account_id ? 'TRANSFER' : rule.transaction_type} {symbol}{rule.transaction_amount}
                                             </span>
                                             {rule.next_run_at && (
                                                 <span className="ml-2 text-[10px] text-primary/70 italic lowercase">
@@ -76,7 +92,7 @@ export default function AccountRules({
                                 </div>
                             </div>
                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {rule.rule_type === RULE_TYPE.TRANSACTION && (
+                                {((rule.rule_type === RULE_TYPE.TRANSACTION) || (rule.rule_type === RULE_TYPE.CALCULATION)) && (
                                     <Button
                                         variant="outline"
                                         size="sm"

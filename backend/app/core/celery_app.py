@@ -8,7 +8,6 @@ from celery.schedules import crontab
 
 # Explicitly import tasks to ensure registration
 from app.tasks import automation  # noqa
-from app.tasks import interest_tasks  # noqa
 
 # Create Celery app
 celery_app = Celery(
@@ -36,10 +35,6 @@ celery_app.autodiscover_tasks(["app.tasks"])
 
 # Celery Beat schedule
 celery_app.conf.beat_schedule = {
-    "daily-interest-accrual-check": {
-        "task": "app.tasks.interest_tasks.process_daily_interest_accruals",
-        "schedule": crontab(hour=0, minute=5),  # Every day at 00:05
-    },
     "automation-rules-check": {
         "task": "app.tasks.automation.process_automation_rules",
         "schedule": crontab(minute="*/5"),  # Every 5 minutes
