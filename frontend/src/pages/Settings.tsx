@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Trash2, User, Layers, Settings as SettingsIcon, Tag, Plus } from 'lucide-react';
+import { Trash2, User, Layers, Settings as SettingsIcon, Tag, Plus, Database } from 'lucide-react';
 import { handleApiError } from '../api';
 import Modal from '../components/common/Modal';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { PreferencesSettings } from '../components/settings/PreferencesSettings';
+import { DataSettings } from '../components/settings/DataSettings';
 import CategoryForm from '../components/settings/CategoryForm';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -17,7 +18,7 @@ import type { RootState } from '../store';
 const Settings = () => {
     const { user } = useAuth();
     const dispatch = useAppDispatch();
-    const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'preferences'>('categories');
+    const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'preferences' | 'data'>('categories');
 
     // Category State
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -88,6 +89,18 @@ const Settings = () => {
                             >
                                 <SettingsIcon size={18} />
                                 Preferences
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('data')}
+                                className={cn(
+                                    "flex items-center gap-3 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                                    activeTab === 'data'
+                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                )}
+                            >
+                                <Database size={18} />
+                                Data
                             </button>
                         </nav>
                     </Card>
@@ -176,6 +189,8 @@ const Settings = () => {
                     )}
 
                     {activeTab === 'preferences' && <PreferencesSettings />}
+
+                    {activeTab === 'data' && <DataSettings />}
                 </div>
             </div>
 

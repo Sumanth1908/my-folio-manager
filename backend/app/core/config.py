@@ -19,6 +19,9 @@ class Settings:
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-temporary-change-in-production")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8 # 8 days
     
+    # AI / Gemini
+    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
+    
     # CORS
     CORS_ORIGINS: list[str] = ["*"]  # For development
 

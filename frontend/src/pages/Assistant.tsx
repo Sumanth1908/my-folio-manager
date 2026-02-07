@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
+import api from '../api';
 
 interface Message {
     id: string;
@@ -54,19 +55,38 @@ export default function Assistant() {
             content: input.trim(),
         };
 
-        setMessages(prev => [...prev, userMessage]);
+        const updatedMessages = [...messages, userMessage];
+        setMessages(updatedMessages);
         setInput('');
         setIsLoading(true);
 
-        // Simulate response - replace with actual API call
-        setTimeout(() => {
+        try {
+            // Build conversation history for context
+            const conversationHistory = updatedMessages.map(msg => ({
+                role: msg.role,
+                content: msg.content
+            }));
+
+            const response = await api.post('/assistant/chat', {
+                message: userMessage.content,
+                conversation_history: conversationHistory.slice(0, -1) // Exclude the just-sent message
+            });
+
             setMessages(prev => [...prev, {
                 id: crypto.randomUUID(),
                 role: 'assistant',
-                content: `You asked: "${userMessage.content}". Connect me to your AI backend to get real financial insights!`,
+                content: response.data.response,
             }]);
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.detail || 'Sorry, I encountered an error. Please try again.';
+            setMessages(prev => [...prev, {
+                id: crypto.randomUUID(),
+                role: 'assistant',
+                content: `⚠️ ${errorMessage}`,
+            }]);
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
     return (
@@ -121,9 +141,25 @@ export default function Assistant() {
                                 <Bot className="w-8 h-8 text-primary" />
                             </div>
                             <h3 className="text-lg font-bold text-foreground mb-2">Start a conversation</h3>
-                            <p className="text-muted-foreground text-sm max-w-md">
+                            <p className="text-muted-foreground text-sm max-w-md mb-6">
                                 Ask me about your portfolio performance, spending patterns, budgeting tips, or any other financial questions.
                             </p>
+                            <div className="flex flex-wrap gap-2 justify-center max-w-lg">
+                                {[
+                                    "What's my total balance across all accounts?",
+                                    "Show me my spending by category this month",
+                                    "How is my investment portfolio performing?",
+                                    "What are my recent transactions?",
+                                ].map((prompt) => (
+                                    <button
+                                        key={prompt}
+                                        onClick={() => setInput(prompt)}
+                                        className="px-3 py-2 text-xs bg-muted hover:bg-muted/80 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        {prompt}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     ) : (
                         messages.map((msg) => (

@@ -24,6 +24,7 @@ services:
       DATABASE_URL: "mysql+pymysql://finance_user:finance_password@db:3306/finance_db"
       CELERY_BROKER_URL: "redis://redis:6379/0"
       CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY}"
     depends_on:
       - db
       - redis
