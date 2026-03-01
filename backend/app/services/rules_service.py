@@ -20,6 +20,13 @@ logger = logging.getLogger(__name__)
 
 def process_single_rule(session: Session, rule: Rule):
     """Execute the logic for a single automation or calculation rule."""
+    
+    account = session.get(Account, rule.account_id)
+    if not account:
+        logger.error(f"Account {rule.account_id} not found for rule {rule.rule_id}")
+        return
+    user_id = account.user_id
+
     description = f"Auto: {rule.name}"
     
     # Use the rule's next_run_at as the transaction date
@@ -33,12 +40,6 @@ def process_single_rule(session: Session, rule: Rule):
             from app.core.expression_engine import SafeEquationEvaluator
             from app.services.account_service import calculate_account_balance
             
-            # Fetch full account details to context
-            account = session.get(Account, rule.account_id)
-            if not account:
-                logger.error(f"Account {rule.account_id} not found for rule {rule.rule_id}")
-                return
-
             # Build context
             context = {
                 "balance": float(calculate_account_balance(session, account)),
@@ -92,7 +93,7 @@ def process_single_rule(session: Session, rule: Rule):
         )
         try:
             logger.info(f"Executing transfer for rule {rule.rule_id}")
-            create_transfer_core(session, transfer_request)
+            create_transfer_core(session, transfer_request, user_id)
         except Exception as e:
             logger.error(f"Failed to create transfer for rule {rule.rule_id}: {e}")
             raise e
@@ -108,7 +109,7 @@ def process_single_rule(session: Session, rule: Rule):
         )
         try:
             logger.info(f"Executing transaction for rule {rule.rule_id}")
-            create_transaction_core(session, tx_create)
+            create_transaction_core(session, tx_create, user_id)
         except Exception as e:
             logger.error(f"Failed to create transaction for rule {rule.rule_id}: {e}")
             raise e
