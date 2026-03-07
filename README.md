@@ -30,6 +30,13 @@ A comprehensive personal finance and portfolio management application designed t
 -   **State Management**: TanStack Query (React Query)
 -   **Charts**: Recharts
 
+### Mobile App
+-   **Framework**: Flutter (Dart)
+-   **State Management**: Riverpod
+-   **Navigation**: GoRouter
+-   **Networking**: Dio
+-   **Data Models**: Freezed & JSON Serializable
+
 ---
 
 ## 🏗 Setup & Installation
@@ -38,6 +45,7 @@ A comprehensive personal finance and portfolio management application designed t
 -   Docker & Docker Compose
 -   Python 3.11+ & Poetry
 -   Node.js & npm
+-   Flutter SDK (3.x) & Dart
 
 ### 1. Infrastructure Services
 Start the database and Redis services using Docker Compose:
@@ -74,6 +82,47 @@ npm run dev
 ```
 *The web interface will be available at http://localhost:5173.*
 
+### 5. Mobile App Setup
+Navigate to the `mobile` directory:
+```bash
+cd mobile
+flutter pub get
+```
+
+#### Running locally
+```bash
+flutter run
+```
+*The app will launch on your connected emulator or physical device. On the first launch, you will be prompted to enter your backend server URL.*
+
+#### Code Generation (Freezed / Riverpod)
+If you modify the data models or providers, you will need to regenerate the `.g.dart` and `.freezed.dart` files:
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+#### Building for Production
+**Android (APK or App Bundle)**
+```bash
+# Build an APK (easiest for sharing)
+flutter build apk --release
+
+# Build an App Bundle (required for Play Store)
+flutter build appbundle --release
+```
+
+**iOS (IPA)**
+To build for iOS, you need to be on a macOS machine with Xcode installed.
+```bash
+# You may need to install CocoaPods dependencies first
+cd ios
+pod install
+cd ..
+
+# Build the IPA
+flutter build ipa --release
+```
+
 ---
 
 ## 📁 Project Structure
@@ -81,6 +130,7 @@ npm run dev
 ```text
 ├── backend/            # FastAPI source code, models, and background tasks
 ├── frontend/           # React application, components, and hooks
+├── mobile/             # Flutter (iOS/Android) mobile application
 ├── docker-compose.yml  # Database and Redis configuration
 └── README.md           # Project documentation
 ```

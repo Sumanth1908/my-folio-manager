@@ -4,8 +4,8 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install poetry
-RUN pip install poetry==2.1.1
+# Install poetry with an increased timeout for slow network connections
+RUN pip install --default-timeout=100 poetry==2.1.1
 
 # Configure poetry to not create virtual environment (we're in a container)
 RUN poetry config virtualenvs.create false

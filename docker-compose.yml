@@ -17,7 +17,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "0.0.0.0:8000:8000"
     environment:
       DATABASE_URL: "mysql+pymysql://finance_user:finance_password@db:3306/finance_db"
       CELERY_BROKER_URL: "redis://redis:6379/0"
@@ -69,7 +69,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:80"
+      - "0.0.0.0:3000:80"
     depends_on:
       - backend
     restart: always

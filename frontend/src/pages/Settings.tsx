@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { PreferencesSettings } from '../components/settings/PreferencesSettings';
 import { DataSettings } from '../components/settings/DataSettings';
+import { SecuritySettings } from '../components/settings/SecuritySettings';
+import { Shield } from 'lucide-react';
 import CategoryForm from '../components/settings/CategoryForm';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -18,7 +20,7 @@ import type { RootState } from '../store';
 const Settings = () => {
     const { user } = useAuth();
     const dispatch = useAppDispatch();
-    const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'preferences' | 'data'>('categories');
+    const [activeTab, setActiveTab] = useState<'general' | 'security' | 'categories' | 'preferences' | 'data'>('categories');
 
     // Category State
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -65,6 +67,18 @@ const Settings = () => {
                             >
                                 <User size={18} />
                                 General
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('security')}
+                                className={cn(
+                                    "flex items-center gap-3 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                                    activeTab === 'security'
+                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                )}
+                            >
+                                <Shield size={18} />
+                                Security
                             </button>
                             <button
                                 onClick={() => setActiveTab('categories')}
@@ -136,6 +150,8 @@ const Settings = () => {
                             </div>
                         </Card>
                     )}
+
+                    {activeTab === 'security' && <SecuritySettings />}
 
                     {activeTab === 'categories' && (
                         <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">

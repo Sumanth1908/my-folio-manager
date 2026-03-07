@@ -1,0 +1,58 @@
+name: my_folio_manager
+description: My Folio Manager — Personal Finance Tracker
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.19.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP Client
+  dio: ^5.7.0
+
+  # Secure Storage (JWT token + backend URL)
+  flutter_secure_storage: ^9.2.2
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Navigation
+  go_router: ^14.6.3
+
+  # Models (immutable, with copyWith + fromJson/toJson)
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.9.0
+
+  # Charts
+  fl_chart: ^0.69.0
+
+  # Internationalization (currency, date formatting)
+  intl: ^0.19.0
+
+  # Icons
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Code generation
+  build_runner: ^2.4.13
+  freezed: ^3.0.0
+  json_serializable: ^6.8.0
+  riverpod_generator: ^2.6.2
+  custom_lint: ^0.7.5
+  riverpod_lint: ^2.6.2
+
+  # Linting
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
