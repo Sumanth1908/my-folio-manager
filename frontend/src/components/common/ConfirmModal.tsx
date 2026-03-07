@@ -1,3 +1,4 @@
+import { Button } from '../ui/Button';
 import Modal from './Modal';
 
 interface ConfirmModalProps {
@@ -26,28 +27,23 @@ const ConfirmModal = ({
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
             <div className="space-y-4">
-                <p className="text-gray-600 dark:text-gray-400">{message}</p>
+                <p className="text-sm text-muted-foreground">{message}</p>
                 <div className="flex justify-end gap-3 pt-2">
-                    <button
+                    <Button
+                        variant="ghost"
                         onClick={onClose}
-                        className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors font-medium"
                         disabled={isLoading}
                     >
                         {cancelText}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant={variant === 'danger' ? 'destructive' : 'default'}
                         onClick={onConfirm}
                         disabled={isLoading}
-                        className={`px-4 py-2 text-white rounded-lg transition-colors font-medium shadow-sm flex items-center gap-2 ${variant === 'danger'
-                            ? 'bg-red-600 hover:bg-red-700 disabled:bg-red-400'
-                            : 'bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400'
-                            }`}
+                        isLoading={isLoading}
                     >
-                        {isLoading && (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        )}
                         {confirmText}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </Modal>

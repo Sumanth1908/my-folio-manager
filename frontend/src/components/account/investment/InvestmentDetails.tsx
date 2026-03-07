@@ -9,6 +9,8 @@ import ConfirmModal from '../../common/ConfirmModal';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { deleteHolding, refreshStockPrices } from '../../../store/slices/holdingsSlice';
 import type { RootState } from '../../../store';
+import { Button } from '../../ui/Button';
+import { cn } from '../../../lib/utils';
 
 interface InvestmentDetailsProps {
     account: Account;
@@ -92,7 +94,10 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                 </div>
                 <div className="bg-card p-5 rounded-2xl shadow-sm border border-border">
                     <div className="text-sm text-muted-foreground mb-1">Total Logic Gain/Loss</div>
-                    <div className={`text-2xl font-bold flex items-center gap-2 ${totalProfit >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+                    <div className={cn(
+                        'text-2xl font-bold flex items-center gap-2',
+                        totalProfit >= 0 ? 'text-emerald-500' : 'text-destructive'
+                    )}>
                         {totalProfit >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
                         {symbol}{Math.abs(totalProfit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         <span className="text-sm font-medium">({profitPercentage.toFixed(2)}%)</span>
@@ -112,21 +117,20 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                         )}
                     </div>
                     <div className="flex gap-2">
-                        <button
+                        <Button
+                            variant="secondary"
                             onClick={handleRefreshPrices}
                             disabled={isHoldingsLoading}
-                            className="flex items-center gap-2 px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition shadow-sm text-sm font-medium disabled:opacity-50"
                             title="Refresh stock prices"
                         >
-                            <RefreshCw size={18} className={isHoldingsLoading ? 'animate-spin' : ''} />
+                            <RefreshCw size={16} className={isHoldingsLoading ? 'animate-spin' : ''} />
                             {isHoldingsLoading ? 'Refreshing...' : 'Refresh Prices'}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={handleAddNewHolding}
-                            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition shadow-sm text-sm font-medium"
                         >
-                            <Plus size={18} /> Add Holding
-                        </button>
+                            <Plus size={16} /> Add Holding
+                        </Button>
                     </div>
                 </div>
 
@@ -163,33 +167,42 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                                         <td className="px-6 py-4 text-right text-muted-foreground">{symbol}{ap.toLocaleString()}</td>
                                         <td className="px-6 py-4 text-right font-medium text-foreground">{symbol}{cp.toLocaleString()}</td>
                                         <td className="px-6 py-4 text-right font-bold text-foreground">{symbol}{marketValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                        <td className={`px-6 py-4 text-right font-semibold ${profit >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+                                        <td className={cn(
+                                            'px-6 py-4 text-right font-semibold',
+                                            profit >= 0 ? 'text-emerald-500' : 'text-destructive'
+                                        )}>
                                             <div>{profit >= 0 ? '+' : '-'}{symbol}{Math.abs(profit).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
                                             <div className="text-[10px]">{pPercentage.toFixed(2)}%</div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex justify-center gap-1">
-                                                <button
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
                                                     onClick={() => handleBuyMore(holding)}
-                                                    className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition"
                                                     title="Buy More"
+                                                    className="text-muted-foreground hover:text-primary hover:bg-primary/10"
                                                 >
                                                     <TrendingUp size={18} />
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
                                                     onClick={() => handleSellHolding(holding)}
-                                                    className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition"
                                                     title="Sell Asset"
+                                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                                 >
                                                     <TrendingDown size={18} />
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
                                                     onClick={() => setConfirmDeleteHolding(holding)}
-                                                    className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition"
                                                     title="Delete Record"
+                                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                                 >
                                                     <Trash2 size={18} />
-                                                </button>
+                                                </Button>
                                             </div>
                                         </td>
                                     </tr>
