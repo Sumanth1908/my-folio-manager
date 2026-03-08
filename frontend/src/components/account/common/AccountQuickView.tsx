@@ -11,6 +11,7 @@ import {
 import { Button } from '../../ui/Button';
 import type { Account } from '../../../types';
 import { ACCOUNT_TYPE } from '../../../constants';
+import { formatDate } from '../../../lib/utils';
 
 interface AccountQuickViewProps {
     account: Account;
@@ -47,7 +48,7 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
                         <InfoCard disabled label="Interest Rate" value={`${account.loan_account.interest_rate}%`} icon={<BadgePercent size={16} />} />
                         <InfoCard disabled label="EMI Amount" value={`${account.currency} ${Number(account.loan_account.emi_amount).toLocaleString()}`} icon={<Clock size={16} />} />
                         <InfoCard disabled label="Tenure" value={`${account.loan_account.tenure_months} Months`} icon={<Calendar size={16} />} />
-                        <InfoCard disabled label="Start Date" value={new Date(account.loan_account.start_date).toLocaleDateString()} icon={<Calendar size={16} />} />
+                        <InfoCard disabled label="Start Date" value={formatDate(account.loan_account.start_date)} icon={<Calendar size={16} />} />
                     </>
                 )}
 
@@ -57,8 +58,8 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
                         <InfoCard disabled label="Maturity Amount" value={`${account.currency} ${Number(account.fixed_deposit_account.maturity_amount).toLocaleString()}`} icon={<TrendingUp size={16} className="text-emerald-500" />} color="text-emerald-500" />
                         <InfoCard disabled label="Interest Rate" value={`${account.fixed_deposit_account.interest_rate}%`} icon={<BadgePercent size={16} />} />
                         <InfoCard disabled label="Accrual Day" value={account.fixed_deposit_account.interest_accrual_day?.toString() || '1'} icon={<Calendar size={16} />} />
-                        <InfoCard disabled label="Start Date" value={new Date(account.fixed_deposit_account.start_date).toLocaleDateString()} icon={<Calendar size={16} />} />
-                        <InfoCard disabled label="Maturity Date" value={new Date(account.fixed_deposit_account.maturity_date).toLocaleDateString()} icon={<Calendar size={16} />} />
+                        <InfoCard disabled label="Start Date" value={formatDate(account.fixed_deposit_account.start_date)} icon={<Calendar size={16} />} />
+                        <InfoCard disabled label="Maturity Date" value={formatDate(account.fixed_deposit_account.maturity_date)} icon={<Calendar size={16} />} />
                     </>
                 )}
 

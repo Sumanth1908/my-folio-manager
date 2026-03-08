@@ -39,6 +39,7 @@ interface RuleFormData {
     nextRunAt: string;
     targetAccountId: string;
     formula: string;
+    endDate: string;
 }
 
 // Normalize transaction type
@@ -60,10 +61,11 @@ const createInitialFormData = (rule?: Rule | null): RuleFormData => ({
     amount: rule?.transaction_amount?.toString() ?? '',
     txType: rule?.target_account_id ? TRANSACTION_TYPE.TRANSFER : normalizeTransactionType(rule?.transaction_type),
     nextRunAt: rule?.next_run_at
-        ? new Date(rule.next_run_at).toISOString().split('T')[0]
+        ? rule.next_run_at.split('T')[0]
         : new Date().toISOString().split('T')[0],
     targetAccountId: rule?.target_account_id ?? '',
-    formula: rule?.formula ?? ''
+    formula: rule?.formula ?? '',
+    endDate: rule?.end_date ? rule.end_date.split('T')[0] : ''
 });
 
 const FORMULA_VARIABLES = {
@@ -119,7 +121,7 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const { name, ruleType, isActive, descriptionContains, categoryId, frequency, amount, txType, nextRunAt, targetAccountId } = formData;
+        const { name, ruleType, isActive, descriptionContains, categoryId, frequency, amount, txType, nextRunAt, targetAccountId, formula, endDate } = formData;
 
         const payload: Record<string, unknown> = {
             account_id: accountId,
@@ -138,6 +140,7 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
 
             payload.frequency = frequency;
             payload.next_run_at = new Date(nextRunAt).toISOString();
+            if (endDate) payload.end_date = new Date(endDate).toISOString();
             if (categoryId) payload.category_id = Number(categoryId);
 
             if (txType !== TRANSACTION_TYPE.TRANSFER) {
@@ -145,8 +148,8 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
             }
 
             if (ruleType === RULE_TYPE.CALCULATION) {
-                if (!formData.formula) return;
-                payload.formula = formData.formula;
+                if (!formula) return;
+                payload.formula = formula;
             } else {
                 if (!amount) return;
                 payload.transaction_amount = parseFloat(amount);
@@ -304,6 +307,17 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
                             onChange={e => updateField('nextRunAt', e.target.value)}
                             className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold h-11"
                             required
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                            Expiry Date (Optional)
+                        </label>
+                        <input
+                            type="date"
+                            value={formData.endDate}
+                            onChange={e => updateField('endDate', e.target.value)}
+                            className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold h-11"
                         />
                     </div>
 

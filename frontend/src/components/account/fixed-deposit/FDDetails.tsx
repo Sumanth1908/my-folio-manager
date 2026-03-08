@@ -1,5 +1,6 @@
 import { Card } from '../../ui/Card';
 import type { Account } from '../../../types';
+import { formatDate } from '../../../lib/utils';
 
 interface FDDetailsProps {
     account: Account;
@@ -38,13 +39,13 @@ const FDDetails = ({ account, symbol }: FDDetailsProps) => {
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Start Date</p>
                     <p className="text-xl font-black text-foreground">
-                        {new Date(account.fixed_deposit_account.start_date).toLocaleDateString()}
+                        {formatDate(account.fixed_deposit_account.start_date)}
                     </p>
                 </div>
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Maturity Date</p>
                     <p className="text-xl font-black text-foreground">
-                        {new Date(account.fixed_deposit_account.maturity_date).toLocaleDateString()}
+                        {formatDate(account.fixed_deposit_account.maturity_date)}
                     </p>
                 </div>
                 <div className="bg-background p-5 rounded-2xl border border-border/50">

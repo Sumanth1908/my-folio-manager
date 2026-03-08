@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 from datetime import datetime, timezone
 from decimal import Decimal
 from dateutil.relativedelta import relativedelta
@@ -18,6 +19,13 @@ from app.services.transaction_service import (create_transaction_core,
 
 logger = logging.getLogger(__name__)
 
+def make_aware(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
 def process_single_rule(session: Session, rule: Rule):
     """Execute the logic for a single automation or calculation rule."""
     
@@ -30,7 +38,7 @@ def process_single_rule(session: Session, rule: Rule):
     description = f"Auto: {rule.name}"
     
     # Use the rule's next_run_at as the transaction date
-    transaction_date = rule.next_run_at or datetime.now(timezone.utc).replace(tzinfo=None)
+    transaction_date = make_aware(rule.next_run_at) or datetime.now(timezone.utc)
     
     transaction_amount = rule.transaction_amount or Decimal("0.00")
     
@@ -120,7 +128,7 @@ def process_single_rule(session: Session, rule: Rule):
         rule.next_run_at = None
     else:
         # Calculate next date
-        current_run = rule.next_run_at or datetime.now(timezone.utc).replace(tzinfo=None)
+        current_run = make_aware(rule.next_run_at) or datetime.now(timezone.utc)
         
         if rule.frequency == Frequency.DAILY:
             rule.next_run_at = current_run + relativedelta(days=1)
@@ -130,6 +138,17 @@ def process_single_rule(session: Session, rule: Rule):
             rule.next_run_at = current_run + relativedelta(months=1)
         elif rule.frequency == Frequency.YEARLY:
            rule.next_run_at = current_run + relativedelta(years=1)
+
+        # Handle rule expiration
+        if rule.end_date and rule.next_run_at:
+            # We use make_aware to ensure comparison works
+            end_dt = make_aware(rule.end_date)
+            next_dt = make_aware(rule.next_run_at)
+            
+            if next_dt >= end_dt:
+                rule.is_active = False
+                rule.next_run_at = None
+                logger.info(f"Rule {rule.rule_id} has expired and is now inactive.")
             
     session.add(rule)
     session.commit()
@@ -237,27 +256,55 @@ def create_default_interest_rule(session: Session, account: Account, savings_dat
     if not formula:
         return None
 
-    # Calculate next run date (first occurrence of accrual_day)
-    now = datetime.utcnow()
-    if now.day >= accrual_day:
-        # Next month
-        if now.month == 12:
-            next_month = datetime(now.year + 1, 1, accrual_day)
-        else:
-            next_month = datetime(now.year, now.month + 1, accrual_day)
-        next_run = next_month
+    # Calculate base date for scheduling
+    if loan_data and hasattr(loan_data, 'start_date') and loan_data.start_date:
+        base_date = datetime.combine(loan_data.start_date, datetime.min.time(), tzinfo=timezone.utc)
+    elif fd_data and hasattr(fd_data, 'start_date') and fd_data.start_date:
+        base_date = datetime.combine(fd_data.start_date, datetime.min.time(), tzinfo=timezone.utc)
     else:
-        next_run = datetime(now.year, now.month, accrual_day)
+        base_date = datetime.now(timezone.utc)
+
+    # The first scheduled run should be the FIRST accrual day that occurs strictly AFTER the start_date.
+    # If the base_date's day is already >= accrual_day, the first occurrence is in the next month.
+    if base_date.day >= accrual_day:
+        next_run = base_date + relativedelta(months=1, day=accrual_day)
+    else:
+        next_run = base_date + relativedelta(day=accrual_day)
         
-    interest_rule = Rule(
-        account_id=account.account_id,
-        name=rule_name,
-        rule_type=RuleType.CALCULATION,
-        formula=formula,
-        frequency=Frequency.MONTHLY,
-        transaction_type=tx_type,
-        next_run_at=next_run,
-        is_active=True
-    )
-    session.add(interest_rule)
+    interest_rule = session.exec(
+        select(Rule)
+        .where(Rule.account_id == account.account_id)
+        .where(Rule.rule_type == RuleType.CALCULATION)
+        .where(Rule.name.like("Monthly Interest - %"))
+    ).first()
+
+    # Calculate end_date based on tenure or maturity
+    end_date = None
+    if loan_data and hasattr(loan_data, 'tenure_months') and loan_data.tenure_months:
+        # Use relivedelta to add tenure to start_date
+        start_date_aware = datetime.combine(loan_data.start_date, datetime.min.time(), tzinfo=timezone.utc)
+        end_date = start_date_aware + relativedelta(months=loan_data.tenure_months)
+    elif fd_data and hasattr(fd_data, 'maturity_date') and fd_data.maturity_date:
+        end_date = datetime.combine(fd_data.maturity_date, datetime.min.time(), tzinfo=timezone.utc)
+
+    if interest_rule:
+        interest_rule.formula = formula
+        interest_rule.transaction_type = tx_type
+        interest_rule.next_run_at = next_run
+        interest_rule.end_date = end_date
+        session.add(interest_rule)
+    else:
+        interest_rule = Rule(
+            account_id=account.account_id,
+            name=rule_name,
+            rule_type=RuleType.CALCULATION,
+            formula=formula,
+            frequency=Frequency.MONTHLY,
+            transaction_type=tx_type,
+            next_run_at=next_run,
+            end_date=end_date,
+            is_active=True
+        )
+        session.add(interest_rule)
+    
     return interest_rule

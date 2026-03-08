@@ -1,7 +1,7 @@
 import { Wand2, Play, Power, Pencil, Trash2 } from 'lucide-react';
 import type { Rule } from '../../../types';
 import { Button } from '../../ui/Button';
-import { cn } from '../../../lib/utils';
+import { cn, formatDate } from '../../../lib/utils';
 import { TRANSACTION_TYPE, RULE_TYPE } from '../../../constants';
 import LoadingSpinner from '../../common/LoadingSpinner';
 
@@ -68,7 +68,12 @@ export default function AccountRules({
                                             </span>
                                             {rule.next_run_at && (
                                                 <span className="ml-2 text-[10px] text-primary/70 italic lowercase">
-                                                    next: {new Date(rule.next_run_at).toLocaleDateString()}
+                                                    next: {formatDate(rule.next_run_at)}
+                                                </span>
+                                            )}
+                                            {rule.end_date && (
+                                                <span className="ml-2 text-[10px] text-rose-500/70 italic lowercase">
+                                                    ends: {formatDate(rule.end_date)}
                                                 </span>
                                             )}
                                         </div>
@@ -84,7 +89,12 @@ export default function AccountRules({
                                             </span>
                                             {rule.next_run_at && (
                                                 <span className="ml-2 text-[10px] text-primary/70 italic lowercase">
-                                                    next: {new Date(rule.next_run_at).toLocaleDateString()}
+                                                    next: {formatDate(rule.next_run_at)}
+                                                </span>
+                                            )}
+                                            {rule.end_date && (
+                                                <span className="ml-2 text-[10px] text-rose-500/70 italic lowercase">
+                                                    ends: {formatDate(rule.end_date)}
                                                 </span>
                                             )}
                                         </div>
@@ -97,8 +107,8 @@ export default function AccountRules({
                                         variant="outline"
                                         size="sm"
                                         onClick={() => onExecute(rule.rule_id)}
-                                        disabled={isExecuting}
-                                        className="h-8 gap-1.5 text-[9px] font-black uppercase tracking-widest border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/10 transition-colors"
+                                        disabled={isExecuting || !rule.is_active}
+                                        className="h-8 gap-1.5 text-[9px] font-black uppercase tracking-widest border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Play size={10} fill="currentColor" />
                                         {isExecuting ? 'Running...' : 'Run'}

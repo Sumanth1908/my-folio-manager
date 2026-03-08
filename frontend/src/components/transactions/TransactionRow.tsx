@@ -2,7 +2,7 @@ import { Plus, Pencil, Trash2, Tag } from 'lucide-react';
 import { memo } from 'react';
 import type { Transaction } from '../../types';
 import { Button } from '../ui/Button';
-import { cn } from '../../lib/utils';
+import { cn, formatDate } from '../../lib/utils';
 import { TRANSACTION_TYPE } from '../../constants';
 
 interface TransactionRowProps {
@@ -38,7 +38,7 @@ const TransactionRow = memo(({
                             <span className="text-muted-foreground/30">•</span>
                         </>
                     )}
-                    <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">{new Date(tx.transaction_date).toLocaleDateString()}</span>
+                    <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">{formatDate(tx.transaction_date)}</span>
                     {tx.category && (
                         <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">
                             <Tag size={10} />

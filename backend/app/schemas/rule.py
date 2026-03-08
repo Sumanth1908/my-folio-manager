@@ -20,6 +20,7 @@ class RuleBase(BaseModel):
     # Automation
     frequency: Optional[Frequency] = None
     next_run_at: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     transaction_amount: Optional[Decimal] = None
     transaction_type: Optional[TransactionType] = None
     target_account_id: Optional[str] = None
@@ -45,6 +46,7 @@ class RuleUpdate(BaseModel):
     
     frequency: Optional[Frequency] = None
     next_run_at: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     transaction_amount: Optional[Decimal] = None
     transaction_type: Optional[TransactionType] = None
     target_account_id: Optional[str] = None

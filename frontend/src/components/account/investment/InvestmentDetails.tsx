@@ -10,7 +10,7 @@ import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { deleteHolding, refreshStockPrices } from '../../../store/slices/holdingsSlice';
 import type { RootState } from '../../../store';
 import { Button } from '../../ui/Button';
-import { cn } from '../../../lib/utils';
+import { cn, formatDate } from '../../../lib/utils';
 
 interface InvestmentDetailsProps {
     account: Account;
@@ -112,7 +112,7 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                         <h3 className="text-lg font-bold text-foreground">Holdings</h3>
                         {lastUpdate && (
                             <p className="text-xs text-muted-foreground mt-1">
-                                Last updated: {lastUpdate.toLocaleString()}
+                                Last updated: {formatDate(lastUpdate)}
                             </p>
                         )}
                     </div>
