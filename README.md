@@ -101,7 +101,31 @@ If you modify the data models or providers, you will need to regenerate the `.g.
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-#### Building for Production
+#### Building for Development (Debug)
+If you want to build a debug version to share or test without starting an active debugger from CLI:
+**Android (Debug APK)**
+```bash
+# Build the APK
+flutter build apk --debug
+
+# Install on connected device (optional)
+adb install build/app/outputs/flutter-apk/app-debug.apk
+```
+
+**iOS (Debug/Release for Development)**
+Note: Debug builds are best for active development (hot reload). Release builds are best for testing performance.
+```bash
+# Build for development distribution
+flutter build ipa --export-method development
+
+# Alternatively, just build the .app bundle (release mode)
+flutter build ios --release
+
+# Install onto a connected physical device
+flutter install
+```
+
+#### Building for Production (Release)
 **Android (APK or App Bundle)**
 ```bash
 # Build an APK (easiest for sharing)

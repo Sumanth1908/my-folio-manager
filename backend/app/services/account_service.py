@@ -69,7 +69,9 @@ def enrich_account(session: Session, account: Account) -> AccountRead:
     elif account.account_type == AccountType.FIXED_DEPOSIT:
         fd = session.get(FixedDepositAccount, account.account_id)
         if fd:
-            account_dict['fixed_deposit_account'] = fd.model_dump()
+            fd_dict = fd.model_dump()
+            fd_dict['balance'] = calculate_account_balance(session, account)
+            account_dict['fixed_deposit_account'] = fd_dict
 
     elif account.account_type == AccountType.INVESTMENT:
         holdings_query = select(InvestmentHolding).where(InvestmentHolding.account_id == account.account_id)

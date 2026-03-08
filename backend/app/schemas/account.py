@@ -71,6 +71,7 @@ class FixedDepositAccountCreate(FixedDepositAccountBase):
 class FixedDepositAccountRead(FixedDepositAccountBase):
     model_config = ConfigDict(from_attributes=True)
     account_id: str
+    balance: Decimal = Decimal("0.00")
 
 class FixedDepositAccountUpdate(BaseModel):
     principal_amount: Decimal | None = None
