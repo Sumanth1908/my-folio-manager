@@ -42,7 +42,7 @@ export default function AccountRules({
                                     <span className={cn(
                                         "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border",
                                         rule.is_active
-                                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                                            ? "bg-emerald-600/15 text-emerald-600 border-emerald-600/20"
                                             : "bg-muted text-muted-foreground border-border"
                                     )}>
                                         {rule.is_active ? 'Active' : 'Paused'}
@@ -72,7 +72,7 @@ export default function AccountRules({
                                                 </span>
                                             )}
                                             {rule.end_date && (
-                                                <span className="ml-2 text-[10px] text-rose-500/70 italic lowercase">
+                                                <span className="ml-2 text-[10px] text-rose-600/70 italic lowercase">
                                                     ends: {formatDate(rule.end_date)}
                                                 </span>
                                             )}
@@ -83,7 +83,7 @@ export default function AccountRules({
                                             <span className="text-muted-foreground/30">•</span>
                                             <span className={cn(
                                                 rule.target_account_id ? 'text-primary' :
-                                                    rule.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-emerald-500' : 'text-rose-500'
+                                                    rule.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-emerald-600' : 'text-rose-600'
                                             )}>
                                                 {rule.target_account_id ? 'TRANSFER' : rule.transaction_type} {symbol}{rule.transaction_amount}
                                             </span>
@@ -93,7 +93,7 @@ export default function AccountRules({
                                                 </span>
                                             )}
                                             {rule.end_date && (
-                                                <span className="ml-2 text-[10px] text-rose-500/70 italic lowercase">
+                                                <span className="ml-2 text-[10px] text-rose-600/70 italic lowercase">
                                                     ends: {formatDate(rule.end_date)}
                                                 </span>
                                             )}
@@ -108,7 +108,7 @@ export default function AccountRules({
                                         size="sm"
                                         onClick={() => onExecute(rule.rule_id)}
                                         disabled={isExecuting || !rule.is_active}
-                                        className="h-8 gap-1.5 text-[9px] font-black uppercase tracking-widest border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="h-8 gap-1.5 text-[9px] font-black uppercase tracking-widest border-emerald-600/20 text-emerald-600 hover:bg-emerald-600/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Play size={10} fill="currentColor" />
                                         {isExecuting ? 'Running...' : 'Run'}
@@ -120,7 +120,7 @@ export default function AccountRules({
                                     onClick={() => onToggle(rule)}
                                     className={cn(
                                         "h-8 w-8 transition-colors rounded-lg",
-                                        rule.is_active ? "text-muted-foreground hover:text-foreground hover:bg-muted" : "text-emerald-500 hover:bg-emerald-500/10"
+                                        rule.is_active ? "text-muted-foreground hover:text-foreground hover:bg-muted" : "text-emerald-600 hover:bg-emerald-600/10"
                                     )}
                                     title={rule.is_active ? "Pause Rule" : "Resume Rule"}
                                 >

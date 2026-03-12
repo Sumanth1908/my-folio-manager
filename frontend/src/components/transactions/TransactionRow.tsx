@@ -24,7 +24,7 @@ const TransactionRow = memo(({
         <div className="flex items-center gap-5">
             <div className={cn(
                 "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors shadow-sm",
-                tx.transaction_type === TRANSACTION_TYPE.CREDIT ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
+                tx.transaction_type === TRANSACTION_TYPE.CREDIT ? "bg-emerald-600/15 text-emerald-600" : "bg-rose-600/15 text-rose-600"
             )}>
                 {tx.transaction_type === TRANSACTION_TYPE.CREDIT ? <Plus size={20} /> : <div className="w-4 h-0.5 bg-current rounded-full" />}
             </div>
@@ -51,7 +51,7 @@ const TransactionRow = memo(({
         <div className="flex items-center gap-6">
             <span className={cn(
                 "font-black text-lg tabular-nums tracking-tighter",
-                tx.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-emerald-500' : 'text-foreground'
+                tx.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-emerald-600' : 'text-rose-600'
             )}>
                 {tx.transaction_type === TRANSACTION_TYPE.CREDIT ? '+' : '-'}{currencySymbol}{Number(tx.amount || 0).toFixed(2)}
             </span>

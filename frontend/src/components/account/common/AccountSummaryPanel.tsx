@@ -12,6 +12,7 @@ import Modal from '../../common/Modal';
 import AccountQuickView from './AccountQuickView';
 import type { SummaryResponse, AccountSummary, Account } from '../../../types';
 import { TRANSACTION_TYPE } from '../../../constants';
+import { cn } from '../../../lib/utils';
 
 interface AccountSummaryPanelProps {
     data: SummaryResponse;
@@ -61,7 +62,16 @@ const AccountCard = memo(({
                             </button>
                         </div>
                         <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
-                            <span>{account.account_type}</span>
+                            <span className={cn(
+                                "px-2 py-0.5 rounded-full font-bold",
+                                account.account_type === 'SAVINGS' ? "bg-emerald-600/15 text-emerald-600" :
+                                account.account_type === 'INVESTMENT' ? "bg-blue-600/15 text-blue-600" :
+                                account.account_type === 'FIXED_DEPOSIT' ? "bg-amber-600/15 text-amber-600" :
+                                account.account_type === 'LOAN' ? "bg-rose-600/15 text-rose-600" :
+                                "bg-primary/15 text-primary"
+                            )}>
+                                {account.account_type.replace('_', ' ')}
+                            </span>
                             <span className="w-1 h-1 rounded-full bg-border" />
                             <span>{account.currency}</span>
                         </div>
@@ -72,13 +82,13 @@ const AccountCard = memo(({
                     <div className="flex gap-6">
                         <div className="text-right">
                             <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">Inflow</div>
-                            <div className="text-sm font-black text-emerald-500 tabular-nums">
+                            <div className="text-sm font-black text-emerald-600 tabular-nums">
                                 +{inTotal.toLocaleString()}
                             </div>
                         </div>
                         <div className="text-right">
                             <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">Outflow</div>
-                            <div className="text-sm font-black text-rose-500 tabular-nums">
+                            <div className="text-sm font-black text-rose-600 tabular-nums">
                                 -{outTotal.toLocaleString()}
                             </div>
                         </div>
@@ -109,12 +119,12 @@ const AccountCard = memo(({
                                     <div key={idx} className="grid grid-cols-12 p-3 items-center hover:bg-accent/20 transition-colors">
                                         <div className="col-span-1 flex justify-center">
                                             {cat.transaction_type === TRANSACTION_TYPE.CREDIT ?
-                                                <TrendingUp size={14} className="text-emerald-500" /> :
-                                                <TrendingDown size={14} className="text-rose-500" />
+                                                <TrendingUp size={14} className="text-emerald-600" /> :
+                                                <TrendingDown size={14} className="text-rose-600" />
                                             }
                                         </div>
                                         <div className="col-span-6 text-sm font-medium text-foreground">{cat.name}</div>
-                                        <div className={`col-span-5 text-right text-sm font-bold tabular-nums ${cat.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-emerald-500' : 'text-foreground'}`}>
+                                        <div className={`col-span-5 text-right text-sm font-bold tabular-nums ${cat.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-emerald-600' : 'text-foreground'}`}>
                                             {cat.transaction_type === TRANSACTION_TYPE.CREDIT ? '+' : ''}{Number(cat.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </div>
                                     </div>

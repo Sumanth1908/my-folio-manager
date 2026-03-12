@@ -44,9 +44,9 @@ const SankeyChart = memo(({ inflows, outflows, symbol }: SankeyChartProps) => {
         const CASHFLOW_DISPLAY = "Cash Flow";
 
         // Colors
-        const INFLOW_COLOR = "#10b981"; // Emerald 500
-        const CASHFLOW_COLOR = "#3b82f6"; // Blue 500
-        const SURPLUS_COLOR = "#10b981"; // Emerald 500
+        const INFLOW_COLOR = "#059669"; // Emerald 600
+        const CASHFLOW_COLOR = "#2563eb"; // Blue 600
+        const SURPLUS_COLOR = "#059669"; // Emerald 600
 
         // Dynamic Palette
         const OUTFLOW_PALETTE = [
