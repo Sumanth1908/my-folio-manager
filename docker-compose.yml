@@ -1,6 +1,6 @@
 services:
   db:
-    image: mysql:8.0
+    image: mysql:8.4
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
@@ -29,7 +29,7 @@ services:
     restart: always
 
   redis:
-    image: redis:7-alpine
+    image: redis:8.6
     ports:
       - "6379:6379"
     restart: always

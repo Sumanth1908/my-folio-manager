@@ -1,26 +1,40 @@
-# Use Python 3.11 slim image
-FROM python:3.11-slim
+# Stage 1: Builder
+FROM python:3.11-slim AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install poetry with an increased timeout for slow network connections
-RUN pip install --default-timeout=100 poetry==2.1.1
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Configure poetry to not create virtual environment (we're in a container)
-RUN poetry config virtualenvs.create false
+# Install poetry
+RUN pip install --no-cache-dir poetry==2.1.1
 
 # Copy dependency files
 COPY pyproject.toml poetry.lock* ./
 
-# Install dependencies
-RUN poetry install --no-root --without dev
+# Install dependencies into a virtualenv
+RUN poetry config virtualenvs.in-project true && \
+    poetry install --no-root --without dev && \
+    rm -rf /root/.cache
 
-# Copy application code
+# Stage 2: Final
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy virtualenv and application code
+COPY --from=builder /app/.venv /app/.venv
 COPY . .
 
-# Expose port
+# Set environment variables
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Expose port (relevant for backend only, but safe for all)
 EXPOSE 8000
 
-# Run the application
+# Default command (overridden in docker-compose for worker/beat)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
