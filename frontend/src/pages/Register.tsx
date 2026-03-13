@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Wallet } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 
@@ -31,9 +30,7 @@ export default function Register() {
         <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="flex justify-center">
-                    <div className="bg-primary p-3 rounded-2xl shadow-lg shadow-primary/20">
-                        <Wallet className="h-10 w-10 text-primary-foreground" />
-                    </div>
+                    <img src="/logo.svg" className="h-20 w-auto object-contain animate-in fade-in zoom-in duration-1000" alt="My Folio Manager" />
                 </div>
                 <h2 className="mt-6 text-center text-3xl font-black text-foreground tracking-tight">
                     Create your account

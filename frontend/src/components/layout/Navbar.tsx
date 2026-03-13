@@ -22,11 +22,8 @@ export default function Navbar() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-20">
                     <Link to="/" className="flex items-center gap-2 group">
-                        <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-transform">
-                            <svg className="w-5 h-5 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-                                <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
-                            </svg>
+                        <div className="h-10 w-10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <img src="/logo.svg" className="h-full w-auto object-contain" alt="Folio Logo" />
                         </div>
                         <span className="text-xl font-black text-foreground tracking-tighter uppercase italic">Folio</span>
                     </Link>
