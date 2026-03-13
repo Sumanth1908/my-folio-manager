@@ -12,23 +12,41 @@ import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchSettings } from '../store/slices/settingsSlice';
 import { fetchRates } from '../store/slices/converterSlice';
 import type { RootState } from '../store';
-import { ACCOUNT_TYPE, ACCOUNT_TYPES, TIME_RANGES, TRANSACTION_TYPE } from '../constants';
+import type { Account, AccountSummary } from '../types';
+import { ACCOUNT_TYPES, TIME_RANGES, TRANSACTION_TYPE } from '../constants';
+import { fetchAccounts } from '../store/slices/accountsSlice';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "../components/ui/Select";
 
 export default function Dashboard() {
     const dispatch = useAppDispatch();
     const { user } = useAuth();
     const [isCashflowExpanded, setIsCashflowExpanded] = useState(true);
+    const [selectedAccountId, setSelectedAccountId] = useState<string>(() => {
+        return localStorage.getItem('dashboard_selected_account_id') || 'all';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('dashboard_selected_account_id', selectedAccountId);
+    }, [selectedAccountId]);
 
     const { data: summaryData, loading: isSummaryLoading, filters: summaryFilters } = useAppSelector((state: RootState) => state.summary);
+    const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
     const { items: currencies } = useAppSelector((state: RootState) => state.currencies);
     const { data: settings } = useAppSelector((state: RootState) => state.settings);
     const { rates, loading: isRatesLoading } = useAppSelector((state: RootState) => state.converter);
 
     const timeRange = summaryFilters.timeRange;
     const defaultCurrency = settings?.default_currency || 'USD';
-    const currencySymbol = currencies?.find(c => c.code === defaultCurrency)?.symbol || defaultCurrency;
+    const currencySymbol = currencies?.find((c: any) => c.code === defaultCurrency)?.symbol || defaultCurrency;
 
     useEffect(() => {
+        dispatch(fetchAccounts());
         dispatch(fetchCurrencies());
         dispatch(fetchSettings());
     }, [dispatch]);
@@ -58,23 +76,27 @@ export default function Dashboard() {
         const savingsOutflowsMap = new Map<string, number>();
 
         if (summaryData) {
-            summaryData.accounts.forEach((account) => {
-                const isSavings = account.account_type === ACCOUNT_TYPE.SAVINGS;
-                account.categories.forEach((cat) => {
-                    const convertedAmount = convert(cat.total_amount, account.currency);
-                    const isCredit = cat.transaction_type === TRANSACTION_TYPE.CREDIT;
+            summaryData.accounts
+                .filter((account: AccountSummary) => selectedAccountId === 'all' || account.account_id === selectedAccountId)
+                .forEach((account: AccountSummary) => {
+                    const isSelectedSpecific = selectedAccountId !== 'all';
+                    
+                    account.categories.forEach((cat: any) => {
+                        // Exclude transfers in global view to prevent internal flows from cluttering the net cashflow
+                        if (!isSelectedSpecific && cat.transaction_type === TRANSACTION_TYPE.TRANSFER) return;
+                        
+                        const convertedAmount = convert(cat.total_amount, account.currency);
+                        const isCredit = cat.transaction_type === TRANSACTION_TYPE.CREDIT;
 
-                    // Global maps
-                    const gMap = isCredit ? inflowsMap : outflowsMap;
-                    gMap.set(cat.name, (gMap.get(cat.name) || 0) + convertedAmount);
+                        // Global maps (Total portfolio inflows/outflows)
+                        const gMap = isCredit ? inflowsMap : outflowsMap;
+                        gMap.set(cat.name, (gMap.get(cat.name) || 0) + convertedAmount);
 
-                    // Savings-only maps
-                    if (isSavings) {
+                        // Sankey maps
                         const sMap = isCredit ? savingsInflowsMap : savingsOutflowsMap;
                         sMap.set(cat.name, (sMap.get(cat.name) || 0) + convertedAmount);
-                    }
+                    });
                 });
-            });
         }
 
         const outflows = Array.from(outflowsMap.entries()).map(([name, amount]) => ({
@@ -93,7 +115,7 @@ export default function Dashboard() {
             savingsInflows: sInflows,
             savingsOutflows: sOutflows
         };
-    }, [summaryData, rates, convert]);
+    }, [summaryData, rates, convert, selectedAccountId]);
 
     return (
         <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
@@ -106,6 +128,22 @@ export default function Dashboard() {
                     </div>
 
                     <div className="flex flex-col md:flex-row items-end md:items-center gap-4 w-full md:w-auto">
+                        <div className="w-full md:w-64">
+                            <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                                <SelectTrigger className="h-10 bg-muted/50 border-border/50 hover:bg-muted transition-colors">
+                                    <SelectValue placeholder="All Accounts" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Accounts</SelectItem>
+                                    {accounts.map((account: Account) => (
+                                        <SelectItem key={account.account_id} value={account.account_id}>
+                                            {account.account_name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                         <div className="flex bg-muted/50 p-1 rounded-xl border border-border self-start md:self-auto">
                             {TIME_RANGES.map((range) => (
                                 <Button

@@ -1,0 +1,23 @@
+# Flutter/Dart build artifacts
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+
+# Generated code — commit these if you want reproducible builds without running build_runner
+# lib/**/*.g.dart
+# lib/**/*.freezed.dart
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# Android
+android/.gradle/
+android/local.properties
+
+# macOS
+macos/Pods/
+macos/.symlinks/

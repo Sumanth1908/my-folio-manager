@@ -19,7 +19,7 @@ import { fetchAccounts, deleteAccount } from '../store/slices/accountsSlice';
 import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchSettings } from '../store/slices/settingsSlice';
 import { fetchRates } from '../store/slices/converterSlice';
-import { TRANSACTION_TYPE } from '../constants';
+import { TRANSACTION_TYPE, ACCOUNT_TYPE } from '../constants';
 
 const AccountDetails = () => {
     const { id: accountId } = useParams<{ id: string }>();
@@ -124,6 +124,22 @@ const AccountDetails = () => {
     };
 
     const getBalance = () => {
+        if (!account) return 0;
+
+        // Use pre-calculated balances from backend where available
+        if (account.savings_account) return Number(account.savings_account.balance || 0);
+        if (account.fixed_deposit_account) return Number(account.fixed_deposit_account.balance || 0);
+        if (account.loan_account) return Number(account.loan_account.outstanding_amount || 0);
+
+        // For investment accounts, calculate total portfolio value from holdings
+        if (account.account_type === ACCOUNT_TYPE.INVESTMENT && account.investment_holdings) {
+            return account.investment_holdings.reduce((total, holding) => {
+                const price = holding.current_price ?? holding.average_price;
+                return total + (holding.quantity * price);
+            }, 0);
+        }
+
+        // Fallback to transaction sum for other cases (though usually redundant)
         if (!transactions) return 0;
         return transactions.reduce((balance: number, tx: Transaction) => {
             const amount = Number(tx.amount || 0);

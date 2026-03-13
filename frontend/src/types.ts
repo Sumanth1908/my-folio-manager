@@ -56,6 +56,7 @@ export interface LoanAccount {
 // Fixed Deposit Account Data
 export interface FixedDepositAccount {
     account_id: string;
+    balance: number;
     principal_amount: number;
     interest_rate: number;
     start_date: string;
@@ -131,6 +132,7 @@ export interface Rule {
     // Automation
     frequency?: Frequency;
     next_run_at?: string;
+    end_date?: string;
     transaction_amount?: number;
     transaction_type?: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT | typeof TRANSACTION_TYPE.TRANSFER;
     target_account_id?: string;
@@ -150,6 +152,7 @@ export interface CreateRuleDTO {
 
     frequency?: Frequency;
     next_run_at?: string;
+    end_date?: string;
     transaction_amount?: number;
     transaction_type?: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT | typeof TRANSACTION_TYPE.TRANSFER;
     formula?: string;

@@ -10,15 +10,15 @@ interface SpendingBreakdownProps {
 }
 
 const COLORS = [
-    '#f87171', // Housing - Red
-    '#60a5fa', // Utility - Blue
-    '#fb923c', // Food - Orange
-    '#34d399', // Health - Emerald
-    '#818cf8', // Entertainment - Indigo
-    '#fbbf24', // Education - Amber
-    '#a78bfa', // Shopping - Violet
-    '#2dd4bf', // Travel - Teal
-    '#9ca3af', // Uncategorized - Gray
+    '#dc2626', // Housing - Red 600
+    '#2563eb', // Utility - Blue 600
+    '#ea580c', // Food - Orange 600
+    '#059669', // Health - Emerald 600
+    '#4f46e5', // Entertainment - Indigo 600
+    '#d97706', // Education - Amber 600
+    '#7c3aed', // Shopping - Violet 600
+    '#0d9488', // Travel - Teal 600
+    '#4b5563', // Uncategorized - Gray 600
 ];
 
 const SpendingBreakdown = memo(({ data, symbol }: SpendingBreakdownProps) => {

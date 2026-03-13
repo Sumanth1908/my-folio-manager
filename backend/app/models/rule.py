@@ -40,6 +40,7 @@ class Rule(SQLModel, table=True):
     # Transaction Automation Rules
     frequency: Optional[Frequency] = None
     next_run_at: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     transaction_amount: Optional[Decimal] = Field(default=None, max_digits=15, decimal_places=2)
     transaction_type: Optional[TransactionType] = None
     target_account_id: Optional[str] = Field(default=None, sa_column=Column(String(36), ForeignKey("accounts.account_id", ondelete="CASCADE"), nullable=True))

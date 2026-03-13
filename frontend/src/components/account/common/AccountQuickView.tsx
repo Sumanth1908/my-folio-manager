@@ -11,6 +11,7 @@ import {
 import { Button } from '../../ui/Button';
 import type { Account } from '../../../types';
 import { ACCOUNT_TYPE } from '../../../constants';
+import { formatDate } from '../../../lib/utils';
 
 interface AccountQuickViewProps {
     account: Account;
@@ -25,7 +26,7 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
                     <h4 className="text-2xl font-black text-foreground">{account.account_name}</h4>
                     <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-1">{account.account_type} · {account.currency}</p>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${account.status === 'Active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-muted text-muted-foreground'}`}>
+                <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${account.status === 'Active' ? 'bg-emerald-600/15 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
                     {account.status}
                 </div>
             </div>
@@ -34,31 +35,61 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
                 {account.account_type === ACCOUNT_TYPE.SAVINGS && account.savings_account && (
                     <>
                         <InfoCard disabled label="Current Balance" value={`${account.currency} ${Number(account.savings_account.balance).toLocaleString()}`} icon={<DollarSign size={16} />} />
-                        <InfoCard disabled label="Interest Rate" value={`${account.savings_account.interest_rate}%`} icon={<BadgePercent size={16} />} />
+                        <InfoCard 
+                            disabled 
+                            label="Interest Rate" 
+                            value={account.is_interest_enabled ? `${account.savings_account.interest_rate}%` : 'Interest Disabled'} 
+                            icon={<BadgePercent size={16} />} 
+                            color={!account.is_interest_enabled ? 'text-muted-foreground/60' : 'text-foreground'}
+                        />
                         <InfoCard disabled label="Min Balance" value={`${account.currency} ${Number(account.savings_account.min_balance).toLocaleString()}`} icon={<Target size={16} />} />
-                        <InfoCard disabled label="Accrual Day" value={account.savings_account.interest_accrual_day?.toString() || '1'} icon={<Calendar size={16} />} />
+                        <InfoCard 
+                            disabled 
+                            label="Accrual Day" 
+                            value={account.is_interest_enabled ? (account.savings_account.interest_accrual_day?.toString() || '1') : 'N/A'} 
+                            icon={<Calendar size={16} />} 
+                            color={!account.is_interest_enabled ? 'text-muted-foreground/60' : 'text-foreground'}
+                        />
                     </>
                 )}
 
                 {account.account_type === ACCOUNT_TYPE.LOAN && account.loan_account && (
                     <>
                         <InfoCard disabled label="Loan Amount" value={`${account.currency} ${Number(account.loan_account.loan_amount).toLocaleString()}`} icon={<DollarSign size={16} />} />
-                        <InfoCard disabled label="Outstanding" value={`${account.currency} ${Number(account.loan_account.outstanding_amount).toLocaleString()}`} icon={<TrendingDown size={16} className="text-rose-500" />} color="text-rose-500" />
-                        <InfoCard disabled label="Interest Rate" value={`${account.loan_account.interest_rate}%`} icon={<BadgePercent size={16} />} />
+                        <InfoCard disabled label="Outstanding" value={`${account.currency} ${Number(account.loan_account.outstanding_amount).toLocaleString()}`} icon={<TrendingDown size={16} className="text-rose-600" />} color="text-rose-600" />
+                        <InfoCard 
+                            disabled 
+                            label="Interest Rate" 
+                            value={account.is_interest_enabled ? `${account.loan_account.interest_rate}%` : 'Interest Disabled'} 
+                            icon={<BadgePercent size={16} />} 
+                            color={!account.is_interest_enabled ? 'text-muted-foreground/60' : 'text-foreground'}
+                        />
                         <InfoCard disabled label="EMI Amount" value={`${account.currency} ${Number(account.loan_account.emi_amount).toLocaleString()}`} icon={<Clock size={16} />} />
                         <InfoCard disabled label="Tenure" value={`${account.loan_account.tenure_months} Months`} icon={<Calendar size={16} />} />
-                        <InfoCard disabled label="Start Date" value={new Date(account.loan_account.start_date).toLocaleDateString()} icon={<Calendar size={16} />} />
+                        <InfoCard disabled label="Start Date" value={formatDate(account.loan_account.start_date)} icon={<Calendar size={16} />} />
                     </>
                 )}
 
                 {account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT && account.fixed_deposit_account && (
                     <>
                         <InfoCard disabled label="Principal" value={`${account.currency} ${Number(account.fixed_deposit_account.principal_amount).toLocaleString()}`} icon={<DollarSign size={16} />} />
-                        <InfoCard disabled label="Maturity Amount" value={`${account.currency} ${Number(account.fixed_deposit_account.maturity_amount).toLocaleString()}`} icon={<TrendingUp size={16} className="text-emerald-500" />} color="text-emerald-500" />
-                        <InfoCard disabled label="Interest Rate" value={`${account.fixed_deposit_account.interest_rate}%`} icon={<BadgePercent size={16} />} />
-                        <InfoCard disabled label="Accrual Day" value={account.fixed_deposit_account.interest_accrual_day?.toString() || '1'} icon={<Calendar size={16} />} />
-                        <InfoCard disabled label="Start Date" value={new Date(account.fixed_deposit_account.start_date).toLocaleDateString()} icon={<Calendar size={16} />} />
-                        <InfoCard disabled label="Maturity Date" value={new Date(account.fixed_deposit_account.maturity_date).toLocaleDateString()} icon={<Calendar size={16} />} />
+                        <InfoCard disabled label="Maturity Amount" value={`${account.currency} ${Number(account.fixed_deposit_account.maturity_amount).toLocaleString()}`} icon={<TrendingUp size={16} className="text-emerald-600" />} color="text-emerald-600" />
+                        <InfoCard 
+                            disabled 
+                            label="Interest Rate" 
+                            value={account.is_interest_enabled ? `${account.fixed_deposit_account.interest_rate}%` : 'Interest Disabled'} 
+                            icon={<BadgePercent size={16} />} 
+                            color={!account.is_interest_enabled ? 'text-muted-foreground/60' : 'text-foreground'}
+                        />
+                        <InfoCard 
+                            disabled 
+                            label="Accrual Day" 
+                            value={account.is_interest_enabled ? (account.fixed_deposit_account.interest_accrual_day?.toString() || '1') : 'N/A'} 
+                            icon={<Calendar size={16} />} 
+                            color={!account.is_interest_enabled ? 'text-muted-foreground/60' : 'text-foreground'}
+                        />
+                        <InfoCard disabled label="Start Date" value={formatDate(account.fixed_deposit_account.start_date)} icon={<Calendar size={16} />} />
+                        <InfoCard disabled label="Maturity Date" value={formatDate(account.fixed_deposit_account.maturity_date)} icon={<Calendar size={16} />} />
                     </>
                 )}
 

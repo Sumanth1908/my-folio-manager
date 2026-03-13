@@ -28,6 +28,10 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str
+
 @router.post("/register", response_model=UserRead)
 def register(user_in: UserCreate, session: Session = Depends(get_session)) -> Any:
     user = session.query(User).filter(User.email == user_in.email).first()
@@ -80,3 +84,18 @@ def login_access_token(
 @router.get("/me", response_model=UserRead)
 def read_current_user(current_user: User = Depends(get_current_user)) -> Any:
     return current_user
+
+@router.post("/change-password")
+def change_password(
+    data: ChangePassword,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    if not security.verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Incorrect password")
+    
+    current_user.password_hash = security.get_password_hash(data.new_password)
+    session.add(current_user)
+    session.commit()
+    
+    return {"message": "Password updated successfully"}

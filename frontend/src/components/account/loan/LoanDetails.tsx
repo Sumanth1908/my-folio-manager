@@ -1,5 +1,6 @@
 import { Card } from '../../ui/Card';
 import type { Account } from '../../../types';
+import { formatDate } from '../../../lib/utils';
 
 interface LoanDetailsProps {
     account: Account;
@@ -50,7 +51,7 @@ const LoanDetails = ({ account, symbol }: LoanDetailsProps) => {
                 <div className="bg-background p-4 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Start Date</p>
                     <p className="text-lg font-black text-foreground">
-                        {new Date(account.loan_account.start_date).toLocaleDateString()}
+                        {formatDate(account.loan_account.start_date)}
                     </p>
                 </div>
                 <div className="bg-background p-4 rounded-2xl border border-border/50 col-span-2">
