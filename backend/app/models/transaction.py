@@ -23,5 +23,7 @@ class Transaction(SQLModel, table=True):
     transaction_type: TransactionType
     currency: str = Field(default="USD", max_length=10)
     description: Optional[str] = Field(default=None, max_length=255)
+    additional_info: Optional[str] = Field(default=None, max_length=500)
     category_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("category.category_id", ondelete="SET NULL"), nullable=True))
+    transfer_id: Optional[str] = Field(default=None, max_length=36, index=True)
     transaction_date: datetime = Field(default_factory=datetime.utcnow)

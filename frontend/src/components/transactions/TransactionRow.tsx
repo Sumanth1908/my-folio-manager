@@ -1,4 +1,4 @@
-import { Plus, Pencil, Trash2, Tag } from 'lucide-react';
+import { Plus, Trash2, Tag, Info } from 'lucide-react';
 import { memo } from 'react';
 import type { Transaction } from '../../types';
 import { Button } from '../ui/Button';
@@ -9,7 +9,7 @@ interface TransactionRowProps {
     tx: Transaction;
     accountName?: string;
     currencySymbol: string;
-    onEdit?: (tx: Transaction) => void;
+
     onDelete?: (id: number) => void;
 }
 
@@ -17,7 +17,7 @@ const TransactionRow = memo(({
     tx,
     accountName,
     currencySymbol,
-    onEdit,
+
     onDelete
 }: TransactionRowProps) => (
     <div className="group flex justify-between items-center p-6 hover:bg-muted/30 transition-colors">
@@ -30,6 +30,12 @@ const TransactionRow = memo(({
             </div>
             <div>
                 <div className="font-bold text-base text-foreground leading-tight mb-1">{tx.description || 'No Description'}</div>
+                {tx.additional_info && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/80 mb-2 italic">
+                        <Info size={11} className="shrink-0" />
+                        <span>{tx.additional_info}</span>
+                    </div>
+                )}
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                     <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">{`ID: ${tx.transaction_id}`}</span>
                     {accountName && (
@@ -56,17 +62,7 @@ const TransactionRow = memo(({
                 {tx.transaction_type === TRANSACTION_TYPE.CREDIT ? '+' : '-'}{currencySymbol}{Number(tx.amount || 0).toFixed(2)}
             </span>
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {onEdit && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onEdit(tx)}
-                        className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
-                        title="Edit Transaction"
-                    >
-                        <Pencil size={14} />
-                    </Button>
-                )}
+
                 {onDelete && (
                     <Button
                         variant="ghost"

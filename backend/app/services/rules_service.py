@@ -1,9 +1,9 @@
 import logging
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, time
 from decimal import Decimal
 from dateutil.relativedelta import relativedelta
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 
 from app.models.account import Account, AccountType
 from app.models.loan_account import LoanAccount
@@ -11,7 +11,7 @@ from app.models.savings_account import SavingsAccount
 from app.models.fixed_deposit_account import FixedDepositAccount
 from app.models.rule import Frequency, Rule, RuleType
 from app.models.category import Category
-from app.models.transaction import Transaction
+from app.models.transaction import Transaction, TransactionType
 from app.schemas.transaction import TransactionCreate, TransferRequest
 from app.schemas.rule import RuleCreate, RuleRead, RuleUpdate
 from app.services.transaction_service import (create_transaction_core,
@@ -26,6 +26,96 @@ def make_aware(dt: Optional[datetime]) -> Optional[datetime]:
         return dt.replace(tzinfo=timezone.utc)
     return dt
 
+def calculate_average_daily_balance(session: Session, account: Account, start_date: datetime, end_date: datetime) -> Decimal:
+    """
+    Calculate the average daily balance for an account over a specific date range.
+    Reconstructs balance day-by-day to handle transactions occurring during the period.
+    """
+    from app.services.account_service import calculate_account_balance
+    
+    start_date = make_aware(start_date)
+    end_date = make_aware(end_date)
+    
+    # 1. Get initial balance at the very start of the range
+    # We do this by summing all transactions BEFORE start_date
+    from app.models.loan_account import LoanAccount
+    
+    base_balance = Decimal("0.00")
+    if account.account_type == AccountType.LOAN:
+        loan = session.get(LoanAccount, account.account_id)
+        if loan:
+            base_balance = loan.loan_amount
+
+    # Sum transactions before start_date
+    pre_credits = session.exec(
+        select(func.sum(Transaction.amount))
+        .where(
+            Transaction.account_id == account.account_id,
+            Transaction.transaction_type == TransactionType.CREDIT,
+            Transaction.transaction_date < start_date.replace(tzinfo=None)
+        )
+    ).one() or Decimal("0.00")
+    
+    pre_debits = session.exec(
+        select(func.sum(Transaction.amount))
+        .where(
+            Transaction.account_id == account.account_id,
+            Transaction.transaction_type == TransactionType.DEBIT,
+            Transaction.transaction_date < start_date.replace(tzinfo=None)
+        )
+    ).one() or Decimal("0.00")
+    
+    if account.account_type == AccountType.LOAN:
+        current_balance = base_balance + pre_debits - pre_credits
+    else:
+        current_balance = pre_credits - pre_debits
+
+    # 2. Get all transactions occurring WITHIN the range
+    transactions = session.exec(
+        select(Transaction)
+        .where(
+            Transaction.account_id == account.account_id,
+            Transaction.transaction_date >= start_date.replace(tzinfo=None),
+            Transaction.transaction_date <= end_date.replace(tzinfo=None)
+        )
+        .order_by(Transaction.transaction_date.asc())
+    ).all()
+
+    # 3. Iterate through each day in the range and calculate daily balances
+    total_days = (end_date - start_date).days
+    if total_days <= 0:
+        return current_balance
+
+    daily_balances_sum = Decimal("0.00")
+    tx_ptr = 0
+    num_tx = len(transactions)
+    
+    # We'll calculate balance at the end of each day
+    current_day = start_date
+    for _ in range(total_days):
+        day_boundary = current_day + relativedelta(days=1)
+        
+        # Apply all transactions that happened on this specific day
+        while tx_ptr < num_tx and make_aware(transactions[tx_ptr].transaction_date) < day_boundary:
+            tx = transactions[tx_ptr]
+            amount = tx.amount
+            if tx.transaction_type == TransactionType.CREDIT:
+                if account.account_type == AccountType.LOAN:
+                    current_balance -= amount
+                else:
+                    current_balance += amount
+            else: # DEBIT
+                if account.account_type == AccountType.LOAN:
+                    current_balance += amount
+                else:
+                    current_balance -= amount
+            tx_ptr += 1
+        
+        daily_balances_sum += current_balance
+        current_day = day_boundary
+
+    return daily_balances_sum / Decimal(str(total_days))
+
 def process_single_rule(session: Session, rule: Rule):
     """Execute the logic for a single automation or calculation rule."""
     
@@ -35,12 +125,53 @@ def process_single_rule(session: Session, rule: Rule):
         return
     user_id = account.user_id
 
+    # Calculate days to process
+    now_utc = datetime.now(timezone.utc)
+    due_at = make_aware(rule.next_run_at) or now_utc
+    
+    # Infer the start of the current period based on frequency
+    # We subtract the frequency interval from the intended due date
+    if rule.frequency == Frequency.DAILY:
+        period_start = due_at - relativedelta(days=1)
+    elif rule.frequency == Frequency.WEEKLY:
+        period_start = due_at - relativedelta(weeks=1)
+    elif rule.frequency == Frequency.MONTHLY:
+        period_start = due_at - relativedelta(months=1)
+    elif rule.frequency == Frequency.YEARLY:
+        period_start = due_at - relativedelta(years=1)
+    else:
+        period_start = due_at - relativedelta(days=1) # Fallback
+
+    # days_to_post is the duration of this specific scheduled period.
+    # By using due_at instead of now_utc, we ensure that catch-up runs happen 
+    # interval-by-interval rather than lumping months of interest together.
+    period_end = due_at
+    delta = period_end - period_start
+    days_to_post = max(1, delta.days)
+
     description = f"Auto: {rule.name}"
     
-    # Use the rule's next_run_at as the transaction date
-    transaction_date = make_aware(rule.next_run_at) or datetime.now(timezone.utc)
+    # Construct structured additional info
+    info_parts = []
+    if rule.rule_type == RuleType.CALCULATION and rule.formula:
+        info_parts.append(f"Formula: {rule.formula}")
+    
+    if days_to_post > 0:
+        start_str = period_start.strftime('%Y-%m-%d')
+        end_str = period_end.strftime('%Y-%m-%d')
+        info_parts.append(f"Period: {start_str} to {end_str} ({days_to_post} days)")
+    
+    additional_info = " | ".join(info_parts) if info_parts else None
+    
+    # Use the rule's next_run_at (or now) as the transaction date
+    transaction_date = make_aware(rule.next_run_at) or now_utc
     
     transaction_amount = rule.transaction_amount or Decimal("0.00")
+    if rule.transaction_amount:
+        # If it's a fixed amount rule, multiply by days only if it was originally intended as daily 
+        # (Automation rules usually aren't daily interest, but if they are, we scale them)
+        if rule.frequency == Frequency.DAILY:
+            transaction_amount *= Decimal(str(days_to_post))
     
     # Handle CALCULATION rules (Formula based)
     if rule.rule_type == RuleType.CALCULATION and rule.formula:
@@ -49,8 +180,13 @@ def process_single_rule(session: Session, rule: Rule):
             from app.services.account_service import calculate_account_balance
             
             # Build context
+            # We use AVERAGE Daily Balance for accurate interest calculation
+            # Use period_end (due_at) for accurate scheduled period calculation
+            avg_balance = calculate_average_daily_balance(session, account, period_start, period_end)
+            
             context = {
-                "balance": float(calculate_account_balance(session, account)),
+                "balance": float(avg_balance),
+                "days": float(days_to_post),
                 "interest_rate": float(0.0),
                 "principal_amount": float(0.0),
                 "outstanding_amount": float(0.0),
@@ -67,8 +203,9 @@ def process_single_rule(session: Session, rule: Rule):
             elif account.account_type == AccountType.LOAN:
                 loan = session.get(LoanAccount, rule.account_id)
                 if loan:
-                    # For loans, calculate_account_balance returns outstanding amount
-                    context["outstanding_amount"] = context["balance"] 
+                    context["outstanding_amount"] = float(loan.outstanding_amount) 
+                    context["principal_balance"] = float(loan.principal_balance)
+                    context["interest_balance"] = float(loan.interest_balance)
                     context["loan_amount"] = float(loan.loan_amount)
                     context["interest_rate"] = float(loan.interest_rate)
                     
@@ -96,6 +233,7 @@ def process_single_rule(session: Session, rule: Rule):
             to_account_id=rule.target_account_id,
             amount=transaction_amount,
             description=description,
+            additional_info=additional_info,
             category_id=rule.category_id,
             transaction_date=transaction_date
         )
@@ -112,6 +250,7 @@ def process_single_rule(session: Session, rule: Rule):
             amount=transaction_amount,
             transaction_type=rule.transaction_type,
             description=description,
+            additional_info=additional_info,
             category_id=rule.category_id,
             transaction_date=transaction_date
         )
@@ -131,11 +270,27 @@ def process_single_rule(session: Session, rule: Rule):
         current_run = make_aware(rule.next_run_at) or datetime.now(timezone.utc)
         
         if rule.frequency == Frequency.DAILY:
-            rule.next_run_at = current_run + relativedelta(days=1)
+            rule.next_run_at = current_run + relativedelta(days=1) if now_utc <= current_run else now_utc + relativedelta(days=1)
         elif rule.frequency == Frequency.WEEKLY:
             rule.next_run_at = current_run + relativedelta(weeks=1)
         elif rule.frequency == Frequency.MONTHLY:
-            rule.next_run_at = current_run + relativedelta(months=1)
+            next_date = current_run + relativedelta(months=1)
+            
+            if rule.rule_type == RuleType.CALCULATION:
+                # Align interest calculation to the specific accrual day of the account
+                accrual_day = 1
+                if account.account_type == AccountType.SAVINGS:
+                    savings = session.get(SavingsAccount, account.account_id)
+                    if savings: accrual_day = savings.interest_accrual_day or 1
+                elif account.account_type == AccountType.LOAN:
+                    loan = session.get(LoanAccount, account.account_id)
+                    if loan: accrual_day = loan.interest_accrual_day or 1
+
+                # Snap to the correct day for interest
+                rule.next_run_at = next_date.replace(day=accrual_day)
+            else:
+                # For standard transaction rules, just move to the same day next month
+                rule.next_run_at = next_date
         elif rule.frequency == Frequency.YEARLY:
            rule.next_run_at = current_run + relativedelta(years=1)
 
@@ -237,50 +392,46 @@ def create_default_interest_rule(session: Session, account: Account, savings_dat
 
     from app.models.transaction import TransactionType
     
-    rule_name = f"Monthly Interest - {account.account_name}"
+    rule_name = f"Daily Interest - {account.account_name}"
     formula = ""
     tx_type = TransactionType.CREDIT
-    accrual_day = 1
     
     if account.account_type == AccountType.SAVINGS and savings_data:
-        formula = "balance * (interest_rate / 100) / 12"
-        accrual_day = savings_data.interest_accrual_day
+        formula = "balance * (interest_rate / 100) / 365 * days"
     elif account.account_type == AccountType.LOAN and loan_data:
-        formula = "outstanding_amount * (interest_rate / 100) / 12"
+        formula = "balance * (interest_rate / 100) / 12"
         tx_type = TransactionType.DEBIT
-        accrual_day = loan_data.interest_accrual_day
     elif account.account_type == AccountType.FIXED_DEPOSIT and fd_data:
-        formula = "principal_amount * (interest_rate / 100) / 12"
-        accrual_day = fd_data.interest_accrual_day
+        formula = "principal_amount * (interest_rate / 100) / 365 * days"
         
     if not formula:
         return None
 
     # Calculate base date for scheduling
-    if loan_data and hasattr(loan_data, 'start_date') and loan_data.start_date:
-        base_date = datetime.combine(loan_data.start_date, datetime.min.time(), tzinfo=timezone.utc)
-    elif fd_data and hasattr(fd_data, 'start_date') and fd_data.start_date:
-        base_date = datetime.combine(fd_data.start_date, datetime.min.time(), tzinfo=timezone.utc)
+    # For Monthly interest, we usually run it at the end of the first month
+    if loan_data and hasattr(loan_data, 'emi_start_date') and loan_data.emi_start_date:
+        next_run = datetime.combine(loan_data.emi_start_date, time(1, 0), tzinfo=timezone.utc)
     else:
-        base_date = datetime.now(timezone.utc)
+        if loan_data and hasattr(loan_data, 'start_date') and loan_data.start_date:
+            base_date = datetime.combine(loan_data.start_date, time(1, 0), tzinfo=timezone.utc)
+        elif fd_data and hasattr(fd_data, 'start_date') and fd_data.start_date:
+            base_date = datetime.combine(fd_data.start_date, time(1, 0), tzinfo=timezone.utc)
+        else:
+            base_date = datetime.now(timezone.utc).replace(hour=1, minute=0, second=0, microsecond=0)
 
-    # The first scheduled run should be the FIRST accrual day that occurs strictly AFTER the start_date.
-    # If the base_date's day is already >= accrual_day, the first occurrence is in the next month.
-    if base_date.day >= accrual_day:
-        next_run = base_date + relativedelta(months=1, day=accrual_day)
-    else:
-        next_run = base_date + relativedelta(day=accrual_day)
+        # First run starts one month from base_date
+        next_run = base_date + relativedelta(months=1)
         
     interest_rule = session.exec(
         select(Rule)
         .where(Rule.account_id == account.account_id)
         .where(Rule.rule_type == RuleType.CALCULATION)
-        .where(Rule.name.like("Monthly Interest - %"))
+        .where((Rule.name.like("Monthly Interest - %")) | (Rule.name.like("Daily Interest - %")))
     ).first()
 
     # Calculate end_date based on tenure or maturity
     end_date = None
-    if loan_data and hasattr(loan_data, 'tenure_months') and loan_data.tenure_months:
+    if loan_data and hasattr(loan_data, 'tenure_months') and loan_data.tenure_months and hasattr(loan_data, 'start_date') and loan_data.start_date:
         # Use relivedelta to add tenure to start_date
         start_date_aware = datetime.combine(loan_data.start_date, datetime.min.time(), tzinfo=timezone.utc)
         end_date = start_date_aware + relativedelta(months=loan_data.tenure_months)
@@ -288,9 +439,13 @@ def create_default_interest_rule(session: Session, account: Account, savings_dat
         end_date = datetime.combine(fd_data.maturity_date, datetime.min.time(), tzinfo=timezone.utc)
 
     if interest_rule:
+        interest_rule.name = rule_name
         interest_rule.formula = formula
+        interest_rule.frequency = Frequency.MONTHLY
         interest_rule.transaction_type = tx_type
-        interest_rule.next_run_at = next_run
+        # If converting, ensure next_run is aligned to the new monthly schedule
+        if interest_rule.next_run_at is None:
+            interest_rule.next_run_at = next_run
         interest_rule.end_date = end_date
         session.add(interest_rule)
     else:

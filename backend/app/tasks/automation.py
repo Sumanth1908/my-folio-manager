@@ -21,10 +21,14 @@ def process_automation_rules():
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         # Find active transaction rules that are due
-        query = select(Rule).where(
-            Rule.rule_type.in_([RuleType.TRANSACTION, RuleType.CALCULATION]),
-            Rule.is_active == True,
-            Rule.next_run_at <= now
+        query = (
+            select(Rule)
+            .where(
+                Rule.rule_type.in_([RuleType.TRANSACTION, RuleType.CALCULATION]),
+                Rule.is_active == True,
+                Rule.next_run_at <= now
+            )
+            .order_by(Rule.next_run_at)
         )
         due_rules = session.exec(query).all()
         

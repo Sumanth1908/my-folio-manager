@@ -32,6 +32,7 @@ interface AccountEditFormData {
     tenure: string;
     accrualDay: string;
     startDate: string;
+    emiStartDate: string;
 }
 
 // Get initial interest rate based on account type
@@ -65,7 +66,10 @@ const createInitialFormData = (account: Account): AccountEditFormData => ({
     tenure: account.loan_account?.tenure_months?.toString() ?? '',
     accrualDay: getInitialAccrualDay(account),
     startDate: account.loan_account?.start_date
-        ? new Date(account.loan_account.start_date).toISOString().split('T')[0]
+        ? account.loan_account.start_date.substring(0, 10)
+        : '',
+    emiStartDate: account.loan_account?.emi_start_date
+        ? account.loan_account.emi_start_date.substring(0, 10)
         : ''
 });
 
@@ -83,7 +87,7 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const { name, status, interestRate, emiAmount, tenure, accrualDay, startDate } = formData;
+        const { name, status, interestRate, emiAmount, tenure, accrualDay, startDate, emiStartDate } = formData;
 
         const data: Record<string, unknown> = {
             account_name: name,
@@ -96,7 +100,8 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
                 emi_amount: parseFloat(emiAmount),
                 tenure_months: parseInt(tenure, 10),
                 interest_accrual_day: parseInt(accrualDay, 10),
-                start_date: startDate || undefined
+                start_date: startDate || undefined,
+                emi_start_date: emiStartDate || undefined
             };
         } else if (account.account_type === ACCOUNT_TYPE.SAVINGS) {
             data.savings_account = {
@@ -130,8 +135,6 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
                     <SavingsEditFields
                         interestRate={formData.interestRate}
                         setInterestRate={v => updateField('interestRate', v)}
-                        accrualDay={formData.accrualDay}
-                        setAccrualDay={v => updateField('accrualDay', v)}
                     />
                 );
             case ACCOUNT_TYPE.FIXED_DEPOSIT:
@@ -139,8 +142,6 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
                     <FDEditFields
                         interestRate={formData.interestRate}
                         setInterestRate={v => updateField('interestRate', v)}
-                        accrualDay={formData.accrualDay}
-                        setAccrualDay={v => updateField('accrualDay', v)}
                     />
                 );
             case ACCOUNT_TYPE.LOAN:
@@ -156,6 +157,8 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
                         setTenure={v => updateField('tenure', v)}
                         startDate={formData.startDate}
                         setStartDate={v => updateField('startDate', v)}
+                        emiStartDate={formData.emiStartDate}
+                        setEmiStartDate={v => updateField('emiStartDate', v)}
                     />
                 );
             default:

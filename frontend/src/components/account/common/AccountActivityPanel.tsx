@@ -7,7 +7,7 @@ import { Card } from '../../ui/Card';
 import Modal from '../../common/Modal';
 import ConfirmModal from '../../common/ConfirmModal';
 import CreateTransactionForm from '../../transactions/CreateTransactionForm';
-import EditTransactionForm from '../../transactions/EditTransactionForm';
+
 import RuleForm from '../../rules/RuleForm';
 import { cn } from '../../../lib/utils';
 import AccountTransactions from './AccountTransactions';
@@ -54,7 +54,7 @@ const AccountActivityPanel = ({
 
     // Modal State
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
 
     const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
     const [editingRule, setEditingRule] = useState<Rule | null>(null);
@@ -117,14 +117,10 @@ const AccountActivityPanel = ({
 
     // Transaction Handlers
     const handleNewTransaction = useCallback(() => {
-        setEditingTransaction(null);
         setIsTransactionModalOpen(true);
     }, []);
 
-    const handleEditTransaction = useCallback((tx: Transaction) => {
-        setEditingTransaction(tx);
-        setIsTransactionModalOpen(true);
-    }, []);
+
 
     const handleDeleteTransaction = useCallback((id: number) => {
         setConfirmModal({
@@ -340,7 +336,6 @@ const AccountActivityPanel = ({
                             transactions={filteredTransactions}
                             isLoading={isLoadingTransactions}
                             symbol={symbol}
-                            onEdit={handleEditTransaction}
                             onDelete={handleDeleteTransaction}
                         />
                     )}
@@ -378,27 +373,16 @@ const AccountActivityPanel = ({
             <Modal
                 isOpen={isTransactionModalOpen}
                 onClose={() => setIsTransactionModalOpen(false)}
-                title={editingTransaction ? 'Edit Transaction' : 'New Transaction'}
+                title="New Transaction"
             >
-                {editingTransaction ? (
-                    <EditTransactionForm
-                        transaction={editingTransaction}
-                        onSuccess={() => {
-                            setIsTransactionModalOpen(false);
-                            onRefresh();
-                        }}
-                        onCancel={() => setIsTransactionModalOpen(false)}
-                    />
-                ) : (
-                    <CreateTransactionForm
-                        accountId={accountId}
-                        onSuccess={() => {
-                            setIsTransactionModalOpen(false);
-                            onRefresh();
-                        }}
-                        onCancel={() => setIsTransactionModalOpen(false)}
-                    />
-                )}
+                <CreateTransactionForm
+                    accountId={accountId}
+                    onSuccess={() => {
+                        setIsTransactionModalOpen(false);
+                        onRefresh();
+                    }}
+                    onCancel={() => setIsTransactionModalOpen(false)}
+                />
             </Modal>
 
             <Modal

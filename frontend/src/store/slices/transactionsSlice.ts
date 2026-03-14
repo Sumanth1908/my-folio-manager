@@ -88,19 +88,7 @@ export const createTransfer = createAsyncThunk(
     }
 );
 
-export const updateTransaction = createAsyncThunk(
-    'transactions/updateTransaction',
-    async ({ id, data }: { id: number, data: any }, { dispatch, getState, rejectWithValue }) => {
-        try {
-            const res = await api.patch(`/transactions/${id}`, data);
-            const { filters } = (getState() as any).transactions;
-            dispatch(fetchTransactions({ ...filters, page: 1, append: false }));
-            return res.data;
-        } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to update transaction');
-        }
-    }
-);
+
 
 export const deleteTransaction = createAsyncThunk(
     'transactions/deleteTransaction',

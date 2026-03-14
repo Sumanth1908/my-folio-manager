@@ -49,9 +49,9 @@ const FDDetails = ({ account, symbol }: FDDetailsProps) => {
                     </p>
                 </div>
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Accrual Day</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Calculation Basis</p>
                     <p className="text-xl font-black text-foreground">
-                        Day {account.fixed_deposit_account.interest_accrual_day || 1}
+                        Daily
                     </p>
                 </div>
             </div>

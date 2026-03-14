@@ -47,7 +47,6 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
     // Accounts.tsx had: interestRate, minBalance, accrualDay.
     // I should probably update SavingsEditFields to include Min Balance to be consistent.
     const [savingsMinBalance, setSavingsMinBalance] = useState('');
-    const [savingsAccrualDay, setSavingsAccrualDay] = useState(DEFAULT_ACCRUAL_DAY);
 
     // Loan Specific State
     const [loanAmount, setLoanAmount] = useState('');
@@ -56,6 +55,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
     const [loanEMI, setLoanEMI] = useState('');
     const [loanAccrualDay, setLoanAccrualDay] = useState(DEFAULT_ACCRUAL_DAY);
     const [loanStartDate, setLoanStartDate] = useState(new Date().toISOString().split('T')[0]);
+    const [loanEMIStartDate, setLoanEMIStartDate] = useState('');
 
     // Fixed Deposit Specific State
     const [fdPrincipal, setFdPrincipal] = useState('');
@@ -63,7 +63,6 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
     const [fdStartDate, setFdStartDate] = useState('');
     const [fdMaturityDate, setFdMaturityDate] = useState('');
     const [fdMaturityAmount, setFdMaturityAmount] = useState('');
-    const [fdAccrualDay, setFdAccrualDay] = useState(DEFAULT_ACCRUAL_DAY);
 
     // Set default interest enabled state based on account type
     useEffect(() => {
@@ -134,7 +133,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                     balance: 0,
                     interest_rate: savingsInterestRate ? parseFloat(savingsInterestRate) : null,
                     min_balance: savingsMinBalance ? parseFloat(savingsMinBalance) : 0,
-                    interest_accrual_day: parseInt(savingsAccrualDay)
+                    interest_accrual_day: 1
                 };
             } else if (accountType === ACCOUNT_TYPE.LOAN) {
                 payload.loan_account = {
@@ -144,6 +143,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                     tenure_months: parseInt(loanTenure),
                     emi_amount: parseFloat(loanEMI),
                     start_date: loanStartDate,
+                    emi_start_date: loanEMIStartDate || null,
                     interest_accrual_day: parseInt(loanAccrualDay)
                 };
             } else if (accountType === ACCOUNT_TYPE.FIXED_DEPOSIT) {
@@ -153,7 +153,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                     start_date: fdStartDate,
                     maturity_date: fdMaturityDate,
                     maturity_amount: parseFloat(fdMaturityAmount),
-                    interest_accrual_day: parseInt(fdAccrualDay)
+                    interest_accrual_day: 1
                 };
             }
 
@@ -251,8 +251,6 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                 <SavingsEditFields
                                     interestRate={savingsInterestRate}
                                     setInterestRate={setSavingsInterestRate}
-                                    accrualDay={savingsAccrualDay}
-                                    setAccrualDay={setSavingsAccrualDay}
                                 />
                                 <div>
                                     <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Min Balance</label>
@@ -306,6 +304,8 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                     setTenure={setLoanTenure}
                                     startDate={loanStartDate}
                                     setStartDate={setLoanStartDate}
+                                    emiStartDate={loanEMIStartDate}
+                                    setEmiStartDate={setLoanEMIStartDate}
                                 />
                             </div>
                         </div>
@@ -329,8 +329,6 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                             <FDEditFields
                                 interestRate={fdInterestRate}
                                 setInterestRate={setFdInterestRate}
-                                accrualDay={fdAccrualDay}
-                                setAccrualDay={setFdAccrualDay}
                             />
 
                             <div className="grid grid-cols-2 gap-4">

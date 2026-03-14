@@ -54,7 +54,13 @@ const LoanDetails = ({ account, symbol }: LoanDetailsProps) => {
                         {formatDate(account.loan_account.start_date)}
                     </p>
                 </div>
-                <div className="bg-background p-4 rounded-2xl border border-border/50 col-span-2">
+                <div className="bg-background p-4 rounded-2xl border border-border/50">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">EMI Start Date</p>
+                    <p className="text-lg font-black text-foreground">
+                        {account.loan_account.emi_start_date ? formatDate(account.loan_account.emi_start_date) : '-'}
+                    </p>
+                </div>
+                <div className="bg-background p-4 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">EMI Day</p>
                     <p className="text-lg font-black text-foreground">
                         Day {account.loan_account.interest_accrual_day || 1}

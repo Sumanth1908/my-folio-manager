@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import type { Transaction } from '../types';
+import type {  } from '../types';
 import Modal from '../components/common/Modal';
 import CreateTransactionForm from '../components/transactions/CreateTransactionForm';
-import EditTransactionForm from '../components/transactions/EditTransactionForm';
+
 import ConfirmModal from '../components/common/ConfirmModal';
 import TransactionsPanel from '../components/transactions/TransactionsPanel';
 import toast from 'react-hot-toast';
@@ -17,7 +17,7 @@ import type { RootState } from '../store';
 const AllTransactions = () => {
     const dispatch = useAppDispatch();
     const isModalOpen = useAppSelector((state: RootState) => state.ui.modals['transactionAction']);
-    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
 
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
@@ -45,6 +45,7 @@ const AllTransactions = () => {
     const { items: categories } = useAppSelector((state: RootState) => state.categories);
 
     useEffect(() => {
+        dispatch(setFilters({ accountId: null, page: 1 }));
         dispatch(fetchAccounts());
         dispatch(fetchCurrencies());
         dispatch(fetchCategories());
@@ -84,7 +85,6 @@ const AllTransactions = () => {
 
     const closeModal = () => {
         dispatch(closeReduxModal('transactionAction'));
-        setEditingTransaction(null);
     };
 
     const closeConfirmModal = () => {
@@ -92,14 +92,10 @@ const AllTransactions = () => {
     };
 
     const onNewTransaction = () => {
-        setEditingTransaction(null);
         dispatch(openModal('transactionAction'));
     };
 
-    const onEditTransaction = (tx: Transaction) => {
-        setEditingTransaction(tx);
-        dispatch(openModal('transactionAction'));
-    };
+
 
     const onDeleteTransactionConfirm = (id: number) => {
         setConfirmModal({
@@ -141,23 +137,14 @@ const AllTransactions = () => {
                 currencies={currencies}
                 showAccountName={true}
                 onNew={onNewTransaction}
-                onEdit={onEditTransaction}
                 onDelete={onDeleteTransactionConfirm}
             />
 
-            <Modal isOpen={isModalOpen} onClose={closeModal} title={editingTransaction ? "Edit Transaction" : "New Transaction"}>
-                {editingTransaction ? (
-                    <EditTransactionForm
-                        transaction={editingTransaction}
-                        onSuccess={closeModal}
-                        onCancel={closeModal}
-                    />
-                ) : (
-                    <CreateTransactionForm
-                        onSuccess={closeModal}
-                        onCancel={closeModal}
-                    />
-                )}
+            <Modal isOpen={isModalOpen} onClose={closeModal} title="New Transaction">
+                <CreateTransactionForm
+                    onSuccess={closeModal}
+                    onCancel={closeModal}
+                />
             </Modal>
 
             <ConfirmModal

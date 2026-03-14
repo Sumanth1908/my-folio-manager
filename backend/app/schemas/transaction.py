@@ -12,7 +12,9 @@ class TransactionBase(BaseModel):
     amount: Decimal
     transaction_type: TransactionType
     description: Optional[str] = None
+    additional_info: Optional[str] = None
     category_id: Optional[int] = None
+    transfer_id: Optional[str] = None
     transaction_date: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -35,12 +37,7 @@ class TransactionRead(TransactionBase):
         from_attributes = True
 
 
-class TransactionUpdate(BaseModel):
-    amount: Optional[Decimal] = None
-    transaction_type: Optional[TransactionType] = None
-    description: Optional[str] = None
-    category_id: Optional[int] = None
-    transaction_date: Optional[datetime] = None
+
 
 
 class TransferRequest(BaseModel):
@@ -49,5 +46,6 @@ class TransferRequest(BaseModel):
     amount: Decimal
     to_amount: Optional[Decimal] = None
     description: Optional[str] = None
+    additional_info: Optional[str] = None
     category_id: Optional[int] = None
     transaction_date: Optional[datetime] = None

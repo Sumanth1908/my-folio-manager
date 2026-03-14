@@ -10,7 +10,7 @@ interface AccountTransactionsProps {
     isLoading: boolean;
     symbol?: string;
     currencies?: Currency[];
-    onEdit?: (tx: Transaction) => void;
+
     onDelete?: (id: number) => void;
     showAccountName?: boolean;
 }
@@ -20,7 +20,7 @@ const AccountTransactions = memo(({
     isLoading,
     symbol,
     currencies,
-    onEdit,
+
     onDelete,
     showAccountName = false
 }: AccountTransactionsProps) => {
@@ -55,7 +55,7 @@ const AccountTransactions = memo(({
                             tx={tx}
                             accountName={showAccountName ? accountsMap.get(tx.account_id) : undefined}
                             currencySymbol={getCurrencySymbol(tx)}
-                            onEdit={onEdit}
+
                             onDelete={onDelete}
                         />
                     ))}

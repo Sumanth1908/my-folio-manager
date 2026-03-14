@@ -50,6 +50,13 @@ const normalizeTransactionType = (rawType?: string) => {
     return TRANSACTION_TYPE.DEBIT;
 };
 
+// Helper to get UTC YYYY-MM-DDTHH:mm from a UTC string
+const getUTCDateTimeString = (utcString: string) => {
+    if (!utcString) return '';
+    // If it's already a timestamp, just slice it. If not, it shouldn't be here.
+    return utcString.substring(0, 16).replace(' ', 'T');
+};
+
 // Create initial form data from rule
 const createInitialFormData = (rule?: Rule | null): RuleFormData => ({
     name: rule?.name ?? '',
@@ -61,8 +68,8 @@ const createInitialFormData = (rule?: Rule | null): RuleFormData => ({
     amount: rule?.transaction_amount?.toString() ?? '',
     txType: rule?.target_account_id ? TRANSACTION_TYPE.TRANSFER : normalizeTransactionType(rule?.transaction_type),
     nextRunAt: rule?.next_run_at
-        ? rule.next_run_at.split('T')[0]
-        : new Date().toISOString().split('T')[0],
+        ? getUTCDateTimeString(rule.next_run_at)
+        : new Date().toISOString().split('T')[0] + 'T10:00', // Default to 10 AM UTC for new rules
     targetAccountId: rule?.target_account_id ?? '',
     formula: rule?.formula ?? '',
     endDate: rule?.end_date ? rule.end_date.split('T')[0] : ''
@@ -72,19 +79,23 @@ const FORMULA_VARIABLES = {
     [ACCOUNT_TYPE.SAVINGS]: [
         { name: 'balance', desc: 'Current Account Balance' },
         { name: 'interest_rate', desc: 'Annual Interest Rate (%)' },
-        { name: 'min_balance', desc: 'Minimum Balance Requirement' }
+        { name: 'min_balance', desc: 'Minimum Balance Requirement' },
+        { name: 'days', desc: 'Days elapsed since last run' }
     ],
     [ACCOUNT_TYPE.LOAN]: [
         { name: 'outstanding_amount', desc: 'Current Outstanding Balance' },
         { name: 'loan_amount', desc: 'Original Loan Amount' },
-        { name: 'interest_rate', desc: 'Annual Interest Rate (%)' }
+        { name: 'interest_rate', desc: 'Annual Interest Rate (%)' },
+        { name: 'days', desc: 'Days elapsed since last run' }
     ],
     [ACCOUNT_TYPE.FIXED_DEPOSIT]: [
         { name: 'principal_amount', desc: 'Principal Deposited Amount' },
-        { name: 'interest_rate', desc: 'Annual Interest Rate (%)' }
+        { name: 'interest_rate', desc: 'Annual Interest Rate (%)' },
+        { name: 'days', desc: 'Days elapsed since last run' }
     ],
     [ACCOUNT_TYPE.INVESTMENT]: [
-        { name: 'balance', desc: 'Current Cash Balance' }
+        { name: 'balance', desc: 'Current Cash Balance' },
+        { name: 'days', desc: 'Days elapsed since last run' }
     ]
 };
 
@@ -139,8 +150,9 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
             if (!nextRunAt) return;
 
             payload.frequency = frequency;
-            payload.next_run_at = new Date(nextRunAt).toISOString();
-            if (endDate) payload.end_date = new Date(endDate).toISOString();
+            // Append Z to force UTC interpretation of the local-datetime input string
+            payload.next_run_at = new Date(nextRunAt + ':00Z').toISOString();
+            if (endDate) payload.end_date = new Date(endDate + 'T00:00:00Z').toISOString();
             if (categoryId) payload.category_id = Number(categoryId);
 
             if (txType !== TRANSACTION_TYPE.TRANSFER) {
@@ -302,7 +314,7 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
                             Execution Day
                         </label>
                         <input
-                            type="date"
+                            type="datetime-local"
                             value={formData.nextRunAt}
                             onChange={e => updateField('nextRunAt', e.target.value)}
                             className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold h-11"
@@ -349,7 +361,7 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
                         {formData.ruleType === RULE_TYPE.CALCULATION ? (
                             <input
                                 type="text"
-                                placeholder="balance * 0.05 / 12"
+                                placeholder="balance * 0.05 / 365 * days"
                                 value={formData.formula}
                                 onChange={e => updateField('formula', e.target.value)}
                                 className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-mono font-bold h-11"

@@ -45,11 +45,14 @@ export interface SavingsAccount {
 export interface LoanAccount {
     account_id: string;
     loan_amount: number;
+    principal_balance: number;
+    interest_balance: number;
     outstanding_amount: number;
     interest_rate: number;
     tenure_months: number;
     emi_amount: number;
     start_date: string;
+    emi_start_date?: string;
     interest_accrual_day?: number;
 }
 
@@ -103,6 +106,8 @@ export interface Transaction {
     amount: number;
     transaction_type: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT;
     description?: string;
+    additional_info?: string;
+    transfer_id?: string;
     category_id?: number | null;
     category?: Category;
     transaction_date: string;

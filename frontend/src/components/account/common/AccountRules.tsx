@@ -68,7 +68,7 @@ export default function AccountRules({
                                             </span>
                                             {rule.next_run_at && (
                                                 <span className="ml-2 text-[10px] text-primary/70 italic lowercase">
-                                                    next: {formatDate(rule.next_run_at)}
+                                                    next: {formatDate(rule.next_run_at, true)}
                                                 </span>
                                             )}
                                             {rule.end_date && (
@@ -89,7 +89,7 @@ export default function AccountRules({
                                             </span>
                                             {rule.next_run_at && (
                                                 <span className="ml-2 text-[10px] text-primary/70 italic lowercase">
-                                                    next: {formatDate(rule.next_run_at)}
+                                                    next: {formatDate(rule.next_run_at, true)}
                                                 </span>
                                             )}
                                             {rule.end_date && (

@@ -36,6 +36,7 @@ class LoanAccountBase(BaseModel):
     tenure_months: int
     emi_amount: Decimal
     start_date: date
+    emi_start_date: date | None = None
     interest_accrual_day: int = 1
 
 class LoanAccountCreate(LoanAccountBase):
@@ -44,6 +45,8 @@ class LoanAccountCreate(LoanAccountBase):
 class LoanAccountRead(LoanAccountBase):
     model_config = ConfigDict(from_attributes=True)
     account_id: str
+    principal_balance: Decimal = Decimal("0.00")
+    interest_balance: Decimal = Decimal("0.00")
     outstanding_amount: Decimal = Decimal("0.00")
 
 class LoanAccountUpdate(BaseModel):
@@ -52,6 +55,7 @@ class LoanAccountUpdate(BaseModel):
     tenure_months: int | None = None
     emi_amount: Decimal | None = None
     start_date: date | None = None
+    emi_start_date: date | None = None
     interest_accrual_day: int | None = None
 
 

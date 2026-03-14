@@ -201,18 +201,16 @@ def update_account(session: Session, account_id: str, account_in: AccountUpdate,
     # Refresh the interest rule if enabled
     if account.is_interest_enabled:
         # Get data objects if they were passed, otherwise fetch from DB
-        savings_data = account_in.savings_account
-        loan_data = account_in.loan_account
-        fd_data = account_in.fixed_deposit_account
+        # Always fetch the latest complete objects from DB to ensure rule creation has all fields
+        savings_data = None
+        loan_data = None
+        fd_data = None
         
-        # If any of the above were NOT passed in the update, fetch the latest objects
-        if not savings_data and account.account_type == AccountType.SAVINGS:
-            # Note: create_default_interest_rule handles pydantic-like models, 
-            # so we fetch the SQLModel and it will work with .getattr()
+        if account.account_type == AccountType.SAVINGS:
             savings_data = session.get(SavingsAccount, account.account_id)
-        if not loan_data and account.account_type == AccountType.LOAN:
+        if account.account_type == AccountType.LOAN:
             loan_data = session.get(LoanAccount, account.account_id)
-        if not fd_data and account.account_type == AccountType.FIXED_DEPOSIT:
+        if account.account_type == AccountType.FIXED_DEPOSIT:
             fd_data = session.get(FixedDepositAccount, account.account_id)
 
         rules_service.create_default_interest_rule(
@@ -220,6 +218,7 @@ def update_account(session: Session, account_id: str, account_in: AccountUpdate,
         )
         session.commit()
 
+    session.refresh(account)
     return account
 
 

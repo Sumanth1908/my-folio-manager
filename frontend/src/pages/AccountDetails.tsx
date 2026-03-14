@@ -13,7 +13,7 @@ import { Button } from '../components/ui/Button';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { type RootState } from '../store';
 import { openModal, closeModal as closeReduxModal } from '../store/slices/uiSlice';
-import { fetchTransactions } from '../store/slices/transactionsSlice';
+import { fetchTransactions, setFilters } from '../store/slices/transactionsSlice';
 import { fetchRules } from '../store/slices/rulesSlice';
 import { fetchAccounts, deleteAccount } from '../store/slices/accountsSlice';
 import { fetchCurrencies } from '../store/slices/currenciesSlice';
@@ -66,6 +66,7 @@ const AccountDetails = () => {
 
     useEffect(() => {
         if (accountId) {
+            dispatch(setFilters({ accountId, page: 1 }));
             refreshData();
             if (accounts.length === 0) {
                 dispatch(fetchAccounts());

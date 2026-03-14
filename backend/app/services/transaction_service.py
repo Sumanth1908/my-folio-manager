@@ -1,13 +1,16 @@
 import logging
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import List, Optional, Tuple
 from sqlmodel import Session, func, select
 
-from app.models import (Account, Transaction, TransactionType)
+from app.models import (Account, Transaction, TransactionType, AccountType)
+from app.models.loan_account import LoanAccount
 from app.models.category import Category
 from app.models.rule import Rule
 from app.schemas.transaction import (TransactionCreate, TransactionRead,
-                                     TransactionUpdate, TransferRequest)
+                                     TransferRequest)
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -90,10 +93,47 @@ def get_transactions(
     return transactions, total
 
 
+def recalculate_loan_balances(session: Session, account_id: str):
+    """
+    Sequentially recalculates the principal and interest balances for a loan.
+    Logic:
+    - Payments (CREDITS) settle Interest first, then Principal.
+    - Accruals (DEBITS) increase the Interest balance.
+    """
+    loan = session.get(LoanAccount, account_id)
+    if not loan:
+        return
+        
+    # Reset to starting state
+    loan.principal_balance = loan.loan_amount
+    loan.interest_balance = Decimal("0.00")
+    
+    # Get all transactions chronologically
+    transactions = session.exec(
+        select(Transaction)
+        .where(Transaction.account_id == account_id)
+        .order_by(Transaction.transaction_date.asc(), Transaction.transaction_id.asc())
+    ).all()
+    
+    for tx in transactions:
+        if tx.transaction_type == TransactionType.DEBIT:
+            # Interest increase
+            loan.interest_balance += tx.amount
+        else:
+            # Payment (Credit)
+            interest_payment = min(tx.amount, loan.interest_balance)
+            principal_payment = tx.amount - interest_payment
+            
+            loan.interest_balance -= interest_payment
+            loan.principal_balance -= principal_payment
+            
+    loan.outstanding_amount = loan.principal_balance + loan.interest_balance
+    session.add(loan)
+
 def create_transaction_core(session: Session, transaction_in: TransactionCreate, user_id: str) -> Transaction:
     """
     Core logic for creating a transaction.
-    Handles: Ownership validation, Defaults, Auto-Categorization.
+    Handles: Ownership validation, Defaults, Auto-Categorization, Loan balancing.
     """
     account = session.get(Account, transaction_in.account_id)
     if not account or account.user_id != user_id:
@@ -108,7 +148,7 @@ def create_transaction_core(session: Session, transaction_in: TransactionCreate,
         
     transaction = Transaction.model_validate(transaction_data)
     
-    # Apply Auto-Categorization Rules if no category provided
+    # Apply Auto-Categorization Rules
     if not transaction.category_id and transaction.description:
         rules = session.exec(
             select(Rule).where(
@@ -123,10 +163,18 @@ def create_transaction_core(session: Session, transaction_in: TransactionCreate,
                 break
                 
     session.add(transaction)
+    session.flush() # Ensure ID is generated for recalculation if needed
+    
+    # Update Loan Balances if applicable
+    if account.account_type == AccountType.LOAN:
+        recalculate_loan_balances(session, account.account_id)
+        
     session.commit()
     session.refresh(transaction)
     
     return transaction
+
+
 
 
 def create_transfer_core(session: Session, transfer: TransferRequest, user_id: str) -> dict:
@@ -148,6 +196,8 @@ def create_transfer_core(session: Session, transfer: TransferRequest, user_id: s
     transfer_date = transfer.transaction_date or datetime.now(timezone.utc).replace(tzinfo=None)
     desc = transfer.description or f"Transfer to {to_account.account_name}"
 
+    transfer_id = str(uuid.uuid4())
+
     # Create Debit from source
     debit_tx = Transaction(
         account_id=transfer.from_account_id,
@@ -155,7 +205,9 @@ def create_transfer_core(session: Session, transfer: TransferRequest, user_id: s
         transaction_type=TransactionType.DEBIT,
         currency=from_account.currency,
         description=f"Transfer to {to_account.account_name}: {desc}",
+        additional_info=transfer.additional_info,
         category_id=transfer.category_id,
+        transfer_id=transfer_id,
         transaction_date=transfer_date
     )
 
@@ -168,40 +220,62 @@ def create_transfer_core(session: Session, transfer: TransferRequest, user_id: s
         transaction_type=TransactionType.CREDIT,
         currency=to_account.currency,
         description=f"Transfer from {from_account.account_name}: {desc}",
+        additional_info=transfer.additional_info,
         category_id=transfer.category_id,
+        transfer_id=transfer_id,
         transaction_date=transfer_date
     )
 
     session.add(debit_tx)
     session.add(credit_tx)
+    session.flush()
+    
+    # Update Loan Balances for both accounts if applicable
+    if from_account.account_type == AccountType.LOAN:
+        recalculate_loan_balances(session, from_account.account_id)
+    if to_account.account_type == AccountType.LOAN:
+        recalculate_loan_balances(session, to_account.account_id)
+        
     session.commit()
     
     return {"message": "Transfer successful"}
 
 
-def update_transaction(session: Session, transaction_id: int, transaction_update: TransactionUpdate, user_id: str) -> Optional[Transaction]:
-    """Update a transaction if it belongs to the user."""
-    transaction = get_transaction_with_ownership(session, transaction_id, user_id)
-    if not transaction:
-        return None
-        
-    transaction_data = transaction_update.model_dump(exclude_unset=True)
-    for key, value in transaction_data.items():
-        if key != "transaction_id":
-            setattr(transaction, key, value)
-             
-    session.add(transaction)
-    session.commit()
-    session.refresh(transaction)
-    return transaction
+
 
 
 def delete_transaction(session: Session, transaction_id: int, user_id: str) -> bool:
-    """Delete a transaction if it belongs to the user."""
+    """Delete a transaction if it belongs to the user. If part of a transfer, deletes both legs."""
     transaction = get_transaction_with_ownership(session, transaction_id, user_id)
     if not transaction:
         return False
         
+    account_id = transaction.account_id
+    transfer_id = transaction.transfer_id
+    
+    # If this is part of a transfer, find and delete the other leg
+    if transfer_id:
+        related_txs = session.exec(
+            select(Transaction).where(
+                Transaction.transfer_id == transfer_id,
+                Transaction.transaction_id != transaction_id
+            )
+        ).all()
+        for related_tx in related_txs:
+            # Check if related leg is also a loan
+            rel_account = session.get(Account, related_tx.account_id)
+            session.delete(related_tx)
+            if rel_account and rel_account.account_type == AccountType.LOAN:
+                session.flush()
+                recalculate_loan_balances(session, rel_account.account_id)
+
     session.delete(transaction)
+    session.flush()
+    
+    # Update loan balances for the primary account
+    account = session.get(Account, account_id)
+    if account and account.account_type == AccountType.LOAN:
+        recalculate_loan_balances(session, account_id)
+
     session.commit()
     return True

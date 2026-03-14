@@ -9,6 +9,8 @@ interface LoanEditFieldsProps {
     setTenure: (value: string) => void;
     startDate?: string;
     setStartDate?: (value: string) => void;
+    emiStartDate?: string;
+    setEmiStartDate?: (value: string) => void;
 }
 
 const LoanEditFields = ({
@@ -21,7 +23,9 @@ const LoanEditFields = ({
     tenure,
     setTenure,
     startDate,
-    setStartDate
+    setStartDate,
+    emiStartDate,
+    setEmiStartDate
 }: LoanEditFieldsProps) => {
     return (
         <div className="space-y-4">
@@ -41,7 +45,7 @@ const LoanEditFields = ({
                 </div>
                 <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                        Accrual Day
+                        EMI Day
                     </label>
                     <input
                         type="number"
@@ -84,17 +88,33 @@ const LoanEditFields = ({
             </div>
 
             {setStartDate && (
-                <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                        Start Date
-                    </label>
-                    <input
-                        type="date"
-                        value={startDate ?? ''}
-                        onChange={e => setStartDate(e.target.value)}
-                        className="w-full bg-muted border border-border rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-primary"
-                        required
-                    />
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                            Start Date
+                        </label>
+                        <input
+                            type="date"
+                            value={startDate ?? ''}
+                            onChange={e => setStartDate(e.target.value)}
+                            className="w-full bg-muted border border-border rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                            required
+                        />
+                    </div>
+                    {setEmiStartDate && (
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                                EMI Start Date
+                            </label>
+                            <input
+                                type="date"
+                                value={emiStartDate ?? ''}
+                                onChange={e => setEmiStartDate(e.target.value)}
+                                className="w-full bg-muted border border-border rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                                required
+                            />
+                        </div>
+                    )}
                 </div>
             )}
         </div>

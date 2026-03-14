@@ -34,6 +34,7 @@ interface CreateFormData {
     toAmount: string; // New field for received amount in target currency
     selectedCategoryId: string;
     date: string;
+    additionalInfo: string;
 }
 
 const todayString = () => new Date().toISOString().split('T')[0];
@@ -51,7 +52,8 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
         toAccountId: '',
         toAmount: '',
         selectedCategoryId: '',
-        date: todayString()
+        date: todayString(),
+        additionalInfo: ''
     }));
 
     // Memoized update handler
@@ -108,6 +110,7 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
                     amount: parseFloat(amount),
                     to_amount: isMultiCurrencyTransfer ? parseFloat(formData.toAmount) : undefined,
                     description,
+                    additional_info: formData.additionalInfo,
                     category_id: categoryId,
                     transaction_date: txDate
                 })).unwrap();
@@ -117,6 +120,7 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
                     amount: parseFloat(amount),
                     transaction_type: type,
                     description,
+                    additional_info: formData.additionalInfo,
                     category_id: categoryId,
                     transaction_date: txDate
                 })).unwrap();
@@ -337,6 +341,20 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
                     value={formData.description}
                     onChange={e => updateField('description', e.target.value)}
                     className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground placeholder:text-muted-foreground/30"
+                />
+            </div>
+
+            {/* Additional Info */}
+            <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                    Additional Info
+                </label>
+                <input
+                    type="text"
+                    placeholder="Reference, Bank note, etc."
+                    value={formData.additionalInfo}
+                    onChange={e => updateField('additionalInfo', e.target.value)}
+                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground placeholder:text-muted-foreground/30 italic"
                 />
             </div>
 
