@@ -26,7 +26,6 @@ interface TransactionsPanelProps {
     // Config
     currencies?: Currency[];
     defaultCurrencySymbol?: string;
-    onEdit?: (tx: Transaction) => void;
     onDelete?: (id: number) => void;
     onNew?: () => void;
     showAccountName?: boolean;
@@ -50,7 +49,6 @@ export default function TransactionsPanel({
     categories,
     currencies,
     defaultCurrencySymbol = '$',
-    onEdit,
     onDelete,
     onNew,
     showAccountName = false,
@@ -193,7 +191,6 @@ export default function TransactionsPanel({
                     symbol={defaultCurrencySymbol}
                     currencies={currencies}
                     showAccountName={showAccountName}
-                    onEdit={onEdit}
                     onDelete={onDelete}
                 />
 

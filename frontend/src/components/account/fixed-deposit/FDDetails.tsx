@@ -19,6 +19,12 @@ const FDDetails = ({ account, symbol }: FDDetailsProps) => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Current Balance</p>
+                    <p className="text-xl font-black text-primary tabular-nums">
+                        {symbol}{account.fixed_deposit_account.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </p>
+                </div>
+                <div className="bg-background p-5 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Principal Amount</p>
                     <p className="text-xl font-black text-foreground tabular-nums">
                         {symbol}{account.fixed_deposit_account.principal_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}

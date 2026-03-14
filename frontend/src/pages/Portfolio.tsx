@@ -130,7 +130,7 @@ export default function Portfolio() {
             if (account.account_type === ACCOUNT_TYPE.SAVINGS && account.savings_account) {
                 balance = Number(account.savings_account.balance);
             } else if (account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT && account.fixed_deposit_account) {
-                balance = Number(account.fixed_deposit_account.principal_amount);
+                balance = Number(account.fixed_deposit_account.balance);
             } else if (account.account_type === ACCOUNT_TYPE.INVESTMENT && account.investment_holdings) {
                 balance = account.investment_holdings.reduce((sum, h) => sum + (Number(h.quantity) * (Number(h.current_price) || Number(h.average_price))), 0);
             } else if (account.account_type === ACCOUNT_TYPE.LOAN && account.loan_account) {
@@ -157,7 +157,7 @@ export default function Portfolio() {
                 let hds: SubHolding[] = [];
 
                 if (acc.account_type === ACCOUNT_TYPE.SAVINGS && acc.savings_account) bal = Number(acc.savings_account.balance);
-                else if (acc.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT && acc.fixed_deposit_account) bal = Number(acc.fixed_deposit_account.principal_amount);
+                else if (acc.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT && acc.fixed_deposit_account) bal = Number(acc.fixed_deposit_account.balance);
                 else if (acc.account_type === ACCOUNT_TYPE.INVESTMENT && acc.investment_holdings) {
                     bal = acc.investment_holdings.reduce((sum, h) => sum + (Number(h.quantity) * (Number(h.current_price) || Number(h.average_price))), 0);
                     const accountTotalVal = bal;

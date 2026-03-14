@@ -72,7 +72,8 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
 
                 {account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT && account.fixed_deposit_account && (
                     <>
-                        <InfoCard disabled label="Principal" value={`${account.currency} ${Number(account.fixed_deposit_account.principal_amount).toLocaleString()}`} icon={<DollarSign size={16} />} />
+                        <InfoCard disabled label="Current Balance" value={`${account.currency} ${Number(account.fixed_deposit_account.balance).toLocaleString()}`} icon={<DollarSign size={16} />} />
+                        <InfoCard disabled label="Principal" value={`${account.currency} ${Number(account.fixed_deposit_account.principal_amount).toLocaleString()}`} icon={<Target size={16} />} />
                         <InfoCard disabled label="Maturity Amount" value={`${account.currency} ${Number(account.fixed_deposit_account.maturity_amount).toLocaleString()}`} icon={<TrendingUp size={16} className="text-emerald-600" />} color="text-emerald-600" />
                         <InfoCard 
                             disabled 
