@@ -16,7 +16,11 @@ COPY pyproject.toml poetry.lock* ./
 
 # Install dependencies into a virtualenv
 RUN poetry config virtualenvs.in-project true && \
-    poetry install --no-root --without dev && \
+    poetry install --no-root --without dev
+
+# Copy the application code and install the root project to generate poetry entrypoints
+COPY . .
+RUN poetry install --without dev && \
     rm -rf /root/.cache
 
 # Stage 2: Final
