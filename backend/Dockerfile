@@ -16,11 +16,7 @@ COPY pyproject.toml poetry.lock* ./
 
 # Install dependencies into a virtualenv
 RUN poetry config virtualenvs.in-project true && \
-    poetry install --no-root --without dev
-
-# Copy the application code and install the root project to generate poetry entrypoints
-COPY . .
-RUN poetry install --without dev && \
+    poetry install --no-root --without dev && \
     rm -rf /root/.cache
 
 # Stage 2: Final
@@ -40,5 +36,5 @@ ENV PATH="/app/.venv/bin:$PATH" \
 # Expose port (relevant for backend only, but safe for all)
 EXPOSE 8000
 
-# Default command (using poetry entry point)
-CMD ["start"]
+# Default command
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
