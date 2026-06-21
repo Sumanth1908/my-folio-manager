@@ -1,7 +1,8 @@
 import { Plus, Trash2, Tag, Info } from 'lucide-react';
-import { memo, useState, useEffect } from 'react';
+import { memo, useEffect } from 'react';
 import type { Transaction } from '../../types';
 import { Button } from '../ui/Button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { cn, formatDate } from '../../lib/utils';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { updateTransactionCategory } from '../../store/slices/transactionsSlice';
@@ -27,7 +28,6 @@ const TransactionRow = memo(({
 }: TransactionRowProps) => {
     const dispatch = useAppDispatch();
     const { items: categories } = useAppSelector(state => state.categories);
-    const [isEditingCategory, setIsEditingCategory] = useState(false);
 
     useEffect(() => {
         if (categories.length === 0) {
@@ -35,12 +35,11 @@ const TransactionRow = memo(({
         }
     }, [dispatch, categories.length]);
 
-    const handleCategoryChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newCategoryId = e.target.value;
-        setIsEditingCategory(false);
-        if (newCategoryId !== tx.category_id?.toString()) {
+    const handleCategoryChange = async (value: string) => {
+        const newCategoryId = value === "none" ? null : value;
+        if (newCategoryId !== (tx.category_id?.toString() || null)) {
             try {
-                await dispatch(updateTransactionCategory({ id: tx.transaction_id, categoryId: newCategoryId || null })).unwrap();
+                await dispatch(updateTransactionCategory({ id: tx.transaction_id, categoryId: newCategoryId })).unwrap();
                 toast.success('Category updated successfully');
             } catch (err: any) {
                 toast.error(err || 'Failed to update category');
@@ -74,26 +73,19 @@ const TransactionRow = memo(({
                         </>
                     )}
                     <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">{formatDate(tx.transaction_date, true)}</span>
-                    <span 
-                        className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50 cursor-pointer hover:bg-muted transition-colors"
-                        onClick={() => setIsEditingCategory(true)}
+                    <Select 
+                        value={tx.category_id?.toString() || "none"}
+                        onValueChange={handleCategoryChange}
                     >
-                        <Tag size={10} />
-                        {isEditingCategory ? (
-                            <select 
-                                autoFocus
-                                onBlur={() => setIsEditingCategory(false)}
-                                onChange={handleCategoryChange}
-                                className="bg-background text-foreground border border-border rounded outline-none text-[9px] py-0.5 px-1 min-w-[80px]"
-                                defaultValue={tx.category_id?.toString() || ""}
-                            >
-                                <option value="">No Category</option>
-                                {categories.map(c => <option key={c.category_id} value={c.category_id.toString()}>{c.name}</option>)}
-                            </select>
-                        ) : (
-                            tx.category?.name || 'Add Category'
-                        )}
-                    </span>
+                        <SelectTrigger className="flex h-auto w-auto items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50 hover:bg-muted transition-colors font-bold uppercase tracking-widest text-muted-foreground shadow-none ring-0 focus:ring-0 [&>svg:last-child]:hidden cursor-pointer">
+                            <Tag size={10} className="shrink-0" />
+                            <SelectValue placeholder="Add Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none" className="text-muted-foreground italic">No Category</SelectItem>
+                            {categories.map(c => <SelectItem key={c.category_id} value={c.category_id.toString()}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
                     {accountType === 'LOAN' && Number(tx.amount || 0) > 0 && (
                         <span className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded text-[9px] border border-emerald-500/20 uppercase">
                             Payment
