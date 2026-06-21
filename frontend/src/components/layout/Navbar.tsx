@@ -24,9 +24,9 @@ export default function Navbar() {
                 <div className="flex justify-between items-center h-20">
                     <Link to="/" className="flex items-center gap-2 group">
                         <div className="h-10 w-10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <img src="/logo.svg" className="h-full w-auto object-contain" alt="Folio Logo" />
+                            <img src="/logo.svg" className="h-full w-auto object-contain" alt="Zenfolio Logo" />
                         </div>
-                        <span className="text-xl font-black text-foreground tracking-tighter uppercase italic">Folio</span>
+                        <span className="text-xl font-black text-foreground tracking-tighter uppercase italic">Zenfolio</span>
                     </Link>
 
                     <div className="flex items-center space-x-1 md:space-x-4">
