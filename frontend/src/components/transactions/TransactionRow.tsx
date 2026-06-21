@@ -1,10 +1,12 @@
 import { Plus, Trash2, Tag, Info } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo, useState, useEffect } from 'react';
 import type { Transaction } from '../../types';
 import { Button } from '../ui/Button';
 import { cn, formatDate } from '../../lib/utils';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { updateTransactionCategory } from '../../store/slices/transactionsSlice';
+import { fetchCategories } from '../../store/slices/categoriesSlice';
+import toast from 'react-hot-toast';
 
 interface TransactionRowProps {
     tx: Transaction;
@@ -27,11 +29,22 @@ const TransactionRow = memo(({
     const { items: categories } = useAppSelector(state => state.categories);
     const [isEditingCategory, setIsEditingCategory] = useState(false);
 
+    useEffect(() => {
+        if (categories.length === 0) {
+            dispatch(fetchCategories());
+        }
+    }, [dispatch, categories.length]);
+
     const handleCategoryChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newCategoryId = e.target.value;
         setIsEditingCategory(false);
         if (newCategoryId !== tx.category_id?.toString()) {
-            await dispatch(updateTransactionCategory({ id: tx.transaction_id, categoryId: newCategoryId || null }));
+            try {
+                await dispatch(updateTransactionCategory({ id: tx.transaction_id, categoryId: newCategoryId || null })).unwrap();
+                toast.success('Category updated successfully');
+            } catch (err: any) {
+                toast.error(err || 'Failed to update category');
+            }
         }
     };
 
@@ -71,7 +84,7 @@ const TransactionRow = memo(({
                                 autoFocus
                                 onBlur={() => setIsEditingCategory(false)}
                                 onChange={handleCategoryChange}
-                                className="bg-transparent border-none outline-none text-[9px] p-0 min-w-[80px]"
+                                className="bg-background text-foreground border border-border rounded outline-none text-[9px] py-0.5 px-1 min-w-[80px]"
                                 defaultValue={tx.category_id?.toString() || ""}
                             >
                                 <option value="">No Category</option>
