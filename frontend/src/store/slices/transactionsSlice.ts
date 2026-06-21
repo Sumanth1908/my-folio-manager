@@ -90,6 +90,18 @@ export const createTransfer = createAsyncThunk(
 
 
 
+export const updateTransactionCategory = createAsyncThunk(
+    'transactions/updateCategory',
+    async ({ id, categoryId }: { id: number, categoryId: string | null }, { rejectWithValue }) => {
+        try {
+            const res = await api.patch(`/transactions/${id}`, { category_id: categoryId ? parseInt(categoryId) : null });
+            return res.data;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to update category');
+        }
+    }
+);
+
 export const deleteTransaction = createAsyncThunk(
     'transactions/deleteTransaction',
     async (id: number, { dispatch, getState, rejectWithValue }) => {
@@ -149,6 +161,19 @@ export const transactionsSlice = createSlice({
                 });
                 const removedCount = initialCount - state.items.length;
                 state.total -= removedCount;
+            })
+            .addCase(updateTransactionCategory.fulfilled, (state, action) => {
+                const updated = action.payload;
+                if (updated.transfer_id) {
+                    state.items = state.items.map(t => 
+                        t.transfer_id === updated.transfer_id ? { ...t, category: updated.category, category_id: updated.category_id } : t
+                    );
+                } else {
+                    const index = state.items.findIndex(t => t.transaction_id === updated.transaction_id);
+                    if (index !== -1) {
+                        state.items[index] = updated;
+                    }
+                }
             })
             .addCase(fetchTransactions.rejected, (state, action) => {
                 state.loading = false;

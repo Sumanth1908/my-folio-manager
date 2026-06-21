@@ -8,7 +8,7 @@ from app.models import (Account, Transaction, AccountType)
 from app.models.category import Category
 from app.models.rule import Rule
 from app.schemas.transaction import (TransactionCreate, TransactionRead,
-                                     TransferRequest)
+                                     TransferRequest, TransactionUpdate)
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -216,6 +216,33 @@ def create_transfer_core(session: Session, transfer: TransferRequest, user_id: s
     session.commit()
     
     return {"message": "Transfer successful"}
+
+def update_transaction(session: Session, transaction_id: int, user_id: str, update_data: TransactionUpdate) -> Optional[Transaction]:
+    transaction = get_transaction_with_ownership(session, transaction_id, user_id)
+    if not transaction:
+        return None
+        
+    # Update category logic
+    if update_data.category_id is not None or hasattr(update_data, 'category_id'): # hasattr check to allow explicit nulls if needed, wait pydantic models always have it.
+        # Actually in BaseModel, if it's unset we shouldn't update, but we only have category_id so it's fine
+        category_id = update_data.category_id
+        
+        # If it's a transfer, update all related transfer transactions
+        if transaction.transfer_id:
+            related_txs = session.exec(
+                select(Transaction).where(Transaction.transfer_id == transaction.transfer_id)
+            ).all()
+            for tx in related_txs:
+                tx.category_id = category_id
+                session.add(tx)
+        else:
+            transaction.category_id = category_id
+            session.add(transaction)
+            
+        session.commit()
+        session.refresh(transaction)
+        
+    return transaction
 
 
 def delete_transaction(session: Session, transaction_id: int, user_id: str) -> bool:

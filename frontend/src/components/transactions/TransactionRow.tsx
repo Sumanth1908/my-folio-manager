@@ -1,8 +1,10 @@
 import { Plus, Trash2, Tag, Info } from 'lucide-react';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import type { Transaction } from '../../types';
 import { Button } from '../ui/Button';
 import { cn, formatDate } from '../../lib/utils';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { updateTransactionCategory } from '../../store/slices/transactionsSlice';
 
 interface TransactionRowProps {
     tx: Transaction;
@@ -20,7 +22,20 @@ const TransactionRow = memo(({
     currencySymbol,
 
     onDelete
-}: TransactionRowProps) => (
+}: TransactionRowProps) => {
+    const dispatch = useAppDispatch();
+    const { items: categories } = useAppSelector(state => state.categories);
+    const [isEditingCategory, setIsEditingCategory] = useState(false);
+
+    const handleCategoryChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newCategoryId = e.target.value;
+        setIsEditingCategory(false);
+        if (newCategoryId !== tx.category_id?.toString()) {
+            await dispatch(updateTransactionCategory({ id: tx.transaction_id, categoryId: newCategoryId || null }));
+        }
+    };
+
+    return (
     <div className="group flex justify-between items-center p-6 hover:bg-muted/30 transition-colors">
         <div className="flex items-center gap-5">
             <div className={cn(
@@ -46,12 +61,26 @@ const TransactionRow = memo(({
                         </>
                     )}
                     <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">{formatDate(tx.transaction_date, true)}</span>
-                    {tx.category && (
-                        <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">
-                            <Tag size={10} />
-                            {tx.category.name}
-                        </span>
-                    )}
+                    <span 
+                        className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50 cursor-pointer hover:bg-muted transition-colors"
+                        onClick={() => setIsEditingCategory(true)}
+                    >
+                        <Tag size={10} />
+                        {isEditingCategory ? (
+                            <select 
+                                autoFocus
+                                onBlur={() => setIsEditingCategory(false)}
+                                onChange={handleCategoryChange}
+                                className="bg-transparent border-none outline-none text-[9px] p-0 min-w-[80px]"
+                                defaultValue={tx.category_id?.toString() || ""}
+                            >
+                                <option value="">No Category</option>
+                                {categories.map(c => <option key={c.category_id} value={c.category_id.toString()}>{c.name}</option>)}
+                            </select>
+                        ) : (
+                            tx.category?.name || 'Add Category'
+                        )}
+                    </span>
                     {accountType === 'LOAN' && Number(tx.amount || 0) > 0 && (
                         <span className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded text-[9px] border border-emerald-500/20 uppercase">
                             Payment
@@ -83,7 +112,8 @@ const TransactionRow = memo(({
             </div>
         </div>
     </div>
-));
+    );
+});
 
 TransactionRow.displayName = 'TransactionRow';
 

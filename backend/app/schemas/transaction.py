@@ -21,6 +21,10 @@ class TransactionCreate(TransactionBase):
     pass
 
 
+class TransactionUpdate(BaseModel):
+    category_id: Optional[int] = None
+
+
 class TransactionRead(TransactionBase):
     transaction_id: int
     account_id: str

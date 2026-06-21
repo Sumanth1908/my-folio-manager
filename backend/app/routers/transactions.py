@@ -6,7 +6,7 @@ from sqlmodel import Session
 from app.core.database import get_session
 from app.models.user import User
 from app.schemas.transaction import (TransactionCreate, TransactionRead,
-                                     TransferRequest)
+                                     TransferRequest, TransactionUpdate)
 from app.schemas.common import PaginatedResponse
 from app.services import transaction_service
 from app.deps import get_current_user
@@ -71,8 +71,19 @@ def read_transactions(
         limit=limit
     )
 
-
-
+@router.patch("/{transaction_id}", response_model=TransactionRead)
+def update_transaction(
+    transaction_id: int,
+    transaction_in: TransactionUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Update a transaction."""
+    transaction = transaction_service.update_transaction(session, transaction_id, current_user.user_id, transaction_in)
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+        
+    return transaction_service.enrich_transaction(session, transaction)
 
 
 @router.delete("/{transaction_id}")
