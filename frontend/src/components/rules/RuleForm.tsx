@@ -40,6 +40,7 @@ interface RuleFormData {
     transferOtherAccountId: string;
     formula: string;
     endDate: string;
+    nextRunAt: string;
 }
 
 // Normalize transaction type
@@ -58,7 +59,7 @@ const getUTCDateTimeString = (utcString: string) => {
 };
 
 // Create initial form data from rule
-const createInitialFormData = (rule?: Rule | null, accountId?: string): RuleFormData => {
+const createInitialFormData = (rule?: Rule | null, accountId?: string | null): RuleFormData => {
     const config = rule?.configuration || {};
     
     let transferDirection: 'OUT' | 'IN' = 'OUT';

@@ -681,6 +681,48 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                             />
                                         </div>
                                     </div>
+                                    
+                                    <div className="pt-4 border-t border-border/50">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <label className="text-sm font-bold text-foreground">Fund from Savings</label>
+                                                <p className="text-xs text-muted-foreground">Automatically transfer principal from a savings account</p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="sr-only peer"
+                                                    checked={fdFundFromAccount}
+                                                    onChange={(e) => setFdFundFromAccount(e.target.checked)}
+                                                />
+                                                <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                                            </label>
+                                        </div>
+
+                                        {fdFundFromAccount && (
+                                            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Select Savings Account</label>
+                                                <Select 
+                                                    value={fdLinkedAccount} 
+                                                    onValueChange={setFdLinkedAccount}
+                                                >
+                                                    <SelectTrigger className="w-full h-12">
+                                                        <SelectValue placeholder="Select account" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectGroup>
+                                                            <SelectLabel>Available Accounts</SelectLabel>
+                                                            {accounts.filter(a => a.account_type === 'SAVINGS' && a.currency === currency).map(acc => (
+                                                                <SelectItem key={acc.account_id} value={acc.account_id}>
+                                                                    {acc.account_name} ({currency} {acc.balance?.toLocaleString()})
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectGroup>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 

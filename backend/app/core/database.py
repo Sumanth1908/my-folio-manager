@@ -18,10 +18,10 @@ def get_session() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    """Initialize the database. 
-    Using Alembic for migrations, so we don't call create_all() here.
+    """Initialize the database.
+    Creates all tables on startup.
     """
-    pass
+    SQLModel.metadata.create_all(engine)
 
 
 def seed_currencies() -> None:

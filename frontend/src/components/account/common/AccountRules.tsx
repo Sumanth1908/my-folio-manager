@@ -35,7 +35,7 @@ export default function AccountRules({
     const getAccountName = (id: string | undefined) => {
         if (!id) return '';
         const acc = accounts.find(a => a.account_id === id);
-        return acc ? acc.account_name : `ID:${id.slice(-4)}`;
+        return acc?.account_name || `ID:${id.slice(-4)}`;
     };
 
     return (

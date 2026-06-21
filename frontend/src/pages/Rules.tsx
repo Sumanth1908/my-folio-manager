@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Tag, RefreshCw, Calendar, Trash2, ArrowRightLeft, Calculator, Play, X } from 'lucide-react';
+import { Plus, Tag, RefreshCw, Calendar, Trash2, ArrowRightLeft, Calculator, Play } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchRules, deleteRule, executeRule, triggerAutomation } from '../store/slices/rulesSlice';
 import { fetchAccounts } from '../store/slices/accountsSlice';
