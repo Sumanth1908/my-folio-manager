@@ -38,8 +38,8 @@ dependencies = [
 
 
 [tool.poetry.scripts]
-dev = "dev:__main__"
-start = "start:__main__"
+dev = "dev:dev"
+start = "start:start"
 worker = "celery_start:start_worker"
 beat = "celery_start:start_beat"
 
