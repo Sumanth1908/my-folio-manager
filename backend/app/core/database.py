@@ -17,9 +17,11 @@ def get_session() -> Generator[Session, None, None]:
         yield session
 
 
-def create_db_and_tables() -> None:
-    """Create all database tables."""
-    SQLModel.metadata.create_all(engine)
+def init_db() -> None:
+    """Initialize the database. 
+    Using Alembic for migrations, so we don't call create_all() here.
+    """
+    pass
 
 
 def seed_currencies() -> None:
@@ -48,29 +50,3 @@ def seed_currencies() -> None:
         session.commit()
 
 
-def seed_categories() -> None:
-    """Seed default categories into the database."""
-    from app.models import Category
-    
-    default_categories = [
-        Category(name="Groceries"),
-        Category(name="Rent"),
-        Category(name="Utilities"),
-        Category(name="Entertainment"),
-        Category(name="Transportation"),
-        Category(name="Healthcare"),
-        Category(name="Shopping"),
-        Category(name="Dining"),
-        Category(name="Salary"),
-        Category(name="Investment"),
-    ]
-    
-    with Session(engine) as session:
-        for category in default_categories:
-            # Check if category already exists
-            existing = session.exec(
-                select(Category).where(Category.name == category.name)
-            ).first()
-            if not existing:
-                session.add(category)
-        session.commit()

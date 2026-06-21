@@ -7,7 +7,9 @@ interface SavingsDetailsProps {
 }
 
 export default function SavingsDetails({ account, symbol }: SavingsDetailsProps) {
-    if (!account.savings_account) return null;
+    if (!account.metadata_) return null;
+
+    const md = account.metadata_ as any;
 
     return (
         <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
@@ -20,13 +22,13 @@ export default function SavingsDetails({ account, symbol }: SavingsDetailsProps)
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Interest Rate</p>
                     <p className="text-xl font-black text-foreground tabular-nums">
-                        {account.savings_account.interest_rate ? `${account.savings_account.interest_rate}% APY` : 'N/A'}
+                        {md.interest_rate ? `${md.interest_rate}% APY` : 'N/A'}
                     </p>
                 </div>
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Min Balance</p>
                     <p className="text-xl font-black text-foreground tabular-nums">
-                        {symbol}{account.savings_account.min_balance?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
+                        {symbol}{md.min_balance?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
                     </p>
                 </div>
                 <div className="bg-background p-5 rounded-2xl border border-border/50">

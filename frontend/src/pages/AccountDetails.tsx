@@ -19,7 +19,7 @@ import { fetchAccounts, deleteAccount } from '../store/slices/accountsSlice';
 import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchSettings } from '../store/slices/settingsSlice';
 import { fetchRates } from '../store/slices/converterSlice';
-import { TRANSACTION_TYPE, ACCOUNT_TYPE } from '../constants';
+import { ACCOUNT_TYPE } from '../constants';
 
 const AccountDetails = () => {
     const { id: accountId } = useParams<{ id: string }>();
@@ -127,24 +127,27 @@ const AccountDetails = () => {
     const getBalance = () => {
         if (!account) return 0;
 
-        // Use pre-calculated balances from backend where available
-        if (account.savings_account) return Number(account.savings_account.balance || 0);
-        if (account.fixed_deposit_account) return Number(account.fixed_deposit_account.balance || 0);
-        if (account.loan_account) return Number(account.loan_account.outstanding_amount || 0);
-
         // For investment accounts, calculate total portfolio value from holdings
-        if (account.account_type === ACCOUNT_TYPE.INVESTMENT && account.investment_holdings) {
-            return account.investment_holdings.reduce((total, holding) => {
-                const price = holding.current_price ?? holding.average_price;
-                return total + (holding.quantity * price);
-            }, 0);
+        if (account.account_type === ACCOUNT_TYPE.INVESTMENT) {
+            if (account.investment_holdings) {
+                return account.investment_holdings.reduce((total, holding) => {
+                    const price = holding.current_price ?? holding.average_price;
+                    return total + (holding.quantity * price);
+                }, 0);
+            }
+            return 0;
+        }
+
+        // The backend now calculates balance dynamically and sends it in the response
+        if ((account as any).balance !== undefined) {
+            return Number((account as any).balance);
         }
 
         // Fallback to transaction sum for other cases (though usually redundant)
         if (!transactions) return 0;
         return transactions.reduce((balance: number, tx: Transaction) => {
             const amount = Number(tx.amount || 0);
-            return tx.transaction_type === TRANSACTION_TYPE.CREDIT ? balance + amount : balance - amount;
+            return balance + amount;
         }, 0);
     };
 

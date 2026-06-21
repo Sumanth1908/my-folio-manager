@@ -1,13 +1,14 @@
 """Jobs router for manual job triggers."""
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.tasks.automation import process_automation_rules
+from app.deps import get_current_user
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
 @router.post("/trigger-interest-accrual")
-def trigger_interest_accrual():
+def trigger_interest_accrual(current_user = Depends(get_current_user)):
     """
     Manually trigger the daily interest accrual job.
     

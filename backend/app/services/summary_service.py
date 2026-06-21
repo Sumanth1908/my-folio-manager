@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 from sqlmodel import Session, select, col, func
+from sqlalchemy import case
 
 from app.models import Account, Transaction, Category
 from app.schemas.summary import SummaryResponse, AccountSummary, CategorySummary
@@ -21,10 +22,15 @@ def get_accounts_summary(
     accounts = session.exec(account_query).all()
     response_accounts = []
     
+    tx_type_expr = case(
+        (Transaction.amount >= 0, "CREDIT"),
+        else_="DEBIT"
+    ).label("transaction_type")
+    
     for account in accounts:
         tx_query = select(
             Category.name,
-            Transaction.transaction_type,
+            tx_type_expr,
             func.sum(Transaction.amount).label("total")
         ).join(Category, Transaction.category_id == Category.category_id, isouter=True)\
          .where(Transaction.account_id == account.account_id)
@@ -38,14 +44,14 @@ def get_accounts_summary(
                 to_date = to_date.astimezone(timezone.utc).replace(tzinfo=None)
             tx_query = tx_query.where(Transaction.transaction_date <= to_date)
             
-        tx_query = tx_query.group_by(Category.name, Transaction.transaction_type)
+        tx_query = tx_query.group_by(Category.name, tx_type_expr)
         results = session.exec(tx_query).all()
         
         categories_summary = []
         for cat_name, tx_type, total in results:
             categories_summary.append(CategorySummary(
                 name=cat_name or "Uncategorized",
-                total_amount=float(total or 0.0),
+                total_amount=abs(float(total or 0.0)),
                 transaction_type=tx_type
             ))
             

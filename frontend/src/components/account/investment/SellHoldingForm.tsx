@@ -26,6 +26,7 @@ const SellHoldingForm = ({ holding, currencySymbol, onSuccess, onCancel }: SellH
         quantity: holding.quantity.toString(),
         price: (holding.current_price ?? holding.average_price).toString()
     }));
+    const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
 
     const updateField = useCallback(<K extends keyof SellFormData>(field: K, value: SellFormData[K]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -44,7 +45,8 @@ const SellHoldingForm = ({ holding, currencySymbol, onSuccess, onCancel }: SellH
             await dispatch(sellHolding({
                 holdingId: holding.holding_id,
                 quantity: parseFloat(formData.quantity),
-                price: parseFloat(formData.price)
+                price: parseFloat(formData.price),
+                transaction_date: new Date(transactionDate).toISOString()
             })).unwrap();
             toast.success('Sale confirmed');
             onSuccess();
@@ -86,6 +88,19 @@ const SellHoldingForm = ({ holding, currencySymbol, onSuccess, onCancel }: SellH
                         className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-destructive outline-none transition"
                     />
                 </div>
+            </div>
+
+            <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                    Date of Transaction
+                </label>
+                <input
+                    type="date"
+                    required
+                    value={transactionDate}
+                    onChange={e => setTransactionDate(e.target.value)}
+                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none transition"
+                />
             </div>
 
             {expectedProceeds !== null && (

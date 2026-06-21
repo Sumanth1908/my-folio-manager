@@ -21,7 +21,7 @@ import {
 } from '../ui/Select';
 
 interface RuleFormProps {
-    accountId: string;
+    accountId?: string | null;
     ruleToEdit?: Rule | null;
     onSuccess: () => void;
     onCancel: () => void;
@@ -36,8 +36,8 @@ interface RuleFormData {
     frequency: Frequency;
     amount: string;
     txType: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT | typeof TRANSACTION_TYPE.TRANSFER;
-    nextRunAt: string;
-    targetAccountId: string;
+    transferDirection: 'OUT' | 'IN';
+    transferOtherAccountId: string;
     formula: string;
     endDate: string;
 }
@@ -58,22 +58,49 @@ const getUTCDateTimeString = (utcString: string) => {
 };
 
 // Create initial form data from rule
-const createInitialFormData = (rule?: Rule | null): RuleFormData => ({
-    name: rule?.name ?? '',
-    ruleType: rule?.rule_type ?? RULE_TYPE.TRANSACTION,
-    isActive: rule?.is_active ?? true,
-    descriptionContains: rule?.description_contains ?? '',
-    categoryId: rule?.category_id?.toString() ?? '',
-    frequency: (rule?.frequency as Frequency) ?? FREQUENCY.MONTHLY,
-    amount: rule?.transaction_amount?.toString() ?? '',
-    txType: rule?.target_account_id ? TRANSACTION_TYPE.TRANSFER : normalizeTransactionType(rule?.transaction_type),
-    nextRunAt: rule?.next_run_at
-        ? getUTCDateTimeString(rule.next_run_at)
-        : new Date().toISOString().split('T')[0] + 'T10:00', // Default to 10 AM UTC for new rules
-    targetAccountId: rule?.target_account_id ?? '',
-    formula: rule?.formula ?? '',
-    endDate: rule?.end_date ? rule.end_date.split('T')[0] : ''
-});
+const createInitialFormData = (rule?: Rule | null, accountId?: string): RuleFormData => {
+    const config = rule?.configuration || {};
+    
+    let transferDirection: 'OUT' | 'IN' = 'OUT';
+    let transferOtherAccountId = '';
+    
+    if (config.source_account_id || config.target_account_id) {
+        const ownerId = rule?.account_id || accountId;
+        if (config.source_account_id === ownerId) {
+            transferDirection = 'OUT';
+            transferOtherAccountId = config.target_account_id || '';
+        } else if (config.target_account_id === ownerId) {
+            transferDirection = 'IN';
+            transferOtherAccountId = config.source_account_id || '';
+        } else {
+            // Fallback if rule doesn't belong to either (should not happen normally)
+            transferDirection = 'OUT';
+            transferOtherAccountId = config.target_account_id || '';
+        }
+    }
+
+    return {
+        name: rule?.name ?? '',
+        ruleType: rule?.rule_type ?? RULE_TYPE.TRANSACTION,
+        isActive: rule?.is_active ?? true,
+        descriptionContains: config.description_contains ?? '',
+        categoryId: config.category_id?.toString() ?? '',
+        frequency: (config.frequency as Frequency) ?? FREQUENCY.MONTHLY,
+        amount: config.transaction_amount?.toString() ?? '',
+        txType: (config.source_account_id || config.target_account_id) 
+            ? TRANSACTION_TYPE.TRANSFER 
+            : (config.is_debit === false || normalizeTransactionType(config.transaction_type) === TRANSACTION_TYPE.CREDIT 
+                ? TRANSACTION_TYPE.CREDIT 
+                : TRANSACTION_TYPE.DEBIT),
+        nextRunAt: rule?.next_run_at
+            ? getUTCDateTimeString(rule.next_run_at)
+            : new Date().toISOString().split('T')[0] + 'T10:00', // Default to 10 AM UTC for new rules
+        transferDirection,
+        transferOtherAccountId,
+        formula: config.formula ?? '',
+        endDate: config.end_date ? config.end_date.split('T')[0] : ''
+    };
+};
 
 const FORMULA_VARIABLES = {
     [ACCOUNT_TYPE.SAVINGS]: [
@@ -93,6 +120,12 @@ const FORMULA_VARIABLES = {
         { name: 'interest_rate', desc: 'Annual Interest Rate (%)' },
         { name: 'days', desc: 'Days elapsed since last run' }
     ],
+    [ACCOUNT_TYPE.RECURRING_DEPOSIT]: [
+        { name: 'balance', desc: 'Current Account Balance' },
+        { name: 'deposit_amount', desc: 'Monthly Deposit Amount' },
+        { name: 'interest_rate', desc: 'Annual Interest Rate (%)' },
+        { name: 'days', desc: 'Days elapsed since last run' }
+    ],
     [ACCOUNT_TYPE.INVESTMENT]: [
         { name: 'balance', desc: 'Current Cash Balance' },
         { name: 'days', desc: 'Days elapsed since last run' }
@@ -104,7 +137,8 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
     const { items: categories } = useAppSelector((state: RootState) => state.categories);
     const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
 
-    const [formData, setFormData] = useState<RuleFormData>(() => createInitialFormData(ruleToEdit));
+    const [selectedAccountId, setSelectedAccountId] = useState<string>(ruleToEdit?.account_id || accountId || '');
+    const [formData, setFormData] = useState<RuleFormData>(() => createInitialFormData(ruleToEdit, ruleToEdit?.account_id || accountId));
 
     // Memoized update handler
     const updateField = useCallback(<K extends keyof RuleFormData>(field: K, value: RuleFormData[K]) => {
@@ -113,13 +147,13 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
 
     // Filter accounts excluding current
     const availableTargetAccounts = useMemo(
-        () => accounts.filter(a => a.account_id !== accountId),
-        [accounts, accountId]
+        () => accounts.filter(a => a.account_id !== selectedAccountId),
+        [accounts, selectedAccountId]
     );
 
     const currentAccount = useMemo(
-        () => accounts.find(a => a.account_id === accountId),
-        [accounts, accountId]
+        () => accounts.find(a => a.account_id === selectedAccountId),
+        [accounts, selectedAccountId]
     );
 
     // Fetch data on mount if needed
@@ -132,42 +166,57 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const { name, ruleType, isActive, descriptionContains, categoryId, frequency, amount, txType, nextRunAt, targetAccountId, formula, endDate } = formData;
+        if (!selectedAccountId) {
+            toast.error('Please select an account for this rule');
+            return;
+        }
+
+        const { name, ruleType, isActive, descriptionContains, categoryId, frequency, amount, txType, nextRunAt, transferDirection, transferOtherAccountId, formula, endDate } = formData;
 
         const payload: Record<string, unknown> = {
-            account_id: accountId,
+            account_id: selectedAccountId,
             name,
             rule_type: ruleType,
-            is_active: isActive
+            is_active: isActive,
+            configuration: {}
         };
+
+        const config = payload.configuration as Record<string, unknown>;
 
         if (ruleType === RULE_TYPE.CATEGORIZATION) {
             if (!descriptionContains || !categoryId) return;
-            payload.description_contains = descriptionContains;
-            payload.category_id = Number(categoryId);
+            config.description_contains = descriptionContains;
+            config.category_id = Number(categoryId);
         } else {
             // Automation or Calculation
             if (!nextRunAt) return;
 
-            payload.frequency = frequency;
+            config.frequency = frequency;
             // Append Z to force UTC interpretation of the local-datetime input string
             payload.next_run_at = new Date(nextRunAt + ':00Z').toISOString();
-            if (endDate) payload.end_date = new Date(endDate + 'T00:00:00Z').toISOString();
-            if (categoryId) payload.category_id = Number(categoryId);
+            if (endDate) config.end_date = new Date(endDate + 'T00:00:00Z').toISOString();
+            if (categoryId) config.category_id = Number(categoryId);
 
             if (txType !== TRANSACTION_TYPE.TRANSFER) {
-                payload.transaction_type = txType;
+                config.transaction_type = txType;
             }
 
             if (ruleType === RULE_TYPE.CALCULATION) {
                 if (!formula) return;
-                payload.formula = formula;
+                config.formula = formula;
             } else {
                 if (!amount) return;
-                payload.transaction_amount = parseFloat(amount);
+                config.transaction_amount = parseFloat(amount);
             }
 
-            if (txType === TRANSACTION_TYPE.TRANSFER) payload.target_account_id = targetAccountId;
+            if (txType === TRANSACTION_TYPE.TRANSFER) {
+                if (!transferOtherAccountId) {
+                    toast.error('Please select the other account for the transfer');
+                    return;
+                }
+                config.source_account_id = transferDirection === 'OUT' ? selectedAccountId : transferOtherAccountId;
+                config.target_account_id = transferDirection === 'OUT' ? transferOtherAccountId : selectedAccountId;
+            }
         }
 
         try {
@@ -211,6 +260,30 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
                     </button>
                 ))}
             </div>
+
+            {/* Account Selector (only if not pre-provided) */}
+            {!accountId && (
+                <div className="space-y-2">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                        Rule Owner Account
+                    </label>
+                    <Select value={selectedAccountId} onValueChange={setSelectedAccountId} disabled={!!ruleToEdit}>
+                        <SelectTrigger className="w-full h-14 rounded-2xl bg-background border-border disabled:opacity-50">
+                            <SelectValue placeholder="Select an Account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectLabel>Accounts</SelectLabel>
+                                {accounts.map(acc => (
+                                    <SelectItem key={acc.account_id} value={acc.account_id}>
+                                        {acc.account_name}
+                                    </SelectItem>
+                                ))}
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
 
             {/* Rule Name */}
             <div className="space-y-2">
@@ -334,24 +407,43 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
                     </div>
 
                     {isTransfer && (
-                        <div className="col-span-3 space-y-2">
-                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                                Destination Account
-                            </label>
-                            <Select value={formData.targetAccountId} onValueChange={v => updateField('targetAccountId', v)}>
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select Account" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectLabel>Accounts</SelectLabel>
-                                        {availableTargetAccounts.map(({ account_id, account_name }) => (
-                                            <SelectItem key={account_id} value={account_id}>{account_name}</SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <>
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                                    Transfer Direction
+                                </label>
+                                <Select value={formData.transferDirection} onValueChange={v => updateField('transferDirection', v as 'OUT' | 'IN')}>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Direction" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectLabel>Direction</SelectLabel>
+                                            <SelectItem value="OUT">Send To (Debit)</SelectItem>
+                                            <SelectItem value="IN">Receive From (Credit)</SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="col-span-2 space-y-2">
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                                    {formData.transferDirection === 'OUT' ? 'Destination Account' : 'Source Account'}
+                                </label>
+                                <Select value={formData.transferOtherAccountId} onValueChange={v => updateField('transferOtherAccountId', v)}>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select Account" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectLabel>Accounts</SelectLabel>
+                                            {availableTargetAccounts.map(({ account_id, account_name }) => (
+                                                <SelectItem key={account_id} value={account_id}>{account_name}</SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </>
                     )}
 
                     <div className={cn(formData.ruleType === RULE_TYPE.CALCULATION ? "col-span-2" : "col-span-1", "space-y-2")}>

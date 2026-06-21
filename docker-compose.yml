@@ -7,6 +7,7 @@ services:
       MYSQL_DATABASE: finance_db
       MYSQL_USER: finance_user
       MYSQL_PASSWORD: finance_password
+      MYSQL_ROOT_HOST: '%'
     ports:
       - "3306:3306"
     volumes:

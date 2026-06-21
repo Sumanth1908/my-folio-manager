@@ -5,12 +5,13 @@ Includes Redis caching to reduce API calls and exchange suffix mapping.
 import logging
 from typing import Dict, List, Optional, Tuple
 from decimal import Decimal, ROUND_HALF_UP
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import yfinance as yf
 import redis
 import json
 import pandas as pd
 import numpy as np
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ def _cache_price(symbol: str, price: Decimal):
         cache_key = _get_cache_key(symbol)
         cache_data = {
             'price': float(price),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(cache_data))
     except Exception as e:
@@ -241,23 +242,36 @@ def search_stock_symbols(query: str, currency: str = "USD", limit: int = 10) -> 
         List of dicts with 'symbol', 'name', 'exchange' fields
     """
     try:
-        # Add exchange suffix if needed
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}&quotesCount={limit}&newsCount=0"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        response = requests.get(url, headers=headers, timeout=5)
+        
+        if response.status_code == 200:
+            data = response.json()
+            quotes = data.get('quotes', [])
+            
+            results = []
+            for quote in quotes:
+                # Only include equity and ETFs
+                quote_type = quote.get('quoteType', '')
+                if quote_type not in ['EQUITY', 'ETF', 'MUTUALFUND', 'INDEX']:
+                    continue
+                    
+                results.append({
+                    'symbol': quote.get('symbol', ''),
+                    'name': quote.get('longname') or quote.get('shortname') or quote.get('symbol', 'Unknown'),
+                    'exchange': quote.get('exchDisp') or quote.get('exchange', 'Unknown')
+                })
+            
+            if results:
+                return results
+
+        # Fallback if API fails
         exchange_suffix = get_exchange_suffix(currency)
         search_query = query.upper()
         
-        # Try to get ticker info
-        ticker = yf.Ticker(f"{search_query}{exchange_suffix}")
-        info = ticker.info
-        
-        # If we found valid data, return it
-        if info and 'symbol' in info:
-            return [{
-                'symbol': info.get('symbol', search_query),
-                'name': info.get('longName') or info.get('shortName', 'Unknown'),
-                'exchange': info.get('exchange', exchange_suffix.replace('.', ''))
-            }]
-        
-        # Fallback: return the query itself as a suggestion
         return [{
             'symbol': f"{search_query}{exchange_suffix}",
             'name': f"{search_query} (Search on exchange)",

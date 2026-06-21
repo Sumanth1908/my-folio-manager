@@ -79,7 +79,16 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
     return (
         <div className="space-y-6">
             {/* Investment Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-card p-5 rounded-2xl shadow-sm border border-border">
+                    <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">Cash Ledger Balance</div>
+                    <div className={cn(
+                        'text-2xl font-bold flex items-center gap-2',
+                        (account.balance || 0) >= 0 ? 'text-emerald-500' : 'text-destructive'
+                    )}>
+                        {symbol}{(account.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </div>
+                </div>
                 <div className="bg-card p-5 rounded-2xl shadow-sm border border-border">
                     <div className="text-sm text-muted-foreground mb-1">Total Market Value</div>
                     <div className="text-2xl font-bold text-foreground">

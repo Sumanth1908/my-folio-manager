@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from app.core.database import get_session
 from app.models import Currency
+from app.deps import get_current_user
 
 router = APIRouter(prefix="/currencies", tags=["currencies"])
 
@@ -17,7 +18,7 @@ def list_currencies(session: Session = Depends(get_session)):
 
 
 @router.post("/", response_model=Currency)
-def create_currency(currency: Currency, session: Session = Depends(get_session)):
+def create_currency(currency: Currency, session: Session = Depends(get_session), current_user = Depends(get_current_user)):
     """Create a new currency."""
     # Check if currency already exists
     existing = session.get(Currency, currency.code)

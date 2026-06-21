@@ -93,7 +93,9 @@ export interface Account {
     status: string;
     is_interest_enabled: boolean;
     created_at: string;
-    // Nested account details
+    balance?: number;
+    metadata_?: Record<string, any>;
+    // Nested account details (legacy)
     savings_account?: SavingsAccount;
     loan_account?: LoanAccount;
     fixed_deposit_account?: FixedDepositAccount;
@@ -119,6 +121,7 @@ export type CreateTransactionDTO = Omit<Transaction, 'transaction_id' | 'transac
 
 
 
+export type AccountType = 'SAVINGS' | 'INVESTMENT' | 'LOAN' | 'FIXED_DEPOSIT' | 'RECURRING_DEPOSIT';
 export type RuleType = typeof RULE_TYPE[keyof typeof RULE_TYPE];
 export type Frequency = typeof FREQUENCY[keyof typeof FREQUENCY];
 
@@ -129,21 +132,13 @@ export interface Rule {
     is_active: boolean;
     rule_type: RuleType;
 
-    // Categorization
-    description_contains?: string;
-    category_id?: number;
+    // Schema is flattened by configuration in backend
+    configuration?: Record<string, any> & {
+        source_account_id?: string;
+        target_account_id?: string;
+    };
     category_name?: string;
-
-    // Automation
-    frequency?: Frequency;
     next_run_at?: string;
-    end_date?: string;
-    transaction_amount?: number;
-    transaction_type?: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT | typeof TRANSACTION_TYPE.TRANSFER;
-    target_account_id?: string;
-
-    // Calculation
-    formula?: string;
 }
 
 export interface CreateRuleDTO {
@@ -151,16 +146,7 @@ export interface CreateRuleDTO {
     name: string;
     is_active: boolean;
     rule_type: RuleType;
-
-    description_contains?: string;
-    category_id?: number;
-
-    frequency?: Frequency;
-    next_run_at?: string;
-    end_date?: string;
-    transaction_amount?: number;
-    transaction_type?: typeof TRANSACTION_TYPE.DEBIT | typeof TRANSACTION_TYPE.CREDIT | typeof TRANSACTION_TYPE.TRANSFER;
-    formula?: string;
+    configuration?: Record<string, any>;
 }
 
 // Summary API Types

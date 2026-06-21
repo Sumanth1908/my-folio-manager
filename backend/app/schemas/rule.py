@@ -1,32 +1,17 @@
 from datetime import datetime
-from decimal import Decimal
-from typing import Optional
+from typing import Optional, Dict, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from app.models.rule import Frequency, RuleType
-from app.models.transaction import TransactionType
+from app.models.rule import RuleType
 
 
 class RuleBase(BaseModel):
     name: str
     rule_type: RuleType = RuleType.CATEGORIZATION
     is_active: bool = True
-    
-    # Categorization
-    description_contains: Optional[str] = None
-    category_id: Optional[int] = None
-    
-    # Automation
-    frequency: Optional[Frequency] = None
     next_run_at: Optional[datetime] = None
-    end_date: Optional[datetime] = None
-    transaction_amount: Optional[Decimal] = None
-    transaction_type: Optional[TransactionType] = None
-    target_account_id: Optional[str] = None
-    
-    # Calculation
-    formula: Optional[str] = None
+    configuration: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 class RuleCreate(RuleBase):
     account_id: str
@@ -40,14 +25,5 @@ class RuleUpdate(BaseModel):
     name: Optional[str] = None
     rule_type: Optional[RuleType] = None
     is_active: Optional[bool] = None
-    
-    description_contains: Optional[str] = None
-    category_id: Optional[int] = None
-    
-    frequency: Optional[Frequency] = None
     next_run_at: Optional[datetime] = None
-    end_date: Optional[datetime] = None
-    transaction_amount: Optional[Decimal] = None
-    transaction_type: Optional[TransactionType] = None
-    target_account_id: Optional[str] = None
-    formula: Optional[str] = None
+    configuration: Optional[Dict[str, Any]] = None

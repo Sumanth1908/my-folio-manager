@@ -107,6 +107,7 @@ const AllTransactions = () => {
                 closeConfirmModal();
                 try {
                     await dispatch(deleteTransaction(id)).unwrap();
+                    dispatch(fetchAccounts());
                     toast.success('Transaction deleted');
                 } catch {
                     toast.error('Failed to delete transaction');

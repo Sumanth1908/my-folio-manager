@@ -1,11 +1,15 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exceptions import RequestValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
-from app.core.database import (create_db_and_tables, seed_categories,
-                               seed_currencies)
+from app.core.database import (init_db, seed_currencies)
+from app.core.middleware import RequestIDMiddleware
+from app.core.exceptions import (global_exception_handler, validation_exception_handler, sqlalchemy_exception_handler)
 from app.routers import (accounts, categories, currencies, jobs, rules,
                          transactions, auth, settings as settings_router, summary, holdings, portfolio, assistant, data)
 
@@ -14,13 +18,12 @@ from app.routers import (accounts, categories, currencies, jobs, rules,
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
-    create_db_and_tables()
+    init_db()
     seed_currencies() # Enable seeding on startup
-    # seed_categories() # Disable or refactor to be user-aware
     
     yield
     
-    # Shutdown (nothing to clean up now that we use Celery)
+    # Shutdown
 
 
 # Create FastAPI application
@@ -29,7 +32,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS
+# Exception handlers
+app.add_exception_handler(Exception, global_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(SQLAlchemyError, sqlalchemy_exception_handler)
+
+# Configure CORS and Middlewares
+app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -38,17 +47,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(currencies.router)
-app.include_router(categories.router)
-app.include_router(accounts.router)
-app.include_router(transactions.router)
-app.include_router(jobs.router)
-app.include_router(rules.router)
-app.include_router(settings_router.router)
-app.include_router(summary.router)
-app.include_router(holdings.router)
-app.include_router(portfolio.router)
-app.include_router(assistant.router, prefix="/assistant", tags=["assistant"])
-app.include_router(data.router)
+# Create API router
+api_router = APIRouter()
+api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(currencies.router)
+api_router.include_router(categories.router)
+api_router.include_router(accounts.router)
+api_router.include_router(transactions.router)
+api_router.include_router(jobs.router)
+api_router.include_router(rules.router)
+api_router.include_router(settings_router.router)
+api_router.include_router(summary.router)
+api_router.include_router(holdings.router)
+api_router.include_router(portfolio.router)
+api_router.include_router(assistant.router, prefix="/assistant", tags=["assistant"])
+api_router.include_router(data.router)
+
+# Include API router into main app
+app.include_router(api_router, prefix=settings.API_V1_STR)

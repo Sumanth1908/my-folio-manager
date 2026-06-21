@@ -3,11 +3,11 @@ import { memo } from 'react';
 import type { Transaction } from '../../types';
 import { Button } from '../ui/Button';
 import { cn, formatDate } from '../../lib/utils';
-import { TRANSACTION_TYPE } from '../../constants';
 
 interface TransactionRowProps {
     tx: Transaction;
     accountName?: string;
+    accountType?: string;
     currencySymbol: string;
 
     onDelete?: (id: number) => void;
@@ -16,6 +16,7 @@ interface TransactionRowProps {
 const TransactionRow = memo(({
     tx,
     accountName,
+    accountType,
     currencySymbol,
 
     onDelete
@@ -24,9 +25,9 @@ const TransactionRow = memo(({
         <div className="flex items-center gap-5">
             <div className={cn(
                 "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors shadow-sm",
-                tx.transaction_type === TRANSACTION_TYPE.CREDIT ? "bg-emerald-600/15 text-emerald-600" : "bg-rose-600/15 text-rose-600"
+                Number(tx.amount || 0) >= 0 ? "bg-emerald-600/15 text-emerald-600" : "bg-rose-600/15 text-rose-600"
             )}>
-                {tx.transaction_type === TRANSACTION_TYPE.CREDIT ? <Plus size={20} /> : <div className="w-4 h-0.5 bg-current rounded-full" />}
+                {Number(tx.amount || 0) >= 0 ? <Plus size={20} /> : <div className="w-4 h-0.5 bg-current rounded-full" />}
             </div>
             <div>
                 <div className="font-bold text-base text-foreground leading-tight mb-1">{tx.description || 'No Description'}</div>
@@ -44,11 +45,16 @@ const TransactionRow = memo(({
                             <span className="text-muted-foreground/30">•</span>
                         </>
                     )}
-                    <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">{formatDate(tx.transaction_date)}</span>
+                    <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">{formatDate(tx.transaction_date, true)}</span>
                     {tx.category && (
                         <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">
                             <Tag size={10} />
                             {tx.category.name}
+                        </span>
+                    )}
+                    {accountType === 'LOAN' && Number(tx.amount || 0) > 0 && (
+                        <span className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded text-[9px] border border-emerald-500/20 uppercase">
+                            Payment
                         </span>
                     )}
                 </div>
@@ -57,9 +63,9 @@ const TransactionRow = memo(({
         <div className="flex items-center gap-6">
             <span className={cn(
                 "font-black text-lg tabular-nums tracking-tighter",
-                tx.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-emerald-600' : 'text-rose-600'
+                Number(tx.amount || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'
             )}>
-                {tx.transaction_type === TRANSACTION_TYPE.CREDIT ? '+' : '-'}{currencySymbol}{Number(tx.amount || 0).toFixed(2)}
+                {Number(tx.amount || 0) >= 0 ? '+' : '-'}{currencySymbol}{Math.abs(Number(tx.amount || 0)).toFixed(2)}
             </span>
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 

@@ -54,6 +54,18 @@ export const updateRule = createAsyncThunk(
     }
 );
 
+export const triggerAutomation = createAsyncThunk(
+    'rules/triggerAutomation',
+    async (_, { rejectWithValue }) => {
+        try {
+            const res = await api.post('/rules/trigger-automation');
+            return res.data;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to trigger automation worker');
+        }
+    }
+);
+
 export const deleteRule = createAsyncThunk(
     'rules/deleteRule',
     async ({ id, accountId }: { id: number, accountId?: string | null }, { dispatch, rejectWithValue }) => {

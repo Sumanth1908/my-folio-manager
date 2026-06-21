@@ -137,6 +137,19 @@ export const transactionsSlice = createSlice({
                 state.total = action.payload.total;
                 state.hasNextPage = state.items.length < state.total;
             })
+            .addCase(deleteTransaction.fulfilled, (state, action) => {
+                const deletedTx = state.items.find(t => t.transaction_id === action.payload);
+                const transferId = deletedTx?.transfer_id;
+                
+                const initialCount = state.items.length;
+                state.items = state.items.filter(t => {
+                    if (t.transaction_id === action.payload) return false;
+                    if (transferId && t.transfer_id === transferId) return false;
+                    return true;
+                });
+                const removedCount = initialCount - state.items.length;
+                state.total -= removedCount;
+            })
             .addCase(fetchTransactions.rejected, (state, action) => {
                 state.loading = false;
                 state.loadingMore = false;

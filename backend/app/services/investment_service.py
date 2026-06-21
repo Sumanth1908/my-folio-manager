@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 from sqlmodel import Session, select
@@ -7,7 +7,6 @@ from sqlmodel import Session, select
 from app.models.account import Account, AccountType
 from app.models.investment_holding import InvestmentHolding
 from app.models.category import Category
-from app.models.transaction import TransactionType
 from app.schemas.transaction import TransactionCreate
 from app.schemas.investment import InvestmentHoldingCreate, InvestmentOperation
 from app.services.transaction_service import create_transaction_core
@@ -81,11 +80,11 @@ def buy_holding(session: Session, holding_in: InvestmentHoldingCreate, user_id: 
     
     transaction_in = TransactionCreate(
         account_id=holding.account_id,
-        amount=total_cost,
-        transaction_type=TransactionType.DEBIT,
+        amount=-abs(total_cost),
         currency=holding.currency or account.currency,
         description=f"Investment Purchase: {holding_in.quantity} {holding.symbol} @ {holding_in.average_price}",
-        category_id=category.category_id if category else None
+        category_id=category.category_id if category else None,
+        transaction_date=holding_in.transaction_date
     )
     
     create_transaction_core(session, transaction_in, user_id)
@@ -112,11 +111,11 @@ def sell_holding(session: Session, holding_id: int, sell_in: InvestmentOperation
     
     transaction_in = TransactionCreate(
         account_id=holding.account_id,
-        amount=total_revenue,
-        transaction_type=TransactionType.CREDIT,
+        amount=abs(total_revenue),
         currency=holding.currency or account.currency,
         description=f"Investment Sale: {sell_in.quantity} {holding.symbol} @ {sell_in.price}",
-        category_id=category.category_id if category else None
+        category_id=category.category_id if category else None,
+        transaction_date=sell_in.transaction_date
     )
     
     if holding.quantity == 0:
@@ -183,7 +182,7 @@ def refresh_holding_prices(session: Session, account_id: str, user_id: str) -> L
     
     prices = get_stock_prices_batch(symbols)
     
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     for holding, symbol in zip(holdings, symbols):
         if symbol in prices and prices[symbol] is not None:
             holding.current_price = prices[symbol]

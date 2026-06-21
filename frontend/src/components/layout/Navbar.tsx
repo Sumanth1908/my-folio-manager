@@ -13,6 +13,7 @@ export default function Navbar() {
     const navItems = [
         { label: 'Accounts', path: '/accounts' },
         { label: 'Activity', path: '/transactions' },
+        { label: 'Rules', path: '/rules' },
         { label: 'Portfolio', path: '/portfolio' },
         { label: 'Assistant', path: '/assistant' },
     ];

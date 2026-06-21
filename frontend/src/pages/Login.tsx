@@ -3,10 +3,18 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+const loginSchema = z.object({
+    email: z.string().email('Please enter a valid email address'),
+    password: z.string().min(1, 'Password is required'),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function Login() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -14,11 +22,19 @@ export default function Login() {
 
     const from = location.state?.from?.pathname || '/dashboard';
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm<LoginFormValues>({
+        resolver: zodResolver(loginSchema),
+        defaultValues: { email: '', password: '' }
+    });
+
+    const onSubmit = async (data: LoginFormValues) => {
         setIsLoading(true);
         try {
-            await login(email, password);
+            await login(data.email, data.password);
             navigate(from, { replace: true });
         } catch (error) {
             // Error handled in AuthContext
@@ -52,22 +68,22 @@ export default function Login() {
                         </p>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <form className="space-y-5" onSubmit={handleSubmit}>
+                        <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
                             <div>
                                 <label htmlFor="email" className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
                                     Email address
                                 </label>
                                 <input
                                     id="email"
-                                    name="email"
                                     type="email"
                                     autoComplete="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
                                     className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none placeholder:text-muted-foreground/40 text-foreground transition"
                                     placeholder="you@example.com"
+                                    {...register('email')}
                                 />
+                                {errors.email && (
+                                    <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+                                )}
                             </div>
 
                             <div>
@@ -76,15 +92,15 @@ export default function Login() {
                                 </label>
                                 <input
                                     id="password"
-                                    name="password"
                                     type="password"
                                     autoComplete="current-password"
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
                                     className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none placeholder:text-muted-foreground/40 text-foreground transition"
                                     placeholder="••••••••"
+                                    {...register('password')}
                                 />
+                                {errors.password && (
+                                    <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
+                                )}
                             </div>
 
                             <Button

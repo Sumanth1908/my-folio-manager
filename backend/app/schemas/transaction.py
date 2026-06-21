@@ -4,26 +4,21 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from app.models.transaction import TransactionType
 from app.schemas.category import CategoryRead
 
 
 class TransactionBase(BaseModel):
-    amount: Decimal
-    transaction_type: TransactionType
-    description: Optional[str] = None
-    additional_info: Optional[str] = None
-    category_id: Optional[int] = None
-    transfer_id: Optional[str] = None
-    transaction_date: datetime = Field(default_factory=datetime.utcnow)
+    account_id: str = Field(..., max_length=36)
+    amount: Decimal = Field(..., max_digits=15, decimal_places=2, description="Signed amount. Positive for deposits, negative for withdrawals.")
+    currency: str = Field(default="USD", max_length=10)
+    description: Optional[str] = Field(default=None, max_length=255)
+    additional_info: Optional[str] = Field(default=None, max_length=500)
+    category_id: Optional[int] = Field(default=None)
+    transaction_date: Optional[datetime] = None
 
 
 class TransactionCreate(TransactionBase):
-    account_id: str
-    currency: Optional[str] = None  # Optional, defaults to account's currency
-
-    # Override date to be optional for creation if needed
-    transaction_date: Optional[datetime] = None
+    pass
 
 
 class TransactionRead(TransactionBase):
@@ -32,6 +27,7 @@ class TransactionRead(TransactionBase):
     currency: str
     transaction_date: datetime
     category: Optional[CategoryRead] = None
+    transfer_id: Optional[str] = None
 
     class Config:
         from_attributes = True

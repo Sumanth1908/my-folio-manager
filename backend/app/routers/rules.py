@@ -70,6 +70,17 @@ def execute_rule_now(
         raise HTTPException(status_code=500, detail=f"Failed to execute rule: {str(e)}")
 
 
+@router.post("/trigger-automation")
+def trigger_automation(current_user: User = Depends(get_current_user)):
+    """Manually trigger the background celery task to process all due rules."""
+    try:
+        from app.core.celery_app import celery_app
+        celery_app.send_task("app.tasks.automation.process_automation_rules")
+        return {"ok": True, "message": "Automation worker triggered successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to trigger worker: {str(e)}")
+
+
 @router.delete("/{rule_id}")
 def delete_rule(
     rule_id: int, 

@@ -15,11 +15,13 @@ class InvestmentHoldingBase(BaseModel):
 
 class InvestmentHoldingCreate(InvestmentHoldingBase):
     account_id: str
+    transaction_date: Optional[datetime] = None
 
 class InvestmentOperation(BaseModel):
     quantity: Decimal
     price: Decimal
     description: Optional[str] = None
+    transaction_date: Optional[datetime] = None
 
 class InvestmentHoldingRead(InvestmentHoldingBase):
     holding_id: int

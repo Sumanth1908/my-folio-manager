@@ -72,7 +72,9 @@ export default function AccountInfoCard({ account, balance, currencies, onDelete
                 </div>
 
                 <div className="text-right">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">Current Balance</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">
+                        {account.account_type === 'INVESTMENT' ? 'Portfolio Value' : 'Current Balance'}
+                    </p>
                     <div className={cn(
                         "text-4xl font-black tabular-nums tracking-tighter",
                         balance >= 0 ? 'text-foreground' : 'text-destructive'

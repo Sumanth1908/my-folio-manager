@@ -109,7 +109,7 @@ const AccountActivityPanel = ({
 
             const matchesSearch = !searchQuery ||
                 rule.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                rule.description_contains?.toLowerCase().includes(searchQuery.toLowerCase());
+                rule.configuration?.description_contains?.toLowerCase().includes(searchQuery.toLowerCase());
 
             return matchesCategory && matchesSearch;
         });
@@ -359,6 +359,7 @@ const AccountActivityPanel = ({
                             rules={filteredRules}
                             isLoading={isLoadingRules}
                             symbol={symbol}
+                            accountId={accountId}
                             onExecute={handleExecuteRule}
                             onToggle={handleToggleRule}
                             onEdit={handleEditRule}

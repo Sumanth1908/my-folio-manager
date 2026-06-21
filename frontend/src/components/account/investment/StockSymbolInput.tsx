@@ -26,6 +26,13 @@ const StockSymbolInput = ({ value, currency, disabled, onSelect }: StockSymbolIn
     const debounceTimerRef = useRef<number | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
+    // Sync query if value changes externally
+    useEffect(() => {
+        if (value !== query) {
+            setQuery(value);
+        }
+    }, [value]);
+
     // Handle click outside to close suggestions
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -78,6 +85,9 @@ const StockSymbolInput = ({ value, currency, disabled, onSelect }: StockSymbolIn
     };
 
     const handleSelectSuggestion = (suggestion: StockSymbolResult) => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
         setQuery(suggestion.symbol);
         onSelect(suggestion.symbol, suggestion.name);
         setShowSuggestions(false);
@@ -124,7 +134,10 @@ const StockSymbolInput = ({ value, currency, disabled, onSelect }: StockSymbolIn
                         <button
                             key={index}
                             type="button"
-                            onClick={() => handleSelectSuggestion(suggestion)}
+                            onMouseDown={(e) => {
+                                e.preventDefault(); // Prevent input blur
+                                handleSelectSuggestion(suggestion);
+                            }}
                             className="w-full px-4 py-3 text-left hover:bg-muted transition-colors flex items-center gap-3 group"
                         >
                             <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/20 transition">
