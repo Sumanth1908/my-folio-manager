@@ -7,6 +7,8 @@ interface SankeyChartProps {
     inflows: CategorySummary[];
     outflows: CategorySummary[];
     symbol: string;
+    accountType?: string;
+    accountName?: string;
 }
 
 interface SankeyNode {
@@ -22,7 +24,7 @@ interface SankeyLink {
     fill?: string;
 }
 
-const SankeyChart = memo(({ inflows, outflows, symbol }: SankeyChartProps) => {
+const SankeyChart = memo(({ inflows, outflows, symbol, accountType, accountName }: SankeyChartProps) => {
     const data = useMemo(() => {
         if (inflows.length === 0 && outflows.length === 0) {
             return { nodes: [], links: [] };
@@ -40,8 +42,9 @@ const SankeyChart = memo(({ inflows, outflows, symbol }: SankeyChartProps) => {
             return index;
         };
 
+        const isLoan = accountType === 'LOAN';
         const CASHFLOW_NODE_KEY = "SYS:CashFlow";
-        const CASHFLOW_DISPLAY = "Cash Flow";
+        const CASHFLOW_DISPLAY = isLoan ? (accountName || "Loan Account") : "Cash Flow";
 
         // Colors
         const INFLOW_COLOR = "#059669"; // Emerald 600
@@ -91,7 +94,8 @@ const SankeyChart = memo(({ inflows, outflows, symbol }: SankeyChartProps) => {
         // 3. Cash Flow -> Surplus
         const surplus = Math.max(0, totalInflow - totalOutflow);
         if (surplus > 0) {
-            const surplusIdx = getNodeIndex("SYS:Surplus", "Surplus", SURPLUS_COLOR);
+            const surplusName = isLoan ? "Principal Repayment" : "Surplus";
+            const surplusIdx = getNodeIndex("SYS:Surplus", surplusName, SURPLUS_COLOR);
             links.push({
                 source: cashFlowIdx,
                 target: surplusIdx,
@@ -101,7 +105,7 @@ const SankeyChart = memo(({ inflows, outflows, symbol }: SankeyChartProps) => {
         }
 
         return { nodes, links };
-    }, [inflows, outflows]);
+    }, [inflows, outflows, accountType, accountName]);
 
     if (!data.nodes.length || !data.links.length) {
         return <div className="text-center text-muted-foreground py-20 bg-muted/30 rounded-2xl border border-border/50">Not enough data for chart</div>;

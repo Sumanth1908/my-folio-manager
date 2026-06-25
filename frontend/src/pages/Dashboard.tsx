@@ -68,6 +68,10 @@ export default function Dashboard() {
         return amount / rate;
     }, [rates, defaultCurrency]);
 
+    const selectedAccount = useMemo(() => {
+        return accounts.find((a: Account) => a.account_id.toString() === selectedAccountId.toString());
+    }, [accounts, selectedAccountId]);
+
     // Aggregate summary data for charts
     const { globalOutflows, savingsInflows, savingsOutflows } = useMemo(() => {
         const inflowsMap = new Map<string, number>();
@@ -188,6 +192,8 @@ export default function Dashboard() {
                                     inflows={savingsInflows}
                                     outflows={savingsOutflows}
                                     symbol={currencySymbol}
+                                    accountType={selectedAccount?.account_type}
+                                    accountName={selectedAccount?.account_name}
                                 />
                             </div>
                         ) : (

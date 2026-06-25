@@ -21,7 +21,6 @@ interface TransactionRowProps {
 const TransactionRow = memo(({
     tx,
     accountName,
-    accountType,
     currencySymbol,
 
     onDelete
@@ -86,11 +85,6 @@ const TransactionRow = memo(({
                             {categories.map(c => <SelectItem key={c.category_id} value={c.category_id.toString()}>{c.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                    {accountType === 'LOAN' && Number(tx.amount || 0) > 0 && (
-                        <span className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded text-[9px] border border-emerald-500/20 uppercase">
-                            Payment
-                        </span>
-                    )}
                 </div>
             </div>
         </div>
