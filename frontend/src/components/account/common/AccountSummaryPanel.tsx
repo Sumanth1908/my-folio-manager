@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
 interface AccountSummaryPanelProps {
     data: SummaryResponse;
     accountsData?: Account[];
+    emptyMessage?: string;
 }
 
 const AccountCard = memo(({
@@ -140,7 +141,7 @@ const AccountCard = memo(({
     );
 });
 
-const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelProps) => {
+const AccountSummaryPanel = memo(({ data, accountsData, emptyMessage }: AccountSummaryPanelProps) => {
     const [expandedAccounts, setExpandedAccounts] = useState<Record<string, boolean>>({});
     const [infoAccount, setInfoAccount] = useState<Account | null>(null);
 
@@ -182,7 +183,7 @@ const AccountSummaryPanel = memo(({ data, accountsData }: AccountSummaryPanelPro
                     <div className="space-y-2">
                         <p className="text-lg font-bold text-foreground">No accounts found</p>
                         <p className="text-sm text-muted-foreground max-w-[300px] leading-relaxed">
-                            We couldn't find any account data to display. Add some transactions or connect an account to see your breakdown.
+                            {emptyMessage || "We couldn't find any account data to display. Add some transactions or connect an account to see your breakdown."}
                         </p>
                     </div>
                 </Card>

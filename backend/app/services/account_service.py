@@ -111,6 +111,69 @@ def update_account(session: Session, account_id: str, account_in: AccountUpdate,
     session.refresh(account)
     return account
 
+def close_account(session: Session, account_id: str, user_id: str, source_account_id: Optional[str] = None) -> Account:
+    account = get_account_with_ownership(session, account_id, user_id)
+    if not account:
+        raise ValueError("Account not found")
+
+    if account.status == "Closed":
+        raise ValueError("Account is already closed")
+
+    if account.account_type == AccountType.LOAN:
+        balance = calculate_account_balance(session, account)
+        if balance < 0:
+            outstanding = -balance
+            from app.schemas.transaction import TransactionCreate, TransferRequest
+            from app.services.transaction_service import create_transaction_core, create_transfer_core
+
+            if source_account_id:
+                source_account = get_account_with_ownership(session, source_account_id, user_id)
+                if not source_account:
+                    raise ValueError("Source account not found")
+                if source_account.account_type != AccountType.SAVINGS:
+                    raise ValueError("Loan payoff can only be settled from a savings account")
+                if source_account.currency != account.currency:
+                    raise ValueError("Source account currency must match the loan account currency")
+
+                create_transfer_core(
+                    session,
+                    TransferRequest(
+                        from_account_id=source_account_id,
+                        to_account_id=account_id,
+                        amount=outstanding,
+                        description="Loan Closure Payoff"
+                    ),
+                    user_id
+                )
+            else:
+                create_transaction_core(
+                    session,
+                    TransactionCreate(
+                        account_id=account_id,
+                        amount=outstanding,
+                        description="Loan Closure Payoff (Cash/External)"
+                    ),
+                    user_id
+                )
+            session.refresh(account)
+
+    account.status = "Closed"
+    session.add(account)
+
+    # Stop any pending automation (interest accrual, auto-debit) from continuing to post
+    from app.models.rule import Rule
+    active_rules = session.exec(
+        select(Rule).where(Rule.account_id == account_id, Rule.is_active == True)
+    ).all()
+    for rule in active_rules:
+        rule.is_active = False
+        rule.next_run_at = None
+        session.add(rule)
+
+    session.commit()
+    session.refresh(account)
+    return account
+
 def delete_account(session: Session, account_id: str, user_id: str) -> bool:
     account = get_account_with_ownership(session, account_id, user_id)
     if not account:

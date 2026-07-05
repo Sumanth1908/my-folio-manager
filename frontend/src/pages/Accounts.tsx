@@ -21,6 +21,7 @@ const Accounts = () => {
     const { data: summaryData, loading: isSummaryLoading, filters: summaryFilters } = useAppSelector((state: RootState) => state.summary);
 
     const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'Active' | 'Closed' | 'all'>('Active');
     const timeRange = summaryFilters.timeRange;
 
     useEffect(() => {
@@ -43,9 +44,15 @@ const Accounts = () => {
         ...summaryData,
         accounts: summaryData.accounts.filter(account => {
             const query = searchQuery.toLowerCase();
-            return (account.account_name || 'Unnamed Account').toLowerCase().includes(query) || 
+            const matchesSearch = (account.account_name || 'Unnamed Account').toLowerCase().includes(query) ||
                    account.account_type.replace('_', ' ').toLowerCase().includes(query) ||
                    account.account_type.toLowerCase().includes(query);
+
+            if (!matchesSearch) return false;
+            if (statusFilter === 'all') return true;
+
+            const fullAccount = accounts.find(a => a.account_id === account.account_id);
+            return (fullAccount?.status || 'Active') === statusFilter;
         })
     } : null;
 
@@ -71,6 +78,23 @@ const Accounts = () => {
                         </div>
 
                         <div className="flex bg-muted/50 p-1 rounded-xl border border-border self-start md:self-auto">
+                            {(['Active', 'Closed', 'all'] as const).map((s) => (
+                                <Button
+                                    key={s}
+                                    variant={statusFilter === s ? "default" : "ghost"}
+                                    size="sm"
+                                    onClick={() => setStatusFilter(s)}
+                                    className={cn(
+                                        "text-[10px] font-bold uppercase tracking-wider px-4 rounded-lg transition-colors duration-200 h-8",
+                                        statusFilter !== s && "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    {s === 'Active' ? 'Open' : s === 'Closed' ? 'Closed' : 'All'}
+                                </Button>
+                            ))}
+                        </div>
+
+                        <div className="flex bg-muted/50 p-1 rounded-xl border border-border self-start md:self-auto">
                             {TIME_RANGES.map((range) => (
                                 <Button
                                     key={range}
@@ -82,7 +106,7 @@ const Accounts = () => {
                                         timeRange !== range && "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
-                                    {range === 'thisMonth' ? '30D' : range === 'lastMonth' ? 'Last Month' : 'All'}
+                                    {range === 'last30Days' ? '30D' : range === 'currentMonth' ? 'This Month' : range === 'lastMonth' ? 'Last Month' : 'All'}
                                 </Button>
                             ))}
                         </div>
@@ -103,7 +127,11 @@ const Accounts = () => {
                         <Loader2 className="animate-spin text-primary" size={40} />
                     </div>
                 ) : filteredSummaryData ? (
-                    <AccountSummaryPanel data={filteredSummaryData} accountsData={accounts} />
+                    <AccountSummaryPanel
+                        data={filteredSummaryData}
+                        accountsData={accounts}
+                        emptyMessage={statusFilter === 'all' ? undefined : `No ${statusFilter === 'Active' ? 'open' : 'closed'} accounts found.`}
+                    />
                 ) : (
                     <div className="text-center py-20 bg-muted/10 rounded-3xl border-2 border-dashed border-border/50">
                         <p className="text-muted-foreground">No account data found for this period.</p>

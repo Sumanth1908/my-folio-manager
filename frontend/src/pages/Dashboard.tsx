@@ -160,7 +160,7 @@ export default function Dashboard() {
                                         timeRange !== range && "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
-                                    {range === 'thisMonth' ? '30D' : range === 'lastMonth' ? 'Last Month' : 'All'}
+                                    {range === 'last30Days' ? '30D' : range === 'currentMonth' ? 'This Month' : range === 'lastMonth' ? 'Last Month' : 'All'}
                                 </Button>
                             ))}
                         </div>

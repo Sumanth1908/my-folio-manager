@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import api from '../../api';
+import api, { handleApiError } from '../../api';
 import type { Account, PaginatedResponse } from '../../types';
 
 interface AccountsState {
@@ -51,6 +51,19 @@ export const updateAccount = createAsyncThunk(
             return res.data;
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || 'Failed to update account');
+        }
+    }
+);
+
+export const closeAccount = createAsyncThunk(
+    'accounts/closeAccount',
+    async ({ id, sourceAccountId }: { id: string, sourceAccountId?: string }, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await api.post(`/accounts/${id}/close`, sourceAccountId ? { source_account_id: sourceAccountId } : {});
+            dispatch(fetchAccounts());
+            return res.data;
+        } catch (error: any) {
+            return rejectWithValue(handleApiError(error, 'Failed to close account'));
         }
     }
 );

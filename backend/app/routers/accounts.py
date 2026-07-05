@@ -1,11 +1,11 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from app.core.database import get_session
 from app.models.user import User
-from app.schemas.account import AccountCreate, AccountRead, AccountUpdate
+from app.schemas.account import AccountCloseRequest, AccountCreate, AccountRead, AccountUpdate
 from app.schemas.common import PaginatedResponse
 from app.services import account_service
 from app.deps import get_current_user
@@ -71,6 +71,28 @@ def update_account(
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
         
+    return account_service.enrich_account(session, account)
+
+
+@router.post("/{account_id}/close", response_model=AccountRead)
+def close_account(
+    account_id: str,
+    payload: Optional[AccountCloseRequest] = None,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Close an account (e.g. a loan) and deactivate its automation rules.
+
+    If the account has an outstanding balance, it is settled first — either via a
+    transfer from `source_account_id`, or as a standalone transaction if no source
+    is given (e.g. paid off in cash)."""
+    source_account_id = payload.source_account_id if payload else None
+    try:
+        account = account_service.close_account(session, account_id, current_user.user_id, source_account_id)
+    except ValueError as e:
+        status_code = 404 if "not found" in str(e).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(e))
+
     return account_service.enrich_account(session, account)
 
 

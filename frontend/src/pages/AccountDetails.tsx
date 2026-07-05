@@ -9,13 +9,14 @@ import AccountInfoCard from '../components/account/common/AccountInfoCard';
 import AccountActivityPanel from '../components/account/common/AccountActivityPanel';
 import AccountTypeDetails from '../components/account/common/AccountTypeDetails';
 import AccountEditForm from '../components/account/common/AccountEditForm';
+import CloseLoanForm from '../components/account/loan/CloseLoanForm';
 import { Button } from '../components/ui/Button';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { type RootState } from '../store';
 import { openModal, closeModal as closeReduxModal } from '../store/slices/uiSlice';
 import { fetchTransactions, setFilters } from '../store/slices/transactionsSlice';
 import { fetchRules } from '../store/slices/rulesSlice';
-import { fetchAccounts, deleteAccount } from '../store/slices/accountsSlice';
+import { fetchAccounts, deleteAccount, closeAccount } from '../store/slices/accountsSlice';
 import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchSettings } from '../store/slices/settingsSlice';
 import { fetchRates } from '../store/slices/converterSlice';
@@ -55,6 +56,7 @@ const AccountDetails = () => {
         onConfirm: () => { },
         variant: 'primary'
     });
+    const [isCloseLoanFormOpen, setIsCloseLoanFormOpen] = useState(false);
 
     const refreshData = () => {
         if (accountId) {
@@ -110,6 +112,36 @@ const AccountDetails = () => {
             message: 'Are you sure you want to delete this account? This will also delete ALL associated transactions.',
             variant: 'danger',
             onConfirm: handleDeleteAccount
+        });
+    };
+
+    const handleCloseAccount = async (sourceAccountId?: string) => {
+        if (!accountId) return;
+        closeConfirmModal();
+        setIsCloseLoanFormOpen(false);
+        try {
+            await dispatch(closeAccount({ id: accountId, sourceAccountId })).unwrap();
+            toast.success('Loan closed successfully');
+        } catch (error) {
+            toast.error(typeof error === 'string' ? error : 'Failed to close account');
+        }
+    };
+
+    const handleCloseAccountConfirm = () => {
+        if (!account) return;
+
+        const currentBalance = getBalance();
+        if (account.account_type === ACCOUNT_TYPE.LOAN && currentBalance < 0) {
+            setIsCloseLoanFormOpen(true);
+            return;
+        }
+
+        setConfirmModal({
+            isOpen: true,
+            title: 'Close Loan',
+            message: 'Are you sure you want to close this loan account? No further EMI or interest transactions will be posted.',
+            variant: 'primary',
+            onConfirm: () => handleCloseAccount()
         });
     };
 
@@ -205,6 +237,11 @@ const AccountDetails = () => {
                 onEdit={() => {
                     dispatch(openModal('accountAction'));
                 }}
+                onClose={
+                    account?.account_type === ACCOUNT_TYPE.LOAN && account.status !== 'Closed'
+                        ? handleCloseAccountConfirm
+                        : undefined
+                }
             />
 
 
@@ -244,6 +281,23 @@ const AccountDetails = () => {
                 variant={confirmModal.variant}
                 isLoading={false}
             />
+
+            <Modal
+                isOpen={isCloseLoanFormOpen}
+                onClose={() => setIsCloseLoanFormOpen(false)}
+                title="Close Loan"
+            >
+                {account && (
+                    <CloseLoanForm
+                        account={account}
+                        outstanding={Math.abs(balance)}
+                        accounts={accounts}
+                        symbol={symbol}
+                        onSubmit={handleCloseAccount}
+                        onCancel={() => setIsCloseLoanFormOpen(false)}
+                    />
+                )}
+            </Modal>
         </div>
     );
 }

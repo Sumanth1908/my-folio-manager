@@ -34,7 +34,7 @@ export const FREQUENCY = {
     ONE_TIME: 'ONE_TIME'
 } as const;
 
-export const TIME_RANGES = ['thisMonth', 'lastMonth', 'allTime'] as const;
+export const TIME_RANGES = ['currentMonth', 'last30Days', 'lastMonth', 'allTime'] as const;
 
 export const DEFAULT_CURRENCY = 'USD';
 export const DEFAULT_ACCRUAL_DAY = '1';

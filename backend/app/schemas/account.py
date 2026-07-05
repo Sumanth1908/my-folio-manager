@@ -32,3 +32,8 @@ class AccountRead(AccountBase):
     created_at: datetime
     balance: Decimal = Decimal("0.00")
     investment_holdings: list[InvestmentHoldingRead] | None = None
+
+class AccountCloseRequest(BaseModel):
+    # Account to debit the outstanding balance from. If omitted, the payoff is recorded
+    # as a standalone transaction on the account itself (e.g. paid via cash/external means).
+    source_account_id: Optional[str] = None
