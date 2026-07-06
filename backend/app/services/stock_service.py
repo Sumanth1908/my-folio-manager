@@ -5,20 +5,28 @@ Includes Redis caching to reduce API calls and exchange suffix mapping.
 import logging
 from typing import Dict, List, Optional, Tuple
 from decimal import Decimal, ROUND_HALF_UP
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import yfinance as yf
 import redis
 import json
 import pandas as pd
 import numpy as np
+import requests
+
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Redis connection for caching
-redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True, db=0)
+# Redis connection for caching (configured URL so it works inside Docker too)
+redis_client = redis.Redis.from_url(
+    settings.redis_url, decode_responses=True, socket_connect_timeout=2, socket_timeout=2
+)
 
 # Cache TTL in seconds (15 minutes)
 CACHE_TTL = 900
+
+# Network timeout for Yahoo Finance calls (seconds)
+YF_TIMEOUT = 8
 
 # Exchange suffix mapping based on currency
 EXCHANGE_SUFFIX_MAP = {
@@ -103,7 +111,7 @@ def _cache_price(symbol: str, price: Decimal):
         cache_key = _get_cache_key(symbol)
         cache_data = {
             'price': float(price),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(cache_data))
     except Exception as e:
@@ -136,18 +144,25 @@ def get_stock_price(symbol: str, currency: str = "USD", bypass_cache: bool = Fal
             full_symbol = f"{symbol}{suffix}"
         
         logger.info(f"Fetching price for {full_symbol}")
-        
-        # Fetch from yfinance
+
+        # Fetch from yfinance. history() accepts a timeout, unlike .info,
+        # so a slow Yahoo response can't hang the request indefinitely.
         ticker = yf.Ticker(full_symbol)
-        info = ticker.info
-        
-        # Try different price fields in order of preference
         price = None
-        for field in ['currentPrice', 'regularMarketPrice', 'previousClose']:
-            if field in info and info[field]:
-                price = Decimal(str(info[field])).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                break
-        
+        history = ticker.history(period="1d", timeout=YF_TIMEOUT)
+        if not history.empty and 'Close' in history:
+            val = history['Close'].iloc[-1]
+            if not pd.isna(val):
+                price = Decimal(str(val)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+        if price is None:
+            # Fallback to the info fields for symbols without intraday history
+            info = ticker.info
+            for field in ['currentPrice', 'regularMarketPrice', 'previousClose']:
+                if field in info and info[field]:
+                    price = Decimal(str(info[field])).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    break
+
         if price is None:
             logger.error(f"No price data found for {full_symbol}")
             return None
@@ -191,7 +206,7 @@ def get_stock_prices_batch(symbols: List[str], bypass_cache: bool = False) -> Di
         try:
             # Download all at once
             symbols_str = " ".join(uncached_symbols)
-            tickers = yf.download(symbols_str, period="1d", progress=False)
+            tickers = yf.download(symbols_str, period="1d", progress=False, timeout=YF_TIMEOUT)
             
             for symbol in uncached_symbols:
                 try:
@@ -241,23 +256,36 @@ def search_stock_symbols(query: str, currency: str = "USD", limit: int = 10) -> 
         List of dicts with 'symbol', 'name', 'exchange' fields
     """
     try:
-        # Add exchange suffix if needed
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}&quotesCount={limit}&newsCount=0"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        response = requests.get(url, headers=headers, timeout=5)
+        
+        if response.status_code == 200:
+            data = response.json()
+            quotes = data.get('quotes', [])
+            
+            results = []
+            for quote in quotes:
+                # Only include equity and ETFs
+                quote_type = quote.get('quoteType', '')
+                if quote_type not in ['EQUITY', 'ETF', 'MUTUALFUND', 'INDEX']:
+                    continue
+                    
+                results.append({
+                    'symbol': quote.get('symbol', ''),
+                    'name': quote.get('longname') or quote.get('shortname') or quote.get('symbol', 'Unknown'),
+                    'exchange': quote.get('exchDisp') or quote.get('exchange', 'Unknown')
+                })
+            
+            if results:
+                return results
+
+        # Fallback if API fails
         exchange_suffix = get_exchange_suffix(currency)
         search_query = query.upper()
         
-        # Try to get ticker info
-        ticker = yf.Ticker(f"{search_query}{exchange_suffix}")
-        info = ticker.info
-        
-        # If we found valid data, return it
-        if info and 'symbol' in info:
-            return [{
-                'symbol': info.get('symbol', search_query),
-                'name': info.get('longName') or info.get('shortName', 'Unknown'),
-                'exchange': info.get('exchange', exchange_suffix.replace('.', ''))
-            }]
-        
-        # Fallback: return the query itself as a suggestion
         return [{
             'symbol': f"{search_query}{exchange_suffix}",
             'name': f"{search_query} (Search on exchange)",

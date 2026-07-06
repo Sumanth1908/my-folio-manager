@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../api';
+import api, { handleApiError } from '../../api';
 
 interface HoldingSummary {
     symbol: string;
@@ -52,7 +52,7 @@ export const fetchPortfolioSummary = createAsyncThunk(
             const res = await api.get('/portfolio/summary');
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch portfolio summary');
+            return rejectWithValue(handleApiError(error, 'Failed to fetch portfolio summary'));
         }
     }
 );

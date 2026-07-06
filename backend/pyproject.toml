@@ -3,6 +3,9 @@ packages = [{include = "app"}]
 
 [tool.poetry.group.dev.dependencies]
 isort = "^7.0.0"
+pytest = "^9.1.1"
+pytest-asyncio = "^1.4.0"
+httpx = "^0.28.1"
 
 [project]
 name = "my-folio-manager-backend"
@@ -29,12 +32,14 @@ dependencies = [
     "yfinance (>=0.2.50,<0.3.0)",
     "pandas (>=2.0.0,<3.0.0)",
     "google-genai (>=0.3.0,<1.0.0)",
+    "pydantic-settings (>=2.14.2,<3.0.0)",
+    "python-dateutil (>=2.9.0.post0,<3.0.0)",
 ]
 
 
 [tool.poetry.scripts]
-dev = "dev:__main__"
-start = "start:__main__"
+dev = "dev:dev"
+start = "start:start"
 worker = "celery_start:start_worker"
 beat = "celery_start:start_beat"
 

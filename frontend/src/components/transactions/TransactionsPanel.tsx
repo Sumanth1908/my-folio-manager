@@ -3,9 +3,11 @@ import { Plus, Search, Filter, X } from 'lucide-react';
 import type { Transaction, Currency, Category } from '../../types';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
-import { cn } from '../../lib/utils';
+import { cn, getCurrentMonthRange } from '../../lib/utils';
 import AccountTransactions from '../account/common/AccountTransactions';
 import LoadingSpinner from '../common/LoadingSpinner';
+import Modal from '../common/Modal';
+import EditTransactionForm from './EditTransactionForm';
 
 interface TransactionsPanelProps {
     transactions: Transaction[];
@@ -56,6 +58,7 @@ export default function TransactionsPanel({
     description
 }: TransactionsPanelProps) {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
     return (
         <Card className="bg-muted/30 border border-border overflow-hidden rounded-2xl">
@@ -148,23 +151,38 @@ export default function TransactionsPanel({
                         >
                             All
                         </button>
-                        {onDateChange && (
-                            <div className="flex items-center gap-2 ml-2 border-l border-border/50 pl-4">
-                                <input
-                                    type="date"
-                                    value={startDate || ''}
-                                    onChange={(e) => onDateChange(e.target.value, endDate || '')}
-                                    className="bg-background border border-border rounded-lg px-2 py-1 text-[10px] uppercase font-bold tracking-widest text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                                />
-                                <span className="text-muted-foreground/50 text-[10px] font-bold">-</span>
-                                <input
-                                    type="date"
-                                    value={endDate || ''}
-                                    onChange={(e) => onDateChange(startDate || '', e.target.value)}
-                                    className="bg-background border border-border rounded-lg px-2 py-1 text-[10px] uppercase font-bold tracking-widest text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                                />
-                            </div>
-                        )}
+                        {onDateChange && (() => {
+                            const currentMonth = getCurrentMonthRange();
+                            const isCurrentMonth = startDate === currentMonth.start && endDate === currentMonth.end;
+                            return (
+                                <div className="flex items-center gap-2 ml-2 border-l border-border/50 pl-4">
+                                    <button
+                                        onClick={() => onDateChange(currentMonth.start, currentMonth.end)}
+                                        className={cn(
+                                            "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors border",
+                                            isCurrentMonth
+                                                ? "bg-primary text-primary-foreground border-primary"
+                                                : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                                        )}
+                                    >
+                                        This Month
+                                    </button>
+                                    <input
+                                        type="date"
+                                        value={startDate || ''}
+                                        onChange={(e) => onDateChange(e.target.value, endDate || '')}
+                                        className="bg-background border border-border rounded-lg px-2 py-1 text-[10px] uppercase font-bold tracking-widest text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                    />
+                                    <span className="text-muted-foreground/50 text-[10px] font-bold">-</span>
+                                    <input
+                                        type="date"
+                                        value={endDate || ''}
+                                        onChange={(e) => onDateChange(startDate || '', e.target.value)}
+                                        className="bg-background border border-border rounded-lg px-2 py-1 text-[10px] uppercase font-bold tracking-widest text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                    />
+                                </div>
+                            );
+                        })()}
                         {categories.map(cat => (
                             <button
                                 key={cat.category_id}
@@ -192,6 +210,7 @@ export default function TransactionsPanel({
                     currencies={currencies}
                     showAccountName={showAccountName}
                     onDelete={onDelete}
+                    onEdit={setEditingTx}
                 />
 
                 {/* Load More Button */}
@@ -208,6 +227,16 @@ export default function TransactionsPanel({
                     </div>
                 )}
             </div>
+
+            <Modal isOpen={!!editingTx} onClose={() => setEditingTx(null)} title="Edit Transaction">
+                {editingTx && (
+                    <EditTransactionForm
+                        transaction={editingTx}
+                        onSuccess={() => setEditingTx(null)}
+                        onCancel={() => setEditingTx(null)}
+                    />
+                )}
+            </Modal>
         </Card>
     );
 }

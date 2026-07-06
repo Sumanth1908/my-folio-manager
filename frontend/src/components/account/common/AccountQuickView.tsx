@@ -94,6 +94,29 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
                     </>
                 )}
 
+                {account.account_type === ACCOUNT_TYPE.RECURRING_DEPOSIT && account.metadata_ && (
+                    <>
+                        <InfoCard disabled label="Current Balance" value={`${account.currency} ${Number(account.balance || 0).toLocaleString()}`} icon={<DollarSign size={16} />} />
+                        <InfoCard disabled label="Monthly Deposit" value={`${account.currency} ${Number(account.metadata_.deposit_amount).toLocaleString()}`} icon={<Target size={16} />} />
+                        <InfoCard disabled label="Maturity Amount" value={`${account.currency} ${Number(account.metadata_.maturity_amount).toLocaleString()}`} icon={<TrendingUp size={16} className="text-emerald-600" />} color="text-emerald-600" />
+                        <InfoCard 
+                            disabled 
+                            label="Interest Rate" 
+                            value={account.is_interest_enabled ? `${account.metadata_.interest_rate}%` : 'Interest Disabled'} 
+                            icon={<BadgePercent size={16} />} 
+                            color={!account.is_interest_enabled ? 'text-muted-foreground/60' : 'text-foreground'}
+                        />
+                        <InfoCard 
+                            disabled 
+                            label="Deposit Day" 
+                            value={`${account.metadata_.deposit_day}th of month`} 
+                            icon={<Calendar size={16} />} 
+                        />
+                        <InfoCard disabled label="Start Date" value={formatDate(account.metadata_.start_date)} icon={<Calendar size={16} />} />
+                        <InfoCard disabled label="Maturity Date" value={formatDate(account.metadata_.maturity_date)} icon={<Calendar size={16} />} />
+                    </>
+                )}
+
                 {account.account_type === ACCOUNT_TYPE.INVESTMENT && account.investment_holdings && (
                     <div className="col-span-2 space-y-3">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Asset Holdings ({account.investment_holdings.length})</p>

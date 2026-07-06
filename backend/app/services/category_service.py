@@ -41,8 +41,6 @@ def update_category(session: Session, category_id: int, category_update: Categor
         return None
         
     category.name = category_update.name
-    category.color = category_update.color
-    category.icon = category_update.icon
     
     session.add(category)
     session.commit()

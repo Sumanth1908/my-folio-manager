@@ -7,10 +7,17 @@ services:
       MYSQL_DATABASE: finance_db
       MYSQL_USER: finance_user
       MYSQL_PASSWORD: finance_password
+      MYSQL_ROOT_HOST: '%'
     ports:
       - "3306:3306"
     volumes:
       - ${DATA_VOLUMES_DIR}/db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ufinance_user", "-pfinance_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   backend:
     build:
@@ -22,11 +29,22 @@ services:
       DATABASE_URL: "mysql+pymysql://finance_user:finance_password@db:3306/finance_db"
       CELERY_BROKER_URL: "redis://redis:6379/0"
       CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+      REDIS_URL: "redis://redis:6379/0"
       GOOGLE_API_KEY: "${GOOGLE_API_KEY}"
+      SECRET_KEY: "${SECRET_KEY:-}"
+      ENVIRONMENT: "${ENVIRONMENT:-development}"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   redis:
     image: redis:8.6
@@ -35,6 +53,11 @@ services:
     restart: always
     volumes:
       - ${DATA_VOLUMES_DIR}/redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   celery_worker:
     build:
@@ -45,9 +68,12 @@ services:
       DATABASE_URL: "mysql+pymysql://finance_user:finance_password@db:3306/finance_db"
       CELERY_BROKER_URL: "redis://redis:6379/0"
       CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+      REDIS_URL: "redis://redis:6379/0"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
 
   celery_beat:
@@ -59,9 +85,12 @@ services:
       DATABASE_URL: "mysql+pymysql://finance_user:finance_password@db:3306/finance_db"
       CELERY_BROKER_URL: "redis://redis:6379/0"
       CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+      REDIS_URL: "redis://redis:6379/0"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
 
   frontend:

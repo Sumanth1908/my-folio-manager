@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import api from '../../api';
+import api, { handleApiError } from '../../api';
 import type { Category } from '../../types';
 
 interface CategoriesState {
@@ -22,7 +22,7 @@ export const fetchCategories = createAsyncThunk(
             const res = await api.get('/categories/');
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch categories');
+            return rejectWithValue(handleApiError(error, 'Failed to fetch categories'));
         }
     }
 );
@@ -35,7 +35,7 @@ export const createCategory = createAsyncThunk(
             dispatch(fetchCategories());
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to create category');
+            return rejectWithValue(handleApiError(error, 'Failed to create category'));
         }
     }
 );
@@ -48,7 +48,7 @@ export const deleteCategory = createAsyncThunk(
             dispatch(fetchCategories());
             return id;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to delete category');
+            return rejectWithValue(handleApiError(error, 'Failed to delete category'));
         }
     }
 );

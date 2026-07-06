@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import api from '../../api';
+import api, { handleApiError } from '../../api';
 import type { UserSettings } from '../../types';
 
 interface SettingsState {
@@ -22,7 +22,7 @@ export const fetchSettings = createAsyncThunk(
             const res = await api.get('/settings/');
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch settings');
+            return rejectWithValue(handleApiError(error, 'Failed to fetch settings'));
         }
     }
 );
@@ -34,7 +34,7 @@ export const updateSettings = createAsyncThunk(
             const res = await api.put('/settings/', newSettings);
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to update settings');
+            return rejectWithValue(handleApiError(error, 'Failed to update settings'));
         }
     }
 );

@@ -2,14 +2,16 @@ export const ACCOUNT_TYPE = {
     SAVINGS: 'SAVINGS',
     INVESTMENT: 'INVESTMENT',
     FIXED_DEPOSIT: 'FIXED_DEPOSIT',
-    LOAN: 'LOAN'
+    LOAN: 'LOAN',
+    RECURRING_DEPOSIT: 'RECURRING_DEPOSIT'
 } as const;
 
 export const ACCOUNT_TYPES = [
     ACCOUNT_TYPE.SAVINGS,
     ACCOUNT_TYPE.INVESTMENT,
     ACCOUNT_TYPE.FIXED_DEPOSIT,
-    ACCOUNT_TYPE.LOAN
+    ACCOUNT_TYPE.LOAN,
+    ACCOUNT_TYPE.RECURRING_DEPOSIT
 ] as const;
 
 export const TRANSACTION_TYPE = {
@@ -32,7 +34,7 @@ export const FREQUENCY = {
     ONE_TIME: 'ONE_TIME'
 } as const;
 
-export const TIME_RANGES = ['thisMonth', 'lastMonth', 'allTime'] as const;
+export const TIME_RANGES = ['currentMonth', 'last30Days', 'lastMonth', 'allTime'] as const;
 
 export const DEFAULT_CURRENCY = 'USD';
 export const DEFAULT_ACCRUAL_DAY = '1';

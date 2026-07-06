@@ -82,7 +82,14 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
 
     const sourceAccount = accounts.find(a => a.account_id === formData.selectedAccountId);
     const targetAccount = accounts.find(a => a.account_id === formData.toAccountId);
-    const isMultiCurrencyTransfer = isTransfer && sourceAccount && targetAccount && sourceAccount.currency !== targetAccount.currency;
+
+    const selectedAccountType = useMemo(() => {
+        return accounts.find(a => a.account_id.toString() === formData.selectedAccountId)?.account_type;
+    }, [accounts, formData.selectedAccountId]);
+
+    const isMultiCurrencyTransfer = useMemo(() => {
+        return isTransfer && sourceAccount && targetAccount && sourceAccount.currency !== targetAccount.currency;
+    }, [isTransfer, sourceAccount, targetAccount]);
 
     const isValid = useMemo(() => {
         if (!formData.amount || !formData.selectedAccountId) return false;
@@ -115,9 +122,10 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
                     transaction_date: txDate
                 })).unwrap();
             } else {
+                const finalAmount = type === TRANSACTION_TYPE.DEBIT ? -Math.abs(parseFloat(amount)) : Math.abs(parseFloat(amount));
                 await dispatch(createTransaction({
                     account_id: selectedAccountId,
-                    amount: parseFloat(amount),
+                    amount: finalAmount,
                     transaction_type: type,
                     description,
                     additional_info: formData.additionalInfo,
@@ -178,8 +186,12 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
                         <SelectContent>
                             <SelectGroup>
                                 <SelectLabel>Type</SelectLabel>
-                                <SelectItem value={TRANSACTION_TYPE.DEBIT}>DEBIT</SelectItem>
-                                <SelectItem value={TRANSACTION_TYPE.CREDIT}>CREDIT</SelectItem>
+                                <SelectItem value={TRANSACTION_TYPE.DEBIT}>
+                                    {selectedAccountType === 'LOAN' ? 'CHARGE / INTEREST' : 'WITHDRAWAL'}
+                                </SelectItem>
+                                <SelectItem value={TRANSACTION_TYPE.CREDIT}>
+                                    {selectedAccountType === 'LOAN' ? 'PAYMENT' : 'DEPOSIT'}
+                                </SelectItem>
                                 <SelectItem value={TRANSACTION_TYPE.TRANSFER}>TRANSFER</SelectItem>
                             </SelectGroup>
                         </SelectContent>

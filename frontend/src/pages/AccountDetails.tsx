@@ -9,17 +9,18 @@ import AccountInfoCard from '../components/account/common/AccountInfoCard';
 import AccountActivityPanel from '../components/account/common/AccountActivityPanel';
 import AccountTypeDetails from '../components/account/common/AccountTypeDetails';
 import AccountEditForm from '../components/account/common/AccountEditForm';
+import CloseLoanForm from '../components/account/loan/CloseLoanForm';
 import { Button } from '../components/ui/Button';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { type RootState } from '../store';
 import { openModal, closeModal as closeReduxModal } from '../store/slices/uiSlice';
 import { fetchTransactions, setFilters } from '../store/slices/transactionsSlice';
 import { fetchRules } from '../store/slices/rulesSlice';
-import { fetchAccounts, deleteAccount } from '../store/slices/accountsSlice';
+import { fetchAccounts, deleteAccount, closeAccount } from '../store/slices/accountsSlice';
 import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchSettings } from '../store/slices/settingsSlice';
 import { fetchRates } from '../store/slices/converterSlice';
-import { TRANSACTION_TYPE, ACCOUNT_TYPE } from '../constants';
+import { ACCOUNT_TYPE } from '../constants';
 
 const AccountDetails = () => {
     const { id: accountId } = useParams<{ id: string }>();
@@ -55,6 +56,7 @@ const AccountDetails = () => {
         onConfirm: () => { },
         variant: 'primary'
     });
+    const [isCloseLoanFormOpen, setIsCloseLoanFormOpen] = useState(false);
 
     const refreshData = () => {
         if (accountId) {
@@ -107,9 +109,39 @@ const AccountDetails = () => {
         setConfirmModal({
             isOpen: true,
             title: 'Delete Account',
-            message: 'Are you sure you want to delete this account? This will also delete ALL associated transactions.',
+            message: 'Are you sure you want to delete this account? This deletes ALL its transactions — including the matching legs of transfers in your OTHER accounts, which retroactively changes their balances. Consider closing the account instead to keep history.',
             variant: 'danger',
             onConfirm: handleDeleteAccount
+        });
+    };
+
+    const handleCloseAccount = async (sourceAccountId?: string) => {
+        if (!accountId) return;
+        closeConfirmModal();
+        setIsCloseLoanFormOpen(false);
+        try {
+            await dispatch(closeAccount({ id: accountId, sourceAccountId })).unwrap();
+            toast.success('Loan closed successfully');
+        } catch (error) {
+            toast.error(typeof error === 'string' ? error : 'Failed to close account');
+        }
+    };
+
+    const handleCloseAccountConfirm = () => {
+        if (!account) return;
+
+        const currentBalance = getBalance();
+        if (account.account_type === ACCOUNT_TYPE.LOAN && currentBalance < 0) {
+            setIsCloseLoanFormOpen(true);
+            return;
+        }
+
+        setConfirmModal({
+            isOpen: true,
+            title: 'Close Loan',
+            message: 'Are you sure you want to close this loan account? No further EMI or interest transactions will be posted.',
+            variant: 'primary',
+            onConfirm: () => handleCloseAccount()
         });
     };
 
@@ -127,24 +159,27 @@ const AccountDetails = () => {
     const getBalance = () => {
         if (!account) return 0;
 
-        // Use pre-calculated balances from backend where available
-        if (account.savings_account) return Number(account.savings_account.balance || 0);
-        if (account.fixed_deposit_account) return Number(account.fixed_deposit_account.balance || 0);
-        if (account.loan_account) return Number(account.loan_account.outstanding_amount || 0);
-
         // For investment accounts, calculate total portfolio value from holdings
-        if (account.account_type === ACCOUNT_TYPE.INVESTMENT && account.investment_holdings) {
-            return account.investment_holdings.reduce((total, holding) => {
-                const price = holding.current_price ?? holding.average_price;
-                return total + (holding.quantity * price);
-            }, 0);
+        if (account.account_type === ACCOUNT_TYPE.INVESTMENT) {
+            if (account.investment_holdings) {
+                return account.investment_holdings.reduce((total, holding) => {
+                    const price = holding.current_price ?? holding.average_price;
+                    return total + (holding.quantity * price);
+                }, 0);
+            }
+            return 0;
+        }
+
+        // The backend now calculates balance dynamically and sends it in the response
+        if ((account as any).balance !== undefined) {
+            return Number((account as any).balance);
         }
 
         // Fallback to transaction sum for other cases (though usually redundant)
         if (!transactions) return 0;
         return transactions.reduce((balance: number, tx: Transaction) => {
             const amount = Number(tx.amount || 0);
-            return tx.transaction_type === TRANSACTION_TYPE.CREDIT ? balance + amount : balance - amount;
+            return balance + amount;
         }, 0);
     };
 
@@ -202,6 +237,11 @@ const AccountDetails = () => {
                 onEdit={() => {
                     dispatch(openModal('accountAction'));
                 }}
+                onClose={
+                    account?.account_type === ACCOUNT_TYPE.LOAN && account.status !== 'Closed'
+                        ? handleCloseAccountConfirm
+                        : undefined
+                }
             />
 
 
@@ -241,6 +281,23 @@ const AccountDetails = () => {
                 variant={confirmModal.variant}
                 isLoading={false}
             />
+
+            <Modal
+                isOpen={isCloseLoanFormOpen}
+                onClose={() => setIsCloseLoanFormOpen(false)}
+                title="Close Loan"
+            >
+                {account && (
+                    <CloseLoanForm
+                        account={account}
+                        outstanding={Math.abs(balance)}
+                        accounts={accounts}
+                        symbol={symbol}
+                        onSubmit={handleCloseAccount}
+                        onCancel={() => setIsCloseLoanFormOpen(false)}
+                    />
+                )}
+            </Modal>
         </div>
     );
 }

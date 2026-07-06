@@ -37,24 +37,12 @@ interface AccountEditFormData {
 
 // Get initial interest rate based on account type
 const getInitialInterestRate = (account: Account): string => {
-    switch (account.account_type) {
-        case ACCOUNT_TYPE.LOAN:
-            return account.loan_account?.interest_rate?.toString() ?? '';
-        case ACCOUNT_TYPE.SAVINGS:
-            return account.savings_account?.interest_rate?.toString() ?? '';
-        case ACCOUNT_TYPE.FIXED_DEPOSIT:
-            return account.fixed_deposit_account?.interest_rate?.toString() ?? '';
-        default:
-            return '';
-    }
+    return account.metadata_?.interest_rate?.toString() ?? '';
 };
 
 // Get initial accrual day based on account type
 const getInitialAccrualDay = (account: Account): string => {
-    const day = account.loan_account?.interest_accrual_day
-        ?? account.savings_account?.interest_accrual_day
-        ?? account.fixed_deposit_account?.interest_accrual_day
-        ?? 1;
+    const day = account.metadata_?.interest_accrual_day ?? 1;
     return day.toString();
 };
 
@@ -62,14 +50,14 @@ const createInitialFormData = (account: Account): AccountEditFormData => ({
     name: account.account_name ?? '',
     status: account.status ?? 'Active',
     interestRate: getInitialInterestRate(account),
-    emiAmount: account.loan_account?.emi_amount?.toString() ?? '',
-    tenure: account.loan_account?.tenure_months?.toString() ?? '',
+    emiAmount: account.metadata_?.emi_amount?.toString() ?? '',
+    tenure: account.metadata_?.tenure_months?.toString() ?? '',
     accrualDay: getInitialAccrualDay(account),
-    startDate: account.loan_account?.start_date
-        ? account.loan_account.start_date.substring(0, 10)
+    startDate: account.metadata_?.start_date
+        ? account.metadata_.start_date.substring(0, 10)
         : '',
-    emiStartDate: account.loan_account?.emi_start_date
-        ? account.loan_account.emi_start_date.substring(0, 10)
+    emiStartDate: account.metadata_?.emi_start_date
+        ? account.metadata_.emi_start_date.substring(0, 10)
         : ''
 });
 
@@ -95,7 +83,8 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
         };
 
         if (account.account_type === ACCOUNT_TYPE.LOAN) {
-            data.loan_account = {
+            data.metadata_ = {
+                ...(account.metadata_ || {}),
                 interest_rate: parseFloat(interestRate),
                 emi_amount: parseFloat(emiAmount),
                 tenure_months: parseInt(tenure, 10),
@@ -104,12 +93,14 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
                 emi_start_date: emiStartDate || undefined
             };
         } else if (account.account_type === ACCOUNT_TYPE.SAVINGS) {
-            data.savings_account = {
+            data.metadata_ = {
+                ...(account.metadata_ || {}),
                 interest_rate: parseFloat(interestRate),
                 interest_accrual_day: parseInt(accrualDay, 10)
             };
-        } else if (account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT) {
-            data.fixed_deposit_account = {
+        } else if (account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT || account.account_type === ACCOUNT_TYPE.RECURRING_DEPOSIT) {
+            data.metadata_ = {
+                ...(account.metadata_ || {}),
                 interest_rate: parseFloat(interestRate),
                 interest_accrual_day: parseInt(accrualDay, 10)
             };
@@ -138,6 +129,7 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
                     />
                 );
             case ACCOUNT_TYPE.FIXED_DEPOSIT:
+            case ACCOUNT_TYPE.RECURRING_DEPOSIT:
                 return (
                     <FDEditFields
                         interestRate={formData.interestRate}

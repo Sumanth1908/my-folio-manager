@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import api from '../../api';
+import api, { handleApiError } from '../../api';
 import type { Rule } from '../../types';
 
 interface RulesState {
@@ -23,7 +23,7 @@ export const fetchRules = createAsyncThunk(
             const res = await api.get(url);
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch rules');
+            return rejectWithValue(handleApiError(error, 'Failed to fetch rules'));
         }
     }
 );
@@ -36,7 +36,7 @@ export const createRule = createAsyncThunk(
             dispatch(fetchRules(payload.account_id));
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to create rule');
+            return rejectWithValue(handleApiError(error, 'Failed to create rule'));
         }
     }
 );
@@ -49,7 +49,19 @@ export const updateRule = createAsyncThunk(
             dispatch(fetchRules(accountId));
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to update rule');
+            return rejectWithValue(handleApiError(error, 'Failed to update rule'));
+        }
+    }
+);
+
+export const triggerAutomation = createAsyncThunk(
+    'rules/triggerAutomation',
+    async (_, { rejectWithValue }) => {
+        try {
+            const res = await api.post('/rules/trigger-automation');
+            return res.data;
+        } catch (error: any) {
+            return rejectWithValue(handleApiError(error, 'Failed to trigger automation worker'));
         }
     }
 );
@@ -62,7 +74,7 @@ export const deleteRule = createAsyncThunk(
             dispatch(fetchRules(accountId));
             return id;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to delete rule');
+            return rejectWithValue(handleApiError(error, 'Failed to delete rule'));
         }
     }
 );
@@ -75,7 +87,7 @@ export const executeRule = createAsyncThunk(
             dispatch(fetchRules(accountId));
             return id;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to execute rule');
+            return rejectWithValue(handleApiError(error, 'Failed to execute rule'));
         }
     }
 );

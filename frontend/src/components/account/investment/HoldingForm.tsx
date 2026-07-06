@@ -19,6 +19,7 @@ interface HoldingFormData {
     name: string;
     quantity: string;
     price: string;
+    transaction_date: string;
 }
 
 const HoldingForm = ({ accountId, currencySymbol, currencyCode, prefill, onSuccess, onCancel }: HoldingFormProps) => {
@@ -29,7 +30,8 @@ const HoldingForm = ({ accountId, currencySymbol, currencyCode, prefill, onSucce
         symbol: prefill?.symbol ?? '',
         name: prefill?.name ?? '',
         quantity: '',
-        price: ''
+        price: '',
+        transaction_date: new Date().toISOString().split('T')[0]
     }));
 
     const updateField = useCallback(<K extends keyof HoldingFormData>(field: K, value: HoldingFormData[K]) => {
@@ -52,7 +54,8 @@ const HoldingForm = ({ accountId, currencySymbol, currencyCode, prefill, onSucce
                 name: formData.name,
                 quantity: parseFloat(formData.quantity),
                 average_price: parseFloat(formData.price),
-                currency: currencyCode
+                currency: currencyCode,
+                transaction_date: new Date(formData.transaction_date).toISOString()
             })).unwrap();
             toast.success('Purchase confirmed');
             onSuccess();
@@ -148,6 +151,19 @@ const HoldingForm = ({ accountId, currencySymbol, currencyCode, prefill, onSucce
                         className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none transition"
                     />
                 </div>
+            </div>
+
+            <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                    Date of Transaction
+                </label>
+                <input
+                    type="date"
+                    required
+                    value={formData.transaction_date}
+                    onChange={e => updateField('transaction_date', e.target.value)}
+                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none transition"
+                />
             </div>
 
             {totalInvestment !== null && (

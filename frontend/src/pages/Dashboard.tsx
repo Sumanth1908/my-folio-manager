@@ -1,11 +1,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import SankeyChart from '../components/dashboard/SankeyChart';
 import SpendingBreakdown from '../components/dashboard/SpendingBreakdown';
+import UpcomingPayments from '../components/dashboard/UpcomingPayments';
+import ErrorBanner from '../components/common/ErrorBanner';
 import { useAuth } from '../context/AuthContext';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
+import { convertAmount } from '../lib/currency';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchSummary, setSummaryTimeRange } from '../store/slices/summarySlice';
 import { fetchCurrencies } from '../store/slices/currenciesSlice';
@@ -35,7 +38,7 @@ export default function Dashboard() {
         localStorage.setItem('dashboard_selected_account_id', selectedAccountId);
     }, [selectedAccountId]);
 
-    const { data: summaryData, loading: isSummaryLoading, filters: summaryFilters } = useAppSelector((state: RootState) => state.summary);
+    const { data: summaryData, loading: isSummaryLoading, error: summaryError, filters: summaryFilters } = useAppSelector((state: RootState) => state.summary);
     const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
     const { items: currencies } = useAppSelector((state: RootState) => state.currencies);
     const { data: settings } = useAppSelector((state: RootState) => state.settings);
@@ -61,12 +64,12 @@ export default function Dashboard() {
         }
     }, [dispatch, defaultCurrency]);
 
-    const convert = useMemo(() => (amount: number, fromCurrencyCode: string): number => {
-        if (fromCurrencyCode === defaultCurrency) return amount;
-        const rate = rates[fromCurrencyCode];
-        if (!rate) return amount;
-        return amount / rate;
-    }, [rates, defaultCurrency]);
+    const convert = useMemo(() => (amount: number, fromCurrencyCode: string): number =>
+        convertAmount(amount, fromCurrencyCode, defaultCurrency, rates), [rates, defaultCurrency]);
+
+    const selectedAccount = useMemo(() => {
+        return accounts.find((a: Account) => a.account_id.toString() === selectedAccountId.toString());
+    }, [accounts, selectedAccountId]);
 
     // Aggregate summary data for charts
     const { globalOutflows, savingsInflows, savingsOutflows } = useMemo(() => {
@@ -156,13 +159,23 @@ export default function Dashboard() {
                                         timeRange !== range && "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
-                                    {range === 'thisMonth' ? '30D' : range === 'lastMonth' ? 'Last Month' : 'All'}
+                                    {range === 'last30Days' ? '30D' : range === 'currentMonth' ? 'This Month' : range === 'lastMonth' ? 'Last Month' : 'All'}
                                 </Button>
                             ))}
                         </div>
                     </div>
                 </div>
             </Card>
+
+            {summaryError && (
+                <ErrorBanner
+                    message={summaryError}
+                    onRetry={() => dispatch(fetchSummary({ timeRange, accountTypes: [...ACCOUNT_TYPES] }))}
+                />
+            )}
+
+            {/* Upcoming payments */}
+            <UpcomingPayments symbol={currencySymbol} />
 
             {/* Cashflow Section */}
             <Card className="overflow-hidden">
@@ -188,6 +201,8 @@ export default function Dashboard() {
                                     inflows={savingsInflows}
                                     outflows={savingsOutflows}
                                     symbol={currencySymbol}
+                                    accountType={selectedAccount?.account_type}
+                                    accountName={selectedAccount?.account_name}
                                 />
                             </div>
                         ) : (

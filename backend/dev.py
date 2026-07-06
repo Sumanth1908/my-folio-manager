@@ -5,7 +5,7 @@ Run with: poetry run dev
 """
 import uvicorn
 
-if __name__ == "__main__":
+def dev():
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
@@ -13,3 +13,6 @@ if __name__ == "__main__":
         reload=True,
         log_level="info"
     )
+
+if __name__ == "__main__":
+    dev()

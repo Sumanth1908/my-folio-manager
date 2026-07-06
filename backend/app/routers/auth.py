@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 from typing import Any
 
@@ -8,16 +9,38 @@ from sqlmodel import Session
 from app.core.database import get_session
 from app.core import security
 from app.core.config import settings
+from app.core.rate_limit import rate_limit
 from app.models.user import User
 from app.deps import get_current_user
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 router = APIRouter()
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+MIN_PASSWORD_LENGTH = 8
+
+def _validate_password(value: str) -> str:
+    if len(value) < MIN_PASSWORD_LENGTH:
+        raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters long")
+    return value
 
 class UserCreate(BaseModel):
     email: str
     password: str
     full_name: str | None = None
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not EMAIL_RE.match(v):
+            raise ValueError("Invalid email address")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return _validate_password(v)
 
 class UserRead(BaseModel):
     user_id: str
@@ -32,7 +55,12 @@ class ChangePassword(BaseModel):
     current_password: str
     new_password: str
 
-@router.post("/register", response_model=UserRead)
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        return _validate_password(v)
+
+@router.post("/register", response_model=UserRead, dependencies=[Depends(rate_limit("register", limit=5, window_seconds=60))])
 def register(user_in: UserCreate, session: Session = Depends(get_session)) -> Any:
     user = session.query(User).filter(User.email == user_in.email).first()
     if user:
@@ -64,7 +92,7 @@ def register(user_in: UserCreate, session: Session = Depends(get_session)) -> An
     
     return user
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, dependencies=[Depends(rate_limit("login", limit=10, window_seconds=60))])
 def login_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: Session = Depends(get_session),

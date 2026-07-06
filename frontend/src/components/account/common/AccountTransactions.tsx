@@ -12,6 +12,7 @@ interface AccountTransactionsProps {
     currencies?: Currency[];
 
     onDelete?: (id: number) => void;
+    onEdit?: (tx: Transaction) => void;
     showAccountName?: boolean;
 }
 
@@ -22,16 +23,21 @@ const AccountTransactions = memo(({
     currencies,
 
     onDelete,
+    onEdit,
     showAccountName = false
 }: AccountTransactionsProps) => {
     const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
 
     const accountsMap = useMemo(() => {
-        const map = new Map<string, string>();
+        const nameMap = new Map<string, string>();
+        const typeMap = new Map<string, string>();
         accounts.forEach(a => {
-            if (a.account_id) map.set(a.account_id, a.account_name || 'Unknown Account');
+            if (a.account_id) {
+                nameMap.set(a.account_id, a.account_name || 'Unknown Account');
+                typeMap.set(a.account_id, a.account_type);
+            }
         });
-        return map;
+        return { nameMap, typeMap };
     }, [accounts]);
 
     const getCurrencySymbol = (tx: Transaction) => {
@@ -53,10 +59,12 @@ const AccountTransactions = memo(({
                         <TransactionRow
                             key={tx.transaction_id}
                             tx={tx}
-                            accountName={showAccountName ? accountsMap.get(tx.account_id) : undefined}
+                            accountName={showAccountName ? accountsMap.nameMap.get(tx.account_id) : undefined}
+                            accountType={accountsMap.typeMap.get(tx.account_id)}
                             currencySymbol={getCurrencySymbol(tx)}
 
                             onDelete={onDelete}
+                            onEdit={onEdit}
                         />
                     ))}
                     {transactions?.length === 0 && (

@@ -36,5 +36,5 @@ ENV PATH="/app/.venv/bin:$PATH" \
 # Expose port (relevant for backend only, but safe for all)
 EXPOSE 8000
 
-# Default command (overridden in docker-compose for worker/beat)
+# Default command
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -8,7 +8,9 @@ interface FDDetailsProps {
 }
 
 const FDDetails = ({ account, symbol }: FDDetailsProps) => {
-    if (!account.fixed_deposit_account) return null;
+    if (!account.metadata_) return null;
+
+    const md = account.metadata_ as any;
 
     return (
         <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
@@ -21,37 +23,37 @@ const FDDetails = ({ account, symbol }: FDDetailsProps) => {
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Current Balance</p>
                     <p className="text-xl font-black text-primary tabular-nums">
-                        {symbol}{account.fixed_deposit_account.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {symbol}{(account as any).balance?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
                     </p>
                 </div>
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Principal Amount</p>
                     <p className="text-xl font-black text-foreground tabular-nums">
-                        {symbol}{account.fixed_deposit_account.principal_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {symbol}{md.principal_amount?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
                     </p>
                 </div>
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Interest Rate</p>
                     <p className="text-xl font-black text-primary tabular-nums">
-                        {account.fixed_deposit_account.interest_rate}% p.a.
+                        {md.interest_rate}% p.a.
                     </p>
                 </div>
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Maturity Amount</p>
                     <p className="text-xl font-black text-primary tabular-nums">
-                        {symbol}{account.fixed_deposit_account.maturity_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {symbol}{md.maturity_amount?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
                     </p>
                 </div>
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Start Date</p>
                     <p className="text-xl font-black text-foreground">
-                        {formatDate(account.fixed_deposit_account.start_date)}
+                        {md.start_date ? formatDate(md.start_date) : '-'}
                     </p>
                 </div>
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Maturity Date</p>
                     <p className="text-xl font-black text-foreground">
-                        {formatDate(account.fixed_deposit_account.maturity_date)}
+                        {md.maturity_date ? formatDate(md.maturity_date) : '-'}
                     </p>
                 </div>
                 <div className="bg-background p-5 rounded-2xl border border-border/50">

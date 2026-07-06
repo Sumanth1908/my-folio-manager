@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import api from '../../api';
+import api, { handleApiError } from '../../api';
 import type { Transaction, PaginatedResponse } from '../../types';
 
 interface TransactionsState {
@@ -55,7 +55,7 @@ export const fetchTransactions = createAsyncThunk(
             const res = await api.get('/transactions/', { params: queryParams });
             return { ...res.data, append: params?.append };
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch transactions');
+            return rejectWithValue(handleApiError(error, 'Failed to fetch transactions'));
         }
     }
 );
@@ -69,7 +69,7 @@ export const createTransaction = createAsyncThunk(
             dispatch(fetchTransactions({ ...filters, page: 1, append: false }));
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to create transaction');
+            return rejectWithValue(handleApiError(error, 'Failed to create transaction'));
         }
     }
 );
@@ -83,23 +83,47 @@ export const createTransfer = createAsyncThunk(
             dispatch(fetchTransactions({ ...filters, page: 1, append: false }));
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to create transfer');
+            return rejectWithValue(handleApiError(error, 'Failed to create transfer'));
         }
     }
 );
 
 
 
+export const updateTransactionCategory = createAsyncThunk(
+    'transactions/updateCategory',
+    async ({ id, categoryId }: { id: number, categoryId: string | null }, { rejectWithValue }) => {
+        try {
+            const res = await api.patch(`/transactions/${id}`, { category_id: categoryId ? parseInt(categoryId) : null });
+            return res.data;
+        } catch (error: any) {
+            return rejectWithValue(handleApiError(error, 'Failed to update category'));
+        }
+    }
+);
+
 export const deleteTransaction = createAsyncThunk(
     'transactions/deleteTransaction',
-    async (id: number, { dispatch, getState, rejectWithValue }) => {
+    async (id: number, { rejectWithValue }) => {
         try {
             await api.delete(`/transactions/${id}`);
-            const { filters } = (getState() as any).transactions;
-            dispatch(fetchTransactions({ ...filters, page: 1, append: false }));
+            // The fulfilled reducer patches the list in place — no refetch, so
+            // the user keeps their scroll position and sees a single update.
             return id;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to delete transaction');
+            return rejectWithValue(handleApiError(error, 'Failed to delete transaction'));
+        }
+    }
+);
+
+export const updateTransaction = createAsyncThunk(
+    'transactions/updateTransaction',
+    async ({ id, data }: { id: number, data: { amount?: number; description?: string; transaction_date?: string; category_id?: number | null } }, { rejectWithValue }) => {
+        try {
+            const res = await api.patch(`/transactions/${id}`, data);
+            return res.data;
+        } catch (error: any) {
+            return rejectWithValue(handleApiError(error, 'Failed to update transaction'));
         }
     }
 );
@@ -130,12 +154,47 @@ export const transactionsSlice = createSlice({
                 state.loading = false;
                 state.loadingMore = false;
                 if (action.payload.append) {
-                    state.items = [...state.items, ...action.payload.items];
+                    // Guard against a stale/racing page response duplicating rows
+                    const existingIds = new Set(state.items.map(t => t.transaction_id));
+                    state.items = [...state.items, ...action.payload.items.filter(t => !existingIds.has(t.transaction_id))];
                 } else {
                     state.items = action.payload.items;
                 }
                 state.total = action.payload.total;
                 state.hasNextPage = state.items.length < state.total;
+            })
+            .addCase(deleteTransaction.fulfilled, (state, action) => {
+                const deletedTx = state.items.find(t => t.transaction_id === action.payload);
+                const transferId = deletedTx?.transfer_id;
+                
+                const initialCount = state.items.length;
+                state.items = state.items.filter(t => {
+                    if (t.transaction_id === action.payload) return false;
+                    if (transferId && t.transfer_id === transferId) return false;
+                    return true;
+                });
+                const removedCount = initialCount - state.items.length;
+                state.total -= removedCount;
+            })
+            .addCase(updateTransaction.fulfilled, (state, action) => {
+                const updated = action.payload;
+                const index = state.items.findIndex(t => t.transaction_id === updated.transaction_id);
+                if (index !== -1) {
+                    state.items[index] = updated;
+                }
+            })
+            .addCase(updateTransactionCategory.fulfilled, (state, action) => {
+                const updated = action.payload;
+                if (updated.transfer_id) {
+                    state.items = state.items.map(t => 
+                        t.transfer_id === updated.transfer_id ? { ...t, category: updated.category, category_id: updated.category_id } : t
+                    );
+                } else {
+                    const index = state.items.findIndex(t => t.transaction_id === updated.transaction_id);
+                    if (index !== -1) {
+                        state.items[index] = updated;
+                    }
+                }
             })
             .addCase(fetchTransactions.rejected, (state, action) => {
                 state.loading = false;

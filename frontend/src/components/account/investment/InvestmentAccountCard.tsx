@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
-import { cn } from '../../../lib/utils';
 import type { Account } from '../../../types';
+import AccountBadges from '../common/AccountBadges';
 
 interface InvestmentAccountCardProps {
     account: Account;
@@ -22,24 +22,7 @@ export default function InvestmentAccountCard({ account, balance, symbol, onClic
                     </CardTitle>
 
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                    <span className="px-3 py-1 bg-blue-500/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/20 rounded-full text-[10px] font-black uppercase tracking-widest">
-                        {account.account_type}
-                    </span>
-                    <span className="px-3 py-1 bg-violet-500/10 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/20 rounded-full text-[10px] font-black uppercase tracking-widest">
-                        {account.currency}
-                    </span>
-                    {account.status && (
-                        <span className={cn(
-                            "px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border",
-                            account.status === 'Active'
-                                ? "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
-                                : "bg-muted text-muted-foreground border-border"
-                        )}>
-                            {account.status}
-                        </span>
-                    )}
-                </div>
+                <AccountBadges account={account} className="mt-1" />
             </CardHeader>
             <CardContent>
                 <div className={`text-2xl font-black tabular-nums ${balance >= 0 ? 'text-foreground' : 'text-destructive'}`}>

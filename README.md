@@ -4,7 +4,7 @@ A comprehensive personal finance and portfolio management application designed t
 
 ## 🚀 Features
 
--   **Portfolio Management**: Track Savings, Loans, Fixed Deposits, and Investment holdings in one place.
+-   **Portfolio Management**: Track Savings, Loans, Fixed Deposits, and Investment holdings in one unified place.
 -   **Visual Dashboards**: 
     -   Real-time Net Worth calculation across all account types.
     -   Interactive **Cashflow Sankey Charts** to visualize money movement.
@@ -13,6 +13,11 @@ A comprehensive personal finance and portfolio management application designed t
 -   **Automated Interest Accruals**: Background jobs handled by Celery to automatically calculate and apply interest to Savings and Loan accounts.
 -   **Multi-Currency**: Support for multiple currencies with real-time conversion capabilities.
 -   **Secure Authentication**: JWT-based login and registration.
+
+## 🧠 Architecture Highlights
+-   **Unified Account Model**: Extensible `metadata_` JSON field replaces rigid subclassing.
+-   **Pure Ledger**: Balances are calculated strictly on-the-fly via `SUM(amount)` using signed transactions (+ for credits, - for debits), guaranteeing data consistency.
+-   **Rule Normalization**: Automation rules utilize JSON configuration blocks instead of sparse "God Table" columns, making them endlessly extensible.
 
 ## 🛠 Tech Stack
 
