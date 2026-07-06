@@ -12,6 +12,7 @@ interface AccountTransactionsProps {
     currencies?: Currency[];
 
     onDelete?: (id: number) => void;
+    onEdit?: (tx: Transaction) => void;
     showAccountName?: boolean;
 }
 
@@ -22,6 +23,7 @@ const AccountTransactions = memo(({
     currencies,
 
     onDelete,
+    onEdit,
     showAccountName = false
 }: AccountTransactionsProps) => {
     const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
@@ -62,6 +64,7 @@ const AccountTransactions = memo(({
                             currencySymbol={getCurrencySymbol(tx)}
 
                             onDelete={onDelete}
+                            onEdit={onEdit}
                         />
                     ))}
                     {transactions?.length === 0 && (

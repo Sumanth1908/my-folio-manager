@@ -10,6 +10,7 @@ import converterReducer from './slices/converterSlice';
 import categoriesReducer from './slices/categoriesSlice';
 import holdingsReducer from './slices/holdingsSlice';
 import portfolioReducer from './slices/portfolioSlice';
+import budgetsReducer from './slices/budgetsSlice';
 
 export const store = configureStore({
     reducer: {
@@ -24,6 +25,7 @@ export const store = configureStore({
         categories: categoriesReducer,
         holdings: holdingsReducer,
         portfolio: portfolioReducer,
+        budgets: budgetsReducer,
     },
 });
 

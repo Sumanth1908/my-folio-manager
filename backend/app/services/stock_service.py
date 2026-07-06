@@ -13,13 +13,20 @@ import pandas as pd
 import numpy as np
 import requests
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
-# Redis connection for caching
-redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True, db=0)
+# Redis connection for caching (configured URL so it works inside Docker too)
+redis_client = redis.Redis.from_url(
+    settings.redis_url, decode_responses=True, socket_connect_timeout=2, socket_timeout=2
+)
 
 # Cache TTL in seconds (15 minutes)
 CACHE_TTL = 900
+
+# Network timeout for Yahoo Finance calls (seconds)
+YF_TIMEOUT = 8
 
 # Exchange suffix mapping based on currency
 EXCHANGE_SUFFIX_MAP = {
@@ -137,18 +144,25 @@ def get_stock_price(symbol: str, currency: str = "USD", bypass_cache: bool = Fal
             full_symbol = f"{symbol}{suffix}"
         
         logger.info(f"Fetching price for {full_symbol}")
-        
-        # Fetch from yfinance
+
+        # Fetch from yfinance. history() accepts a timeout, unlike .info,
+        # so a slow Yahoo response can't hang the request indefinitely.
         ticker = yf.Ticker(full_symbol)
-        info = ticker.info
-        
-        # Try different price fields in order of preference
         price = None
-        for field in ['currentPrice', 'regularMarketPrice', 'previousClose']:
-            if field in info and info[field]:
-                price = Decimal(str(info[field])).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                break
-        
+        history = ticker.history(period="1d", timeout=YF_TIMEOUT)
+        if not history.empty and 'Close' in history:
+            val = history['Close'].iloc[-1]
+            if not pd.isna(val):
+                price = Decimal(str(val)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+        if price is None:
+            # Fallback to the info fields for symbols without intraday history
+            info = ticker.info
+            for field in ['currentPrice', 'regularMarketPrice', 'previousClose']:
+                if field in info and info[field]:
+                    price = Decimal(str(info[field])).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    break
+
         if price is None:
             logger.error(f"No price data found for {full_symbol}")
             return None
@@ -192,7 +206,7 @@ def get_stock_prices_batch(symbols: List[str], bypass_cache: bool = False) -> Di
         try:
             # Download all at once
             symbols_str = " ".join(uncached_symbols)
-            tickers = yf.download(symbols_str, period="1d", progress=False)
+            tickers = yf.download(symbols_str, period="1d", progress=False, timeout=YF_TIMEOUT)
             
             for symbol in uncached_symbols:
                 try:

@@ -63,10 +63,20 @@ class TransactionRuleStrategy(RuleEvaluationStrategy):
             transaction_amount *= Decimal(str(days_to_post))
         return transaction_amount
 
+# Single registry: adding a new schedulable rule type means registering its
+# strategy here — the scheduler query and manual-execute checks derive from it.
+STRATEGY_REGISTRY: Dict[RuleType, type] = {
+    RuleType.CALCULATION: CalculationRuleStrategy,
+    RuleType.TRANSACTION: TransactionRuleStrategy,
+}
+
+SCHEDULABLE_RULE_TYPES = list(STRATEGY_REGISTRY.keys())
+
+
 class RuleProcessorFactory:
     @staticmethod
     def get_strategy(rule_type: str) -> RuleEvaluationStrategy:
-        if rule_type == RuleType.CALCULATION:
-            return CalculationRuleStrategy()
-        else:
-            return TransactionRuleStrategy()
+        strategy_cls = STRATEGY_REGISTRY.get(rule_type)
+        if strategy_cls is None:
+            raise ValueError(f"No execution strategy registered for rule type '{rule_type}'")
+        return strategy_cls()

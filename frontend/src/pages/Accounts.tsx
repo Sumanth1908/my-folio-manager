@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import AccountSummaryPanel from '../components/account/common/AccountSummaryPanel';
 import CreateAccountForm from '../components/account/common/CreateAccountForm';
+import ErrorBanner from '../components/common/ErrorBanner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { RootState } from '../store';
 import { openModal, closeModal as closeReduxModal } from '../store/slices/uiSlice';
@@ -17,8 +18,8 @@ import { ACCOUNT_TYPES, TIME_RANGES } from '../constants';
 const Accounts = () => {
     const dispatch = useAppDispatch();
     const isModalOpen = useAppSelector((state: RootState) => state.ui.modals['createAccount']);
-    const { items: accounts, loading: isAccountsLoading } = useAppSelector((state: RootState) => state.accounts);
-    const { data: summaryData, loading: isSummaryLoading, filters: summaryFilters } = useAppSelector((state: RootState) => state.summary);
+    const { items: accounts, loading: isAccountsLoading, error: accountsError } = useAppSelector((state: RootState) => state.accounts);
+    const { data: summaryData, loading: isSummaryLoading, error: summaryError, filters: summaryFilters } = useAppSelector((state: RootState) => state.summary);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<'Active' | 'Closed' | 'all'>('Active');
@@ -58,6 +59,15 @@ const Accounts = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
+            {(accountsError || summaryError) && (
+                <ErrorBanner
+                    message={accountsError || summaryError || 'Failed to load accounts'}
+                    onRetry={() => {
+                        dispatch(fetchAccounts());
+                        dispatch(fetchSummary({ timeRange, accountTypes: [...ACCOUNT_TYPES] }));
+                    }}
+                />
+            )}
             <Card className="p-8 border-border/50 bg-background/90 text-foreground">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
                     <div>

@@ -1,4 +1,4 @@
-import { Plus, Trash2, Tag, Info } from 'lucide-react';
+import { Plus, Trash2, Tag, Info, Pencil } from 'lucide-react';
 import { memo, useEffect } from 'react';
 import type { Transaction } from '../../types';
 import { Button } from '../ui/Button';
@@ -16,6 +16,7 @@ interface TransactionRowProps {
     currencySymbol: string;
 
     onDelete?: (id: number) => void;
+    onEdit?: (tx: Transaction) => void;
 }
 
 const TransactionRow = memo(({
@@ -23,7 +24,8 @@ const TransactionRow = memo(({
     accountName,
     currencySymbol,
 
-    onDelete
+    onDelete,
+    onEdit
 }: TransactionRowProps) => {
     const dispatch = useAppDispatch();
     const { items: categories } = useAppSelector(state => state.categories);
@@ -96,7 +98,17 @@ const TransactionRow = memo(({
                 {Number(tx.amount || 0) >= 0 ? '+' : '-'}{currencySymbol}{Math.abs(Number(tx.amount || 0)).toFixed(2)}
             </span>
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-
+                {onEdit && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEdit(tx)}
+                        className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                        title="Edit Transaction"
+                    >
+                        <Pencil size={14} />
+                    </Button>
+                )}
                 {onDelete && (
                     <Button
                         variant="ghost"

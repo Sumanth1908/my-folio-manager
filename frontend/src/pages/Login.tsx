@@ -20,7 +20,8 @@ export default function Login() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const from = location.state?.from?.pathname || '/dashboard';
+    const nextParam = new URLSearchParams(location.search).get('next');
+    const from = nextParam || location.state?.from?.pathname || '/dashboard';
 
     const {
         register,

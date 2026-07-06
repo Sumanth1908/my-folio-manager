@@ -11,6 +11,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Rules = lazy(() => import('./pages/Rules'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Portfolio = lazy(() => import('./pages/Portfolio'));
+const Budgets = lazy(() => import('./pages/Budgets'));
 const Assistant = lazy(() => import('./pages/Assistant'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Login = lazy(() => import('./pages/Login'));
@@ -36,6 +37,7 @@ function App() {
               <Route path="/rules" element={<Rules />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/portfolio" element={<Portfolio />} />
+              <Route path="/budgets" element={<Budgets />} />
               <Route path="/assistant" element={<Assistant />} />
               <Route path="*" element={<NotFound />} />
             </Route>

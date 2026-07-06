@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import api from '../api';
+import api, { handleApiError } from '../api';
 import type { User } from '../types';
 import toast from 'react-hot-toast';
 
@@ -55,8 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             toast.success('Welcome back!');
         } catch (error: any) {
             console.error("Login failed", error);
-            const msg = error.response?.data?.detail || 'Login failed';
-            toast.error(msg);
+            toast.error(handleApiError(error, 'Login failed'));
             throw error;
         }
     };
@@ -71,8 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             toast.success('Account created successfully!');
         } catch (error: any) {
             console.error("Registration failed", error);
-            const msg = error.response?.data?.detail || 'Registration failed';
-            toast.error(msg);
+            toast.error(handleApiError(error, 'Registration failed'));
             throw error;
         }
     };

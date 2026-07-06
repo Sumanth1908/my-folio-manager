@@ -167,3 +167,68 @@ export interface AccountSummary {
 export interface SummaryResponse {
     accounts: AccountSummary[];
 }
+
+// Upcoming payments / maturities
+export interface UpcomingItem {
+    date: string;
+    kind: 'RULE' | 'MATURITY' | 'LOAN_END';
+    name: string;
+    account_id: string;
+    account_name?: string;
+    account_type: string;
+    amount?: number | null;
+    rule_id?: number | null;
+}
+
+// Budgets
+// spent_by_currency is raw (unconverted) per-currency spend — convert with
+// lib/currency.ts before comparing against `amount` (assumed to be set in
+// the user's default currency).
+export interface BudgetItem {
+    budget_id: number;
+    category_id: number;
+    category_name?: string;
+    amount: number;
+    period_month: string; // "YYYY-MM"
+    spent_by_currency: Record<string, number>;
+}
+
+export interface YearlyBudgetMonth {
+    period_month: string; // "YYYY-MM"
+    amount: number | null;
+    spent_by_currency: Record<string, number>;
+}
+
+export interface YearlyBudgetCategory {
+    category_id: number;
+    category_name?: string;
+    months: YearlyBudgetMonth[];
+    total_amount: number;
+    total_spent_by_currency: Record<string, number>;
+}
+
+// Rule execution history + dry-run preview
+export interface RuleExecution {
+    execution_id: number;
+    rule_id: number;
+    ran_at: string;
+    status: 'SUCCESS' | 'FAILED' | 'SKIPPED';
+    amount?: number | null;
+    transaction_id?: number | null;
+    transfer_id?: string | null;
+    period_start?: string | null;
+    period_end?: string | null;
+    error?: string | null;
+}
+
+export interface RulePreview {
+    rule_id: number;
+    amount: number;
+    is_debit: boolean;
+    description: string;
+    period_start?: string;
+    period_end?: string;
+    days: number;
+    from_account_id?: string | null;
+    to_account_id?: string | null;
+}

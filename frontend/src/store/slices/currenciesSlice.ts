@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import api from '../../api';
+import api, { handleApiError } from '../../api';
 import type { Currency } from '../../types';
 
 interface CurrenciesState {
@@ -22,7 +22,7 @@ export const fetchCurrencies = createAsyncThunk(
             const res = await api.get('/currencies/');
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch currencies');
+            return rejectWithValue(handleApiError(error, 'Failed to fetch currencies'));
         }
     }
 );

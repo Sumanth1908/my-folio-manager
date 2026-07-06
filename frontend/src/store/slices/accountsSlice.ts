@@ -24,7 +24,7 @@ export const fetchAccounts = createAsyncThunk(
             const res = await api.get('/accounts/', { params: { limit: 100 } });
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch accounts');
+            return rejectWithValue(handleApiError(error, 'Failed to fetch accounts'));
         }
     }
 );
@@ -37,7 +37,7 @@ export const createAccount = createAsyncThunk(
             dispatch(fetchAccounts());
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to create account');
+            return rejectWithValue(handleApiError(error, 'Failed to create account'));
         }
     }
 );
@@ -50,7 +50,7 @@ export const updateAccount = createAsyncThunk(
             dispatch(fetchAccounts());
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to update account');
+            return rejectWithValue(handleApiError(error, 'Failed to update account'));
         }
     }
 );
@@ -76,7 +76,7 @@ export const deleteAccount = createAsyncThunk(
             dispatch(fetchAccounts());
             return id;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to delete account');
+            return rejectWithValue(handleApiError(error, 'Failed to delete account'));
         }
     }
 );

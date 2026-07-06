@@ -137,8 +137,11 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                         </Button>
                         <Button
                             onClick={handleAddNewHolding}
+                            size="icon"
+                            className="rounded-full h-10 w-10 shadow-md"
+                            title="Add Holding"
                         >
-                            <Plus size={16} /> Add Holding
+                            <Plus size={20} />
                         </Button>
                     </div>
                 </div>

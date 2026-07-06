@@ -109,7 +109,7 @@ const AccountDetails = () => {
         setConfirmModal({
             isOpen: true,
             title: 'Delete Account',
-            message: 'Are you sure you want to delete this account? This will also delete ALL associated transactions.',
+            message: 'Are you sure you want to delete this account? This deletes ALL its transactions — including the matching legs of transfers in your OTHER accounts, which retroactively changes their balances. Consider closing the account instead to keep history.',
             variant: 'danger',
             onConfirm: handleDeleteAccount
         });

@@ -15,6 +15,7 @@ export default function Navbar() {
         { label: 'Activity', path: '/transactions' },
         { label: 'Rules', path: '/rules' },
         { label: 'Portfolio', path: '/portfolio' },
+        { label: 'Budgets', path: '/budgets' },
         { label: 'Assistant', path: '/assistant' },
     ];
 

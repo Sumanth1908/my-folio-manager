@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import api from '../../api';
-import type { SummaryResponse } from '../../types';
+import api, { handleApiError } from '../../api';
+import type { SummaryResponse, UpcomingItem } from '../../types';
 
 import { TIME_RANGES } from '../../constants';
 
@@ -11,6 +11,8 @@ interface SummaryState {
     data: SummaryResponse | null;
     loading: boolean;
     error: string | null;
+    upcoming: UpcomingItem[];
+    upcomingLoading: boolean;
     filters: {
         timeRange: SummaryTimeRange;
         accountTypes: string[];
@@ -21,11 +23,25 @@ const initialState: SummaryState = {
     data: null,
     loading: false,
     error: null,
+    upcoming: [],
+    upcomingLoading: false,
     filters: {
         timeRange: 'currentMonth',
         accountTypes: [],
     },
 };
+
+export const fetchUpcoming = createAsyncThunk(
+    'summary/fetchUpcoming',
+    async (days: number = 30, { rejectWithValue }) => {
+        try {
+            const res = await api.get('/summary/upcoming', { params: { days } });
+            return res.data.items as UpcomingItem[];
+        } catch (error: any) {
+            return rejectWithValue(handleApiError(error, 'Failed to fetch upcoming payments'));
+        }
+    }
+);
 
 export const fetchSummary = createAsyncThunk(
     'summary/fetchSummary',
@@ -70,7 +86,7 @@ export const fetchSummary = createAsyncThunk(
             });
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch summary');
+            return rejectWithValue(handleApiError(error, 'Failed to fetch summary'));
         }
     }
 );
@@ -99,6 +115,16 @@ export const summarySlice = createSlice({
             .addCase(fetchSummary.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload as string;
+            })
+            .addCase(fetchUpcoming.pending, (state) => {
+                state.upcomingLoading = true;
+            })
+            .addCase(fetchUpcoming.fulfilled, (state, action) => {
+                state.upcomingLoading = false;
+                state.upcoming = action.payload;
+            })
+            .addCase(fetchUpcoming.rejected, (state) => {
+                state.upcomingLoading = false;
             });
     },
 });

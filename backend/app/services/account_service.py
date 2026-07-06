@@ -24,16 +24,40 @@ def calculate_account_balance(session: Session, account: Account) -> Decimal:
         return -base_balance + total  # total includes deposits (credits) minus withdrawals (debits)
     return total
 
-def enrich_account(session: Session, account: Account) -> AccountRead:
+def get_balances_for_accounts(session: Session, accounts: List[Account]) -> dict:
+    """Balances for many accounts in ONE grouped query instead of one SUM per account."""
+    account_ids = [a.account_id for a in accounts]
+    if not account_ids:
+        return {}
+
+    rows = session.exec(
+        select(Transaction.account_id, func.sum(Transaction.amount))
+        .where(Transaction.account_id.in_(account_ids))
+        .group_by(Transaction.account_id)
+    ).all()
+    sums = {account_id: total or Decimal("0.00") for account_id, total in rows}
+
+    balances = {}
+    for account in accounts:
+        total = sums.get(account.account_id, Decimal("0.00"))
+        if account.account_type == AccountType.LOAN:
+            base = Decimal(str((account.metadata_ or {}).get("loan_amount", "0.00")))
+            balances[account.account_id] = -base + total
+        else:
+            balances[account.account_id] = total
+    return balances
+
+def enrich_account(session: Session, account: Account, balance: Optional[Decimal] = None) -> AccountRead:
     account_dict = account.model_dump()
-    
-    # Calculate real-time balance
-    account_dict['balance'] = calculate_account_balance(session, account)
-    
+
+    # Calculate real-time balance (callers listing many accounts pass a
+    # precomputed balance from get_balances_for_accounts to avoid N+1 queries)
+    account_dict['balance'] = balance if balance is not None else calculate_account_balance(session, account)
+
     if account.account_type == AccountType.INVESTMENT:
         holdings = session.exec(select(InvestmentHolding).where(InvestmentHolding.account_id == account.account_id)).all()
         account_dict['investment_holdings'] = [h.model_dump() for h in holdings]
-            
+
     return AccountRead.model_validate(account_dict)
 
 def get_account_with_ownership(session: Session, account_id: str, user_id: str) -> Optional[Account]:
@@ -49,17 +73,19 @@ def get_accounts(session: Session, user_id: str, skip: int = 0, limit: int = 100
     return accounts, total
 
 def create_account(session: Session, account_in: AccountCreate, user_id: str) -> Account:
+    """Create an account with its funding transaction and automation rules in
+    ONE database transaction — a failure at any step leaves nothing behind
+    instead of a half-provisioned account."""
     account = Account(**account_in.model_dump(), user_id=user_id)
     session.add(account)
-    session.commit()
-    session.refresh(account)
-    
+    session.flush()
+
     if account.account_type == AccountType.FIXED_DEPOSIT and account.metadata_:
         principal = Decimal(str(account.metadata_.get("principal_amount", "0.00")))
         start_date = account.metadata_.get("start_date")
         fund_principal = account.metadata_.get("fund_principal", False)
         linked_account_id = account.metadata_.get("linked_account_id")
-        
+
         if principal > 0:
             if fund_principal and linked_account_id:
                 from app.schemas.transaction import TransferRequest
@@ -71,7 +97,7 @@ def create_account(session: Session, account_in: AccountCreate, user_id: str) ->
                     description="FD Principal Funding",
                     transaction_date=datetime.fromisoformat(start_date) if start_date else None
                 )
-                create_transfer_core(session, transfer_req, user_id)
+                create_transfer_core(session, transfer_req, user_id, commit=False)
             else:
                 initial_tx = Transaction(
                     account_id=account.account_id,
@@ -81,20 +107,17 @@ def create_account(session: Session, account_in: AccountCreate, user_id: str) ->
                     transaction_date=start_date
                 )
                 session.add(initial_tx)
-            session.commit()
-            
+
     if account.is_interest_enabled:
         rules_service.create_default_interest_rule(session, account)
-        session.commit()
-        
+
     if account.account_type == AccountType.RECURRING_DEPOSIT:
         rules_service.create_rd_auto_deposit_rule(session, account)
-        session.commit()
-        
+
     if account.account_type == AccountType.LOAN:
         rules_service.create_loan_auto_debit_rule(session, account)
-        session.commit()
-            
+
+    session.commit()
     session.refresh(account)
     return account
 
@@ -160,15 +183,25 @@ def close_account(session: Session, account_id: str, user_id: str, source_accoun
     account.status = "Closed"
     session.add(account)
 
-    # Stop any pending automation (interest accrual, auto-debit) from continuing to post
+    # Stop any pending automation from continuing to post. This must include
+    # rules OWNED BY OTHER ACCOUNTS that reference this one (e.g. an RD
+    # auto-deposit rule lives on the linked savings account).
     from app.models.rule import Rule
-    active_rules = session.exec(
-        select(Rule).where(Rule.account_id == account_id, Rule.is_active == True)
+    user_rules = session.exec(
+        select(Rule).join(Account, Rule.account_id == Account.account_id)
+        .where(Account.user_id == user_id, Rule.is_active == True)
     ).all()
-    for rule in active_rules:
-        rule.is_active = False
-        rule.next_run_at = None
-        session.add(rule)
+    for rule in user_rules:
+        config = rule.configuration or {}
+        references_account = (
+            rule.account_id == account_id
+            or config.get("source_account_id") == account_id
+            or config.get("target_account_id") == account_id
+        )
+        if references_account:
+            rule.is_active = False
+            rule.next_run_at = None
+            session.add(rule)
 
     session.commit()
     session.refresh(account)
@@ -199,8 +232,11 @@ def delete_account(session: Session, account_id: str, user_id: str) -> bool:
     user_accounts = session.exec(select(Account).where(Account.user_id == user_id)).all()
     for acc in user_accounts:
         if acc.account_type == AccountType.RECURRING_DEPOSIT and acc.metadata_ and acc.metadata_.get("linked_account_id") == account_id:
-            # We don't delete the RD account, but we remove the link so it doesn't break
-            acc.metadata_["linked_account_id"] = None
+            # We don't delete the RD account, but we remove the link so it doesn't break.
+            # Copy the dict: in-place mutation never marks the JSON column dirty.
+            new_metadata = dict(acc.metadata_)
+            new_metadata["linked_account_id"] = None
+            acc.metadata_ = new_metadata
             session.add(acc)
 
     session.delete(account)

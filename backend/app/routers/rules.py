@@ -5,7 +5,7 @@ from sqlmodel import Session
 
 from app.core.database import get_session
 from app.models.user import User
-from app.schemas.rule import RuleCreate, RuleRead, RuleUpdate
+from app.schemas.rule import RuleCreate, RuleExecutionRead, RulePreview, RuleRead, RuleUpdate
 from app.services import rules_service
 from app.deps import get_current_user
 
@@ -14,15 +14,18 @@ router = APIRouter(prefix="/rules", tags=["rules"])
 
 @router.post("/", response_model=RuleRead)
 def create_rule(
-    rule_in: RuleCreate, 
+    rule_in: RuleCreate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """Create a new automation rule."""
-    rule = rules_service.create_rule(session, rule_in, current_user.user_id)
+    try:
+        rule = rules_service.create_rule(session, rule_in, current_user.user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     if not rule:
         raise HTTPException(status_code=404, detail="Account not found or access denied")
-        
+
     return rules_service.enrich_rule(session, rule)
 
 
@@ -46,11 +49,41 @@ def update_rule(
     current_user: User = Depends(get_current_user)
 ):
     """Update a rule."""
-    rule = rules_service.update_rule(session, rule_id, rule_update, current_user.user_id)
+    try:
+        rule = rules_service.update_rule(session, rule_id, rule_update, current_user.user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
-        
+
     return rules_service.enrich_rule(session, rule)
+
+
+@router.get("/{rule_id}/executions", response_model=List[RuleExecutionRead])
+def read_rule_executions(
+    rule_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Execution history of a rule: what it posted, when, and any failures."""
+    executions = rules_service.get_rule_executions(session, rule_id, current_user.user_id)
+    if executions is None:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return executions
+
+
+@router.post("/{rule_id}/preview", response_model=RulePreview)
+def preview_rule(
+    rule_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Dry-run: compute what the rule would post right now, without posting."""
+    try:
+        return rules_service.preview_rule(session, rule_id, current_user.user_id)
+    except ValueError as e:
+        status_code = 404 if "not found" in str(e).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(e))
 
 
 @router.post("/{rule_id}/execute", response_model=RuleRead)

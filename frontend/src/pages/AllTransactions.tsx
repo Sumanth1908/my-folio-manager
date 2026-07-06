@@ -4,6 +4,7 @@ import Modal from '../components/common/Modal';
 import CreateTransactionForm from '../components/transactions/CreateTransactionForm';
 
 import ConfirmModal from '../components/common/ConfirmModal';
+import ErrorBanner from '../components/common/ErrorBanner';
 import TransactionsPanel from '../components/transactions/TransactionsPanel';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -38,8 +39,21 @@ const AllTransactions = () => {
         loading: isLoadingTransactions,
         hasNextPage,
         loadingMore: isFetchingNextPage,
+        error: transactionsError,
         filters: transactionFilters
     } = useAppSelector((state: RootState) => state.transactions);
+
+    // Local input state so search can be debounced without lagging the field
+    const [searchInput, setSearchInput] = useState(transactionFilters.search);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchInput !== transactionFilters.search) {
+                dispatch(setFilters({ search: searchInput, page: 1 }));
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchInput, transactionFilters.search, dispatch]);
 
     const { items: currencies } = useAppSelector((state: RootState) => state.currencies);
     const { items: categories } = useAppSelector((state: RootState) => state.categories);
@@ -60,7 +74,7 @@ const AllTransactions = () => {
     }, [dispatch, transactionFilters.search, transactionFilters.categoryId, transactionFilters.startDate, transactionFilters.endDate]);
 
     const handleSearchChange = (query: string) => {
-        dispatch(setFilters({ search: query, page: 1 }));
+        setSearchInput(query);
     };
 
     const handleCategoryChange = (catId: string) => {
@@ -109,8 +123,8 @@ const AllTransactions = () => {
                     await dispatch(deleteTransaction(id)).unwrap();
                     dispatch(fetchAccounts());
                     toast.success('Transaction deleted');
-                } catch {
-                    toast.error('Failed to delete transaction');
+                } catch (err: any) {
+                    toast.error(typeof err === 'string' ? err : 'Failed to delete transaction');
                 }
             }
         });
@@ -119,6 +133,12 @@ const AllTransactions = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
+            {transactionsError && (
+                <ErrorBanner
+                    message={transactionsError}
+                    onRetry={() => dispatch(fetchTransactions({ ...transactionFilters, page: 1, append: false }))}
+                />
+            )}
             <TransactionsPanel
                 title="Financial Stream"
                 description="Chronological view of all your movements"
@@ -127,7 +147,7 @@ const AllTransactions = () => {
                 onLoadMore={handleLoadMore}
                 hasMore={hasNextPage}
                 isFetchingNextPage={isFetchingNextPage}
-                searchQuery={transactionFilters.search}
+                searchQuery={searchInput}
                 onSearchChange={handleSearchChange}
                 selectedCategoryId={transactionFilters.categoryId}
                 onCategoryChange={handleCategoryChange}

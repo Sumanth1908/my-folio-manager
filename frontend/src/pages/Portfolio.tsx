@@ -91,7 +91,7 @@ export default function Portfolio() {
             [ACCOUNT_TYPE.LOAN]: { total: 0, accounts: [], color: '#f43f5e', icon: <TrendingDown size={16} /> },
         };
 
-        accounts.forEach(account => {
+        accounts.filter(account => account.status !== 'Closed').forEach(account => {
             let balance = 0;
             if (account.account_type === ACCOUNT_TYPE.INVESTMENT && account.investment_holdings) {
                 balance = account.investment_holdings.reduce((sum, h) => sum + (Number(h.quantity) * (Number(h.current_price) || Number(h.average_price))), 0);
@@ -191,7 +191,7 @@ export default function Portfolio() {
 
         const holdingsMap = new Map<string, AggregatedHolding>();
 
-        accounts.forEach(account => {
+        accounts.filter(account => account.status !== 'Closed').forEach(account => {
             if (account.investment_holdings) {
                 account.investment_holdings.forEach(holding => {
                     const currentPrice = holding.current_price || holding.average_price;

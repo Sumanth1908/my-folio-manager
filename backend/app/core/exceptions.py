@@ -15,9 +15,14 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Never echo the request body back: it may contain credentials.
+    errors = [
+        {"loc": e.get("loc"), "msg": e.get("msg"), "type": e.get("type")}
+        for e in exc.errors()
+    ]
     return JSONResponse(
         status_code=422,
-        content={"detail": exc.errors(), "body": exc.body},
+        content={"detail": errors},
     )
 
 async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):

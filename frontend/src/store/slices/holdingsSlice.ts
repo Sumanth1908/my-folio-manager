@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../api';
+import api, { handleApiError } from '../../api';
 import { fetchAccounts } from './accountsSlice';
 
 interface HoldingsState {
@@ -20,7 +20,7 @@ export const createHolding = createAsyncThunk(
             dispatch(fetchAccounts());
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to create holding');
+            return rejectWithValue(handleApiError(error, 'Failed to create holding'));
         }
     }
 );
@@ -33,7 +33,7 @@ export const sellHolding = createAsyncThunk(
             dispatch(fetchAccounts());
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to sell holding');
+            return rejectWithValue(handleApiError(error, 'Failed to sell holding'));
         }
     }
 );
@@ -46,7 +46,7 @@ export const deleteHolding = createAsyncThunk(
             dispatch(fetchAccounts());
             return holdingId;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to delete holding');
+            return rejectWithValue(handleApiError(error, 'Failed to delete holding'));
         }
     }
 );
@@ -61,7 +61,7 @@ export const refreshStockPrices = createAsyncThunk(
             dispatch(fetchAccounts());
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to refresh prices');
+            return rejectWithValue(handleApiError(error, 'Failed to refresh prices'));
         }
     }
 );
@@ -75,7 +75,7 @@ export const searchStockSymbols = createAsyncThunk(
             });
             return res.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to search symbols');
+            return rejectWithValue(handleApiError(error, 'Failed to search symbols'));
         }
     }
 );

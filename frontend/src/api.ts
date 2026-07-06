@@ -39,10 +39,18 @@ api.interceptors.response.use(
     (error) => {
         if (error.response) {
             const status = error.response.status;
-            if (status === 401) {
+            const detail = error.response.data?.detail;
+            // 401 = expired/invalid session. (Older backend builds returned 403
+            // with the same detail — treat that identically so users are never
+            // stranded with a dead token.)
+            const isAuthFailure = status === 401 ||
+                (status === 403 && detail === 'Could not validate credentials');
+            if (isAuthFailure) {
                 localStorage.removeItem('token');
                 if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-                    window.location.href = '/login';
+                    // Preserve where the user was so login can return them there
+                    const next = encodeURIComponent(window.location.pathname + window.location.search);
+                    window.location.href = `/login?next=${next}`;
                 }
             } else if (status >= 500) {
                 // Global handler for server errors

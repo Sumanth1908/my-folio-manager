@@ -11,7 +11,7 @@ router = APIRouter(prefix="/currencies", tags=["currencies"])
 
 
 @router.get("/", response_model=List[Currency])
-def list_currencies(session: Session = Depends(get_session)):
+def list_currencies(session: Session = Depends(get_session), current_user = Depends(get_current_user)):
     """Get all available currencies."""
     currencies = session.exec(select(Currency)).all()
     return currencies
@@ -32,7 +32,7 @@ def create_currency(currency: Currency, session: Session = Depends(get_session),
 
 
 @router.get("/{code}", response_model=Currency)
-def get_currency(code: str, session: Session = Depends(get_session)):
+def get_currency(code: str, session: Session = Depends(get_session), current_user = Depends(get_current_user)):
     """Get a specific currency by code."""
     currency = session.get(Currency, code.upper())
     if not currency:

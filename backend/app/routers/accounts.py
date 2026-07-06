@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from app.core.database import get_session
@@ -15,27 +15,34 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 @router.post("/", response_model=AccountRead)
 def create_account(
-    account_in: AccountCreate, 
+    account_in: AccountCreate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """Create a new account with specific details."""
-    account = account_service.create_account(session, account_in, current_user.user_id)
+    try:
+        account = account_service.create_account(session, account_in, current_user.user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return account_service.enrich_account(session, account)
 
 
 @router.get("/", response_model=PaginatedResponse[AccountRead])
 def read_accounts(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """Get all accounts for the current user."""
     accounts, total = account_service.get_accounts(session, current_user.user_id, skip, limit)
-    
-    items = [account_service.enrich_account(session, account) for account in accounts]
-    
+
+    balances = account_service.get_balances_for_accounts(session, accounts)
+    items = [
+        account_service.enrich_account(session, account, balance=balances.get(account.account_id))
+        for account in accounts
+    ]
+
     return PaginatedResponse(
         items=items,
         total=total,

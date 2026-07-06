@@ -1,11 +1,155 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Download, Upload, AlertTriangle, CheckCircle, Database, HardDrive, FileJson } from 'lucide-react';
+import { Download, Upload, AlertTriangle, CheckCircle, Database, HardDrive, FileJson, FileSpreadsheet } from 'lucide-react';
 import api, { handleApiError } from '../../api';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Switch } from '../ui/Switch';
 import ConfirmModal from '../common/ConfirmModal';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { fetchAccounts } from '../../store/slices/accountsSlice';
+import type { RootState } from '../../store';
+
+interface CsvImportResult {
+    imported: number;
+    skipped_duplicates: number;
+    errors: string[];
+    error_count: number;
+}
+
+function CsvImportSection() {
+    const dispatch = useAppDispatch();
+    const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
+
+    const [accountId, setAccountId] = useState('');
+    const [dateColumn, setDateColumn] = useState('date');
+    const [descriptionColumn, setDescriptionColumn] = useState('description');
+    const [amountColumn, setAmountColumn] = useState('amount');
+    const [isUploading, setIsUploading] = useState(false);
+    const [result, setResult] = useState<CsvImportResult | null>(null);
+    const csvInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (accounts.length === 0) {
+            dispatch(fetchAccounts());
+        }
+    }, [dispatch]);
+
+    const openAccounts = accounts.filter(a => a.status !== 'Closed');
+
+    const handleCsvSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (csvInputRef.current) csvInputRef.current.value = '';
+        if (!file) return;
+        if (!accountId) {
+            toast.error('Choose the account these transactions belong to first');
+            return;
+        }
+
+        setIsUploading(true);
+        setResult(null);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('account_id', accountId);
+            formData.append('date_column', dateColumn);
+            formData.append('description_column', descriptionColumn);
+            formData.append('amount_column', amountColumn);
+
+            const response = await api.post<CsvImportResult>('/transactions/import', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            setResult(response.data);
+            toast.success(`Imported ${response.data.imported} transactions (${response.data.skipped_duplicates} duplicates skipped)`);
+        } catch (err) {
+            toast.error(handleApiError(err, 'CSV import failed'));
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    return (
+        <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
+            <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <FileSpreadsheet className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-foreground">Import Bank Statement (CSV)</h3>
+                    <p className="text-xs text-muted-foreground">
+                        Rows already present are skipped automatically, so re-importing an overlapping statement is safe.
+                        Signed amounts: positive = credit, negative = debit. Your categorization rules are applied on import.
+                    </p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Account</label>
+                    <Select value={accountId} onValueChange={setAccountId}>
+                        <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Select account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {openAccounts.map(a => (
+                                <SelectItem key={a.account_id} value={a.account_id}>{a.account_name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Date column</label>
+                    <input value={dateColumn} onChange={e => setDateColumn(e.target.value)}
+                        className="w-full h-10 px-3 bg-background border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Description column</label>
+                    <input value={descriptionColumn} onChange={e => setDescriptionColumn(e.target.value)}
+                        className="w-full h-10 px-3 bg-background border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Amount column</label>
+                    <input value={amountColumn} onChange={e => setAmountColumn(e.target.value)}
+                        className="w-full h-10 px-3 bg-background border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+            </div>
+
+            <input ref={csvInputRef} type="file" accept=".csv" onChange={handleCsvSelect} className="hidden" />
+            <Button
+                variant="outline"
+                onClick={() => csvInputRef.current?.click()}
+                isLoading={isUploading}
+                className="w-full sm:w-auto"
+            >
+                <Upload className="w-4 h-4" />
+                {isUploading ? 'Importing...' : 'Select CSV File'}
+            </Button>
+
+            {result && (
+                <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-muted/20 rounded-xl p-3 border border-border/50">
+                        <p className="text-2xl font-black text-emerald-600">{result.imported}</p>
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Imported</p>
+                    </div>
+                    <div className="bg-muted/20 rounded-xl p-3 border border-border/50">
+                        <p className="text-2xl font-black text-muted-foreground">{result.skipped_duplicates}</p>
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Duplicates skipped</p>
+                    </div>
+                    <div className="bg-muted/20 rounded-xl p-3 border border-border/50">
+                        <p className="text-2xl font-black text-rose-600">{result.error_count}</p>
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Rows with errors</p>
+                    </div>
+                    {result.errors.length > 0 && (
+                        <div className="col-span-3 text-[11px] text-rose-600/80 space-y-0.5 max-h-32 overflow-y-auto">
+                            {result.errors.map((e, i) => <div key={i}>{e}</div>)}
+                        </div>
+                    )}
+                </div>
+            )}
+        </Card>
+    );
+}
 
 interface ImportSummary {
     categories: number;
@@ -232,6 +376,8 @@ export function DataSettings() {
                     </div>
                 )}
             </Card>
+
+            <CsvImportSection />
 
             {/* Import Confirmation Modal */}
             <ConfirmModal

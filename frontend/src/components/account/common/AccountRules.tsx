@@ -1,5 +1,8 @@
-import { Wand2, Play, Power, Pencil, Trash2 } from 'lucide-react';
-import type { Rule } from '../../../types';
+import { useState } from 'react';
+import { Wand2, Play, Power, Pencil, Trash2, Eye, History } from 'lucide-react';
+import toast from 'react-hot-toast';
+import type { Rule, RuleExecution, RulePreview } from '../../../types';
+import api, { handleApiError } from '../../../api';
 import { Button } from '../../ui/Button';
 import { cn, formatDate } from '../../../lib/utils';
 import { TRANSACTION_TYPE, RULE_TYPE } from '../../../constants';
@@ -31,11 +34,53 @@ export default function AccountRules({
     isExecuting = false
 }: AccountRulesProps) {
     const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
-    
+    const [previewingId, setPreviewingId] = useState<number | null>(null);
+    const [historyRuleId, setHistoryRuleId] = useState<number | null>(null);
+    const [executions, setExecutions] = useState<RuleExecution[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+
     const getAccountName = (id: string | undefined) => {
         if (!id) return '';
         const acc = accounts.find(a => a.account_id === id);
         return acc?.account_name || `ID:${id.slice(-4)}`;
+    };
+
+    const handlePreview = async (rule: Rule) => {
+        setPreviewingId(rule.rule_id);
+        try {
+            const res = await api.post<RulePreview>(`/rules/${rule.rule_id}/preview`);
+            const p = res.data;
+            const direction = p.is_debit ? 'debit' : 'credit';
+            toast(
+                `Dry run: would ${direction} ${symbol}${Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}` +
+                (p.period_start && p.period_end
+                    ? ` for ${formatDate(p.period_start)} → ${formatDate(p.period_end)} (${p.days} days)`
+                    : ''),
+                { duration: 6000, icon: '🔍' }
+            );
+        } catch (error: any) {
+            toast.error(handleApiError(error, 'Preview failed'));
+        } finally {
+            setPreviewingId(null);
+        }
+    };
+
+    const toggleHistory = async (rule: Rule) => {
+        if (historyRuleId === rule.rule_id) {
+            setHistoryRuleId(null);
+            return;
+        }
+        setHistoryRuleId(rule.rule_id);
+        setHistoryLoading(true);
+        try {
+            const res = await api.get<RuleExecution[]>(`/rules/${rule.rule_id}/executions`);
+            setExecutions(res.data);
+        } catch (error: any) {
+            toast.error(handleApiError(error, 'Failed to load history'));
+            setHistoryRuleId(null);
+        } finally {
+            setHistoryLoading(false);
+        }
     };
 
     return (
@@ -77,7 +122,8 @@ export default function AccountRules({
                         }
                         
                         return (
-                            <div key={rule.rule_id} className="group p-6 hover:bg-muted/30 transition-all flex justify-between items-center">
+                            <div key={rule.rule_id} className="group">
+                            <div className="p-6 hover:bg-muted/30 transition-all flex justify-between items-center">
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-3">
                                         <h3 className="font-black text-foreground text-base">{rule.name}</h3>
@@ -147,6 +193,31 @@ export default function AccountRules({
                                 </div>
                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     {((rule.rule_type === RULE_TYPE.TRANSACTION) || (rule.rule_type === RULE_TYPE.CALCULATION)) && isOwner && (
+                                        <>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handlePreview(rule)}
+                                            disabled={previewingId === rule.rule_id}
+                                            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                                            title="Preview (dry run) — shows what would be posted without posting it"
+                                        >
+                                            <Eye size={14} />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => toggleHistory(rule)}
+                                            className={cn(
+                                                "h-8 w-8 rounded-lg",
+                                                historyRuleId === rule.rule_id
+                                                    ? "text-primary bg-primary/10"
+                                                    : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                            )}
+                                            title="Execution history"
+                                        >
+                                            <History size={14} />
+                                        </Button>
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -157,6 +228,7 @@ export default function AccountRules({
                                             <Play size={10} fill="currentColor" />
                                             {isExecuting ? 'Running...' : 'Run'}
                                         </Button>
+                                        </>
                                     )}
                                     {isOwner && (
                                         <>
@@ -191,6 +263,41 @@ export default function AccountRules({
                                         </>
                                     )}
                                 </div>
+                            </div>
+
+                            {historyRuleId === rule.rule_id && (
+                                <div className="px-6 pb-5 bg-muted/20 border-t border-border/30">
+                                    {historyLoading ? (
+                                        <div className="py-4 flex justify-center"><LoadingSpinner size="small" /></div>
+                                    ) : executions.length === 0 ? (
+                                        <p className="text-[11px] text-muted-foreground py-4 italic">No executions recorded yet.</p>
+                                    ) : (
+                                        <div className="pt-3 space-y-1.5">
+                                            {executions.slice(0, 5).map(exec => (
+                                                <div key={exec.execution_id} className="flex items-center justify-between text-[11px] py-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={cn(
+                                                            "px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest",
+                                                            exec.status === 'SUCCESS' && "bg-emerald-600/15 text-emerald-600",
+                                                            exec.status === 'FAILED' && "bg-rose-600/15 text-rose-600",
+                                                            exec.status === 'SKIPPED' && "bg-muted text-muted-foreground",
+                                                        )}>
+                                                            {exec.status}
+                                                        </span>
+                                                        <span className="text-muted-foreground">{formatDate(exec.ran_at, true)}</span>
+                                                        {exec.error && <span className="text-rose-600/80 italic truncate max-w-[300px]">{exec.error}</span>}
+                                                    </div>
+                                                    {exec.amount != null && (
+                                                        <span className="font-bold tabular-nums text-foreground">
+                                                            {symbol}{Math.abs(Number(exec.amount)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             </div>
                         );
                     })}

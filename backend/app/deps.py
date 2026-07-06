@@ -14,6 +14,12 @@ reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login"
 )
 
+_credentials_exception = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Could not validate credentials",
+    headers={"WWW-Authenticate": "Bearer"},
+)
+
 def get_current_user(
     session: Session = Depends(get_session),
     token: str = Depends(reusable_oauth2)
@@ -24,15 +30,12 @@ def get_current_user(
         )
         token_data = payload
     except (JWTError, ValidationError):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Could not validate credentials",
-        )
+        raise _credentials_exception
     user_id = token_data.get("sub")
     if not user_id:
-         raise HTTPException(status_code=404, detail="User not found")
-         
+        raise _credentials_exception
+
     user = session.get(User, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise _credentials_exception
     return user

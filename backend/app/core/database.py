@@ -1,14 +1,17 @@
-import os
 from typing import Generator
 
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, create_engine
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "mysql+pymysql://finance_user:finance_password@127.0.0.1:3306/finance_db"
+from app.core.config import settings
+
+# pool_pre_ping revalidates connections that MySQL closed after its idle
+# timeout; pool_recycle keeps pooled connections younger than that timeout.
+engine = create_engine(
+    settings.DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+    pool_recycle=3600,
 )
-
-engine = create_engine(DATABASE_URL, echo=False)
 
 
 def get_session() -> Generator[Session, None, None]:
@@ -27,7 +30,7 @@ def init_db() -> None:
 def seed_currencies() -> None:
     """Seed default currencies into the database."""
     from app.models import Currency
-    
+
     default_currencies = [
         Currency(code="USD", name="US Dollar", symbol="$"),
         Currency(code="EUR", name="Euro", symbol="€"),
@@ -40,7 +43,7 @@ def seed_currencies() -> None:
         Currency(code="CHF", name="Swiss Franc", symbol="CHF"),
         Currency(code="SGD", name="Singapore Dollar", symbol="S$"),
     ]
-    
+
     with Session(engine) as session:
         for currency in default_currencies:
             # Check if currency already exists
@@ -48,5 +51,3 @@ def seed_currencies() -> None:
             if not existing:
                 session.add(currency)
         session.commit()
-
-

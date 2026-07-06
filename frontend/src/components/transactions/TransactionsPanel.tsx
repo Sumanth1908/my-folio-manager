@@ -6,6 +6,8 @@ import { Card } from '../ui/Card';
 import { cn, getCurrentMonthRange } from '../../lib/utils';
 import AccountTransactions from '../account/common/AccountTransactions';
 import LoadingSpinner from '../common/LoadingSpinner';
+import Modal from '../common/Modal';
+import EditTransactionForm from './EditTransactionForm';
 
 interface TransactionsPanelProps {
     transactions: Transaction[];
@@ -56,6 +58,7 @@ export default function TransactionsPanel({
     description
 }: TransactionsPanelProps) {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
     return (
         <Card className="bg-muted/30 border border-border overflow-hidden rounded-2xl">
@@ -207,6 +210,7 @@ export default function TransactionsPanel({
                     currencies={currencies}
                     showAccountName={showAccountName}
                     onDelete={onDelete}
+                    onEdit={setEditingTx}
                 />
 
                 {/* Load More Button */}
@@ -223,6 +227,16 @@ export default function TransactionsPanel({
                     </div>
                 )}
             </div>
+
+            <Modal isOpen={!!editingTx} onClose={() => setEditingTx(null)} title="Edit Transaction">
+                {editingTx && (
+                    <EditTransactionForm
+                        transaction={editingTx}
+                        onSuccess={() => setEditingTx(null)}
+                        onCancel={() => setEditingTx(null)}
+                    />
+                )}
+            </Modal>
         </Card>
     );
 }
