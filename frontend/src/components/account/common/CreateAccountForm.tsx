@@ -16,6 +16,7 @@ import {
     SelectValue,
 } from '../../ui/Select';
 import { cn } from '../../../lib/utils';
+import { formatNumber } from '../../../lib/format';
 import { ACCOUNT_TYPES, DEFAULT_CURRENCY, DEFAULT_ACCRUAL_DAY, ACCOUNT_TYPE } from '../../../constants';
 import toast from 'react-hot-toast';
 import { PiggyBank, TrendingUp, Landmark, ShieldCheck, Repeat } from 'lucide-react';
@@ -474,7 +475,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                                                 <SelectLabel>Available Accounts</SelectLabel>
                                                                 {accounts.filter(a => a.account_type === 'SAVINGS' && a.currency === currency).map(acc => (
                                                                     <SelectItem key={acc.account_id} value={acc.account_id}>
-                                                                        {acc.account_name} ({currency} {acc.balance?.toLocaleString()})
+                                                                        {acc.account_name} ({currency} {formatNumber(acc.balance, { currency, decimals: 2 })})
                                                                     </SelectItem>
                                                                 ))}
                                                             </SelectGroup>
@@ -607,7 +608,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                                             <SelectLabel>Available Accounts</SelectLabel>
                                                             {accounts.filter(a => a.account_type === 'SAVINGS' && a.currency === currency).map(acc => (
                                                                 <SelectItem key={acc.account_id} value={acc.account_id}>
-                                                                    {acc.account_name} ({currency} {acc.balance?.toLocaleString()})
+                                                                    {acc.account_name} ({currency} {formatNumber(acc.balance, { currency, decimals: 2 })})
                                                                 </SelectItem>
                                                             ))}
                                                         </SelectGroup>
@@ -714,7 +715,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                                             <SelectLabel>Available Accounts</SelectLabel>
                                                             {accounts.filter(a => a.account_type === 'SAVINGS' && a.currency === currency).map(acc => (
                                                                 <SelectItem key={acc.account_id} value={acc.account_id}>
-                                                                    {acc.account_name} ({currency} {acc.balance?.toLocaleString()})
+                                                                    {acc.account_name} ({currency} {formatNumber(acc.balance, { currency, decimals: 2 })})
                                                                 </SelectItem>
                                                             ))}
                                                         </SelectGroup>

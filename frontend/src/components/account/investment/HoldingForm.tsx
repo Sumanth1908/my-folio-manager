@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { createHolding } from '../../../store/slices/holdingsSlice';
 import { type RootState } from '../../../store';
 import StockSymbolInput from './StockSymbolInput';
+import { formatCurrency } from '../../../lib/format';
 
 interface HoldingFormProps {
     accountId: string;
@@ -170,7 +171,7 @@ const HoldingForm = ({ accountId, currencySymbol, currencyCode, prefill, onSucce
                 <div className="p-4 rounded-xl border border-primary/10 bg-primary/5 text-primary text-xs font-bold flex justify-between items-center">
                     <span>TOTAL INVESTMENT</span>
                     <span className="text-base font-black tabular-nums">
-                        {currencySymbol}{totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {formatCurrency(totalInvestment, { currency: currencyCode, symbol: currencySymbol, decimals: 2 })}
                     </span>
                 </div>
             )}

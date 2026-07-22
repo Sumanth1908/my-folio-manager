@@ -9,6 +9,7 @@ import { fetchYearlyBudgets } from '../../store/slices/budgetsSlice';
 import type { RootState } from '../../store';
 import type { YearlyBudgetCategory, YearlyBudgetMonth } from '../../types';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { formatNumber } from '../../lib/format';
 
 interface YearlyBudgetViewProps {
     symbol: string;
@@ -17,8 +18,6 @@ interface YearlyBudgetViewProps {
 }
 
 const MONTH_LETTERS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
-
-const formatMoney = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 // Same thresholds as the monthly progress bars: red over, amber past 80%.
 function cellColor(amount: number | null, spent: number): string {
@@ -45,6 +44,10 @@ const YearlyBudgetView = memo(({ symbol, defaultCurrency, rates }: YearlyBudgetV
     const { yearly, yearlyLoading } = useAppSelector((state: RootState) => state.budgets);
     const [year, setYear] = useState(() => new Date().getFullYear());
     const [selected, setSelected] = useState<SelectedCell | null>(null);
+    // The heat-map summaries are tight, so amounts are consolidated (`30L`, `1.2M`);
+    // the drill-in detail and hover tooltips spell the full amount out.
+    const formatMoney = (value: number) => formatNumber(value, { currency: defaultCurrency, symbol, compact: true });
+    const formatExact = (value: number) => formatNumber(value, { currency: defaultCurrency, symbol, decimals: 2 });
 
     useEffect(() => {
         dispatch(fetchYearlyBudgets(year));
@@ -72,15 +75,15 @@ const YearlyBudgetView = memo(({ symbol, defaultCurrency, rates }: YearlyBudgetV
                         {categoryName(category)} · {formatMonthLabel(month.period_month)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1 tabular-nums">
-                        Budgeted {month.amount != null ? `${symbol}${formatMoney(month.amount)}` : '—'}
-                        {' · '}Spent {symbol}{formatMoney(spent)}
+                        Budgeted {month.amount != null ? `${symbol}${formatExact(month.amount)}` : '—'}
+                        {' · '}Spent {symbol}{formatExact(spent)}
                         {' · '}
                         {month.amount == null ? (
                             'No budget set'
                         ) : over ? (
-                            <span className="text-rose-600 font-bold">Over by {symbol}{formatMoney(spent - month.amount)}</span>
+                            <span className="text-rose-600 font-bold">Over by {symbol}{formatExact(spent - month.amount)}</span>
                         ) : (
-                            <span className="text-emerald-600 font-bold">{symbol}{formatMoney(month.amount - spent)} left</span>
+                            <span className="text-emerald-600 font-bold">{symbol}{formatExact(month.amount - spent)} left</span>
                         )}
                     </p>
                 </div>
@@ -171,7 +174,7 @@ const YearlyBudgetView = memo(({ symbol, defaultCurrency, rates }: YearlyBudgetV
                                                         <td key={month.period_month} className="text-center">
                                                             <button
                                                                 onClick={() => setSelected(isSelected ? null : { category, month })}
-                                                                title={`${formatMonthLabel(month.period_month)} — budgeted ${month.amount != null ? symbol + formatMoney(month.amount) : 'nothing'}, spent ${symbol}${formatMoney(spent)}`}
+                                                                title={`${formatMonthLabel(month.period_month)} — budgeted ${month.amount != null ? symbol + formatExact(month.amount) : 'nothing'}, spent ${symbol}${formatExact(spent)}`}
                                                                 className={cn(
                                                                     'w-4 h-4 rounded-[4px] inline-block align-middle transition-transform hover:scale-125',
                                                                     cellColor(month.amount, spent),
@@ -182,10 +185,13 @@ const YearlyBudgetView = memo(({ symbol, defaultCurrency, rates }: YearlyBudgetV
                                                     );
                                                 })}
                                                 <td className="pl-2 text-right">
-                                                    <span className={cn(
-                                                        'text-xs font-bold tabular-nums whitespace-nowrap',
-                                                        totalOver ? 'text-rose-600' : 'text-muted-foreground'
-                                                    )}>
+                                                    <span
+                                                        className={cn(
+                                                            'text-xs font-bold tabular-nums whitespace-nowrap',
+                                                            totalOver ? 'text-rose-600' : 'text-muted-foreground'
+                                                        )}
+                                                        title={`Spent ${symbol}${formatExact(totalSpent)} of ${symbol}${formatExact(category.total_amount)}`}
+                                                    >
                                                         {symbol}{formatMoney(totalSpent)} / {symbol}{formatMoney(category.total_amount)}
                                                     </span>
                                                 </td>

@@ -12,6 +12,7 @@ import { Button } from '../../ui/Button';
 import type { Account } from '../../../types';
 import { ACCOUNT_TYPE } from '../../../constants';
 import { formatDate } from '../../../lib/utils';
+import { formatNumber } from '../../../lib/format';
 
 interface AccountQuickViewProps {
     account: Account;
@@ -19,6 +20,10 @@ interface AccountQuickViewProps {
 }
 
 const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
+    // The currency code is already rendered next to each value, so these are
+    // grouped numbers without a symbol.
+    const money = (value: unknown) => formatNumber(Number(value ?? 0), { currency: account.currency, decimals: 2 });
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-border/50">
@@ -34,7 +39,7 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
             <div className="grid grid-cols-2 gap-4">
                 {account.account_type === ACCOUNT_TYPE.SAVINGS && account.savings_account && (
                     <>
-                        <InfoCard disabled label="Current Balance" value={`${account.currency} ${Number(account.savings_account.balance).toLocaleString()}`} icon={<DollarSign size={16} />} />
+                        <InfoCard disabled label="Current Balance" value={`${account.currency} ${money(account.savings_account.balance)}`} icon={<DollarSign size={16} />} />
                         <InfoCard 
                             disabled 
                             label="Interest Rate" 
@@ -42,7 +47,7 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
                             icon={<BadgePercent size={16} />} 
                             color={!account.is_interest_enabled ? 'text-muted-foreground/60' : 'text-foreground'}
                         />
-                        <InfoCard disabled label="Min Balance" value={`${account.currency} ${Number(account.savings_account.min_balance).toLocaleString()}`} icon={<Target size={16} />} />
+                        <InfoCard disabled label="Min Balance" value={`${account.currency} ${money(account.savings_account.min_balance)}`} icon={<Target size={16} />} />
                         <InfoCard 
                             disabled 
                             label="Accrual Day" 
@@ -55,8 +60,8 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
 
                 {account.account_type === ACCOUNT_TYPE.LOAN && account.loan_account && (
                     <>
-                        <InfoCard disabled label="Loan Amount" value={`${account.currency} ${Number(account.loan_account.loan_amount).toLocaleString()}`} icon={<DollarSign size={16} />} />
-                        <InfoCard disabled label="Outstanding" value={`${account.currency} ${Number(account.loan_account.outstanding_amount).toLocaleString()}`} icon={<TrendingDown size={16} className="text-rose-600" />} color="text-rose-600" />
+                        <InfoCard disabled label="Loan Amount" value={`${account.currency} ${money(account.loan_account.loan_amount)}`} icon={<DollarSign size={16} />} />
+                        <InfoCard disabled label="Outstanding" value={`${account.currency} ${money(account.loan_account.outstanding_amount)}`} icon={<TrendingDown size={16} className="text-rose-600" />} color="text-rose-600" />
                         <InfoCard 
                             disabled 
                             label="Interest Rate" 
@@ -64,7 +69,7 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
                             icon={<BadgePercent size={16} />} 
                             color={!account.is_interest_enabled ? 'text-muted-foreground/60' : 'text-foreground'}
                         />
-                        <InfoCard disabled label="EMI Amount" value={`${account.currency} ${Number(account.loan_account.emi_amount).toLocaleString()}`} icon={<Clock size={16} />} />
+                        <InfoCard disabled label="EMI Amount" value={`${account.currency} ${money(account.loan_account.emi_amount)}`} icon={<Clock size={16} />} />
                         <InfoCard disabled label="Tenure" value={`${account.loan_account.tenure_months} Months`} icon={<Calendar size={16} />} />
                         <InfoCard disabled label="Start Date" value={formatDate(account.loan_account.start_date)} icon={<Calendar size={16} />} />
                     </>
@@ -72,9 +77,9 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
 
                 {account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT && account.fixed_deposit_account && (
                     <>
-                        <InfoCard disabled label="Current Balance" value={`${account.currency} ${Number(account.fixed_deposit_account.balance).toLocaleString()}`} icon={<DollarSign size={16} />} />
-                        <InfoCard disabled label="Principal" value={`${account.currency} ${Number(account.fixed_deposit_account.principal_amount).toLocaleString()}`} icon={<Target size={16} />} />
-                        <InfoCard disabled label="Maturity Amount" value={`${account.currency} ${Number(account.fixed_deposit_account.maturity_amount).toLocaleString()}`} icon={<TrendingUp size={16} className="text-emerald-600" />} color="text-emerald-600" />
+                        <InfoCard disabled label="Current Balance" value={`${account.currency} ${money(account.fixed_deposit_account.balance)}`} icon={<DollarSign size={16} />} />
+                        <InfoCard disabled label="Principal" value={`${account.currency} ${money(account.fixed_deposit_account.principal_amount)}`} icon={<Target size={16} />} />
+                        <InfoCard disabled label="Maturity Amount" value={`${account.currency} ${money(account.fixed_deposit_account.maturity_amount)}`} icon={<TrendingUp size={16} className="text-emerald-600" />} color="text-emerald-600" />
                         <InfoCard 
                             disabled 
                             label="Interest Rate" 
@@ -96,9 +101,9 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
 
                 {account.account_type === ACCOUNT_TYPE.RECURRING_DEPOSIT && account.metadata_ && (
                     <>
-                        <InfoCard disabled label="Current Balance" value={`${account.currency} ${Number(account.balance || 0).toLocaleString()}`} icon={<DollarSign size={16} />} />
-                        <InfoCard disabled label="Monthly Deposit" value={`${account.currency} ${Number(account.metadata_.deposit_amount).toLocaleString()}`} icon={<Target size={16} />} />
-                        <InfoCard disabled label="Maturity Amount" value={`${account.currency} ${Number(account.metadata_.maturity_amount).toLocaleString()}`} icon={<TrendingUp size={16} className="text-emerald-600" />} color="text-emerald-600" />
+                        <InfoCard disabled label="Current Balance" value={`${account.currency} ${money(account.balance || 0)}`} icon={<DollarSign size={16} />} />
+                        <InfoCard disabled label="Monthly Deposit" value={`${account.currency} ${money(account.metadata_.deposit_amount)}`} icon={<Target size={16} />} />
+                        <InfoCard disabled label="Maturity Amount" value={`${account.currency} ${money(account.metadata_.maturity_amount)}`} icon={<TrendingUp size={16} className="text-emerald-600" />} color="text-emerald-600" />
                         <InfoCard 
                             disabled 
                             label="Interest Rate" 
@@ -133,8 +138,8 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm font-black text-foreground">{holding.quantity.toLocaleString()} units</p>
-                                        <p className="text-[10px] text-muted-foreground">Avg: {account.currency} {Number(holding.average_price).toLocaleString()}</p>
+                                        <p className="text-sm font-black text-foreground">{formatNumber(holding.quantity, { currency: account.currency, maxDecimals: 4 })} units</p>
+                                        <p className="text-[10px] text-muted-foreground">Avg: {account.currency} {money(holding.average_price)}</p>
                                     </div>
                                 </div>
                             ))}

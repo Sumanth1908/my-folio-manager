@@ -1,6 +1,8 @@
 import { useState, memo } from 'react';
 import { ChevronDown, ChevronRight, CircleSlash, ArrowUpRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { formatCurrency } from '../../lib/format';
+import { useCurrencyFormat } from '../../hooks/useCurrencyFormat';
 
 export interface SubHolding {
     id: string;
@@ -35,23 +37,28 @@ export interface BalanceSection {
     items: BalanceItem[];
 }
 
-const HoldingRow = memo(({ h }: { h: SubHolding }) => (
-    <div className="grid grid-cols-12 p-1.5 px-4 items-center border-l border-primary/10 ml-4 group/h">
-        <div className="col-span-8 flex items-center gap-2">
-            <ArrowUpRight size={10} className="text-primary/40 group-hover/h:text-primary transition-colors" />
-            <span className="text-[10px] font-bold text-primary tracking-wider">{h.symbol}</span>
-            <span className="text-[9px] font-medium text-muted-foreground/40 truncate hidden sm:inline">{h.name}</span>
+const HoldingRow = memo(({ h }: { h: SubHolding }) => {
+    const { number } = useCurrencyFormat();
+
+    return (
+        <div className="grid grid-cols-12 p-1.5 px-4 items-center border-l border-primary/10 ml-4 group/h">
+            <div className="col-span-8 flex items-center gap-2">
+                <ArrowUpRight size={10} className="text-primary/40 group-hover/h:text-primary transition-colors" />
+                <span className="text-[10px] font-bold text-primary tracking-wider">{h.symbol}</span>
+                <span className="text-[9px] font-medium text-muted-foreground/40 truncate hidden sm:inline">{h.name}</span>
+            </div>
+            <div className="col-span-4 text-right">
+                <span className="text-[10px] font-bold text-muted-foreground/70 tabular-nums" title={number(h.value, { decimals: 2 })}>
+                    {number(h.value, { compact: true, decimals: 2 })}
+                </span>
+            </div>
         </div>
-        <div className="col-span-4 text-right">
-            <span className="text-[10px] font-bold text-muted-foreground/70 tabular-nums">
-                {h.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </span>
-        </div>
-    </div>
-));
+    );
+});
 
 const AccountRow = memo(({ acc }: { acc: SubAccount }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const { number } = useCurrencyFormat();
     const hasHoldings = acc.holdings.length > 0;
 
     return (
@@ -84,8 +91,8 @@ const AccountRow = memo(({ acc }: { acc: SubAccount }) => {
                     <span className="text-xs font-medium text-muted-foreground group-hover/acc:text-foreground transition-colors">{acc.name}</span>
                 </div>
                 <div className="col-span-6 md:col-span-5 text-right">
-                    <span className="text-xs font-medium text-muted-foreground/80 tabular-nums">
-                        {acc.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    <span className="text-xs font-medium text-muted-foreground/80 tabular-nums" title={number(acc.value, { decimals: 2 })}>
+                        {number(acc.value, { compact: true, decimals: 2 })}
                     </span>
                 </div>
             </div>
@@ -103,6 +110,7 @@ const AccountRow = memo(({ acc }: { acc: SubAccount }) => {
 
 const CategoryRow = memo(({ item }: { item: BalanceItem }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const { number } = useCurrencyFormat();
 
     return (
         <div key={item.id}>
@@ -137,8 +145,8 @@ const CategoryRow = memo(({ item }: { item: BalanceItem }) => {
                     </div>
                 </div>
                 <div className="col-span-5 md:col-span-4 text-right">
-                    <span className="text-sm font-bold text-foreground tabular-nums">
-                        {item.value.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                    <span className="text-sm font-bold text-foreground tabular-nums" title={number(item.value, { decimals: 2 })}>
+                        {number(item.value, { compact: true })}
                     </span>
                 </div>
             </div>
@@ -174,8 +182,8 @@ export const BalanceSectionView = memo(({ section, isExpanded, onToggle, symbol 
                 </div>
                 <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-3">
                     {section.title}
-                    <span className="text-xs font-bold text-muted-foreground tabular-nums opacity-60">
-                        {symbol}{section.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    <span className="text-xs font-bold text-muted-foreground tabular-nums opacity-60" title={formatCurrency(section.total, { symbol, decimals: 2 })}>
+                        {formatCurrency(section.total, { symbol, compact: true })}
                     </span>
                 </h2>
             </div>

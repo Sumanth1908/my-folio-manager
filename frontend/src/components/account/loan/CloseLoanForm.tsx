@@ -11,6 +11,7 @@ import {
 } from '../../ui/Select';
 import type { Account } from '../../../types';
 import { ACCOUNT_TYPE } from '../../../constants';
+import { formatCurrency } from '../../../lib/format';
 
 interface CloseLoanFormProps {
     account: Account;
@@ -49,7 +50,7 @@ const CloseLoanForm = ({ account, outstanding, accounts, symbol, onSubmit, onCan
                     Pending Amount
                 </p>
                 <p className="text-2xl font-black text-destructive tabular-nums">
-                    {symbol}{outstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(outstanding, { currency: account.currency, symbol, decimals: 2 })}
                 </p>
             </div>
 

@@ -8,6 +8,7 @@ import type { RootState } from '../../store';
 import type { UpcomingItem } from '../../types';
 import LoadingSpinner from '../common/LoadingSpinner';
 import Modal from '../common/Modal';
+import { formatCurrency } from '../../lib/format';
 
 interface UpcomingPaymentsProps {
     symbol: string;
@@ -142,7 +143,7 @@ const UpcomingPayments = memo(({ symbol }: UpcomingPaymentsProps) => {
                                 </div>
                                 {item.amount != null && (
                                     <div className="font-bold text-sm tabular-nums shrink-0 ml-3">
-                                        {symbol}{Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        {formatCurrency(item.amount, { symbol, decimals: 2 })}
                                     </div>
                                 )}
                             </div>

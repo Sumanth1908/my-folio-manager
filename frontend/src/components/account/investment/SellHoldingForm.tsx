@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { sellHolding } from '../../../store/slices/holdingsSlice';
 import type { InvestmentHolding } from '../../../types';
 import type { RootState } from '../../../store';
+import { formatCurrency } from '../../../lib/format';
 
 interface SellHoldingFormProps {
     holding: InvestmentHolding;
@@ -107,7 +108,7 @@ const SellHoldingForm = ({ holding, currencySymbol, onSuccess, onCancel }: SellH
                 <div className="p-4 rounded-xl border border-destructive/10 bg-destructive/5 text-destructive text-xs font-bold flex justify-between items-center">
                     <span>EXPECTED PROCEEDS</span>
                     <span className="text-base font-black tabular-nums">
-                        {currencySymbol}{expectedProceeds.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {formatCurrency(expectedProceeds, { currency: holding.currency, symbol: currencySymbol, decimals: 2 })}
                     </span>
                 </div>
             )}

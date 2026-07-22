@@ -6,6 +6,7 @@ import type { Account, Currency } from '../../../types';
 import { useAppSelector } from '../../../store/hooks';
 import type { RootState } from '../../../store';
 import { useExchangeRate } from '../../../hooks/useExchangeRate';
+import { formatCurrency } from '../../../lib/format';
 import AccountBadges from './AccountBadges';
 
 interface AccountInfoCardProps {
@@ -77,7 +78,7 @@ export default function AccountInfoCard({ account, balance, currencies, onDelete
                             "text-4xl font-black tabular-nums tracking-tighter",
                             balance >= 0 ? 'text-foreground' : 'text-destructive'
                         )}>
-                            {symbol}{balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(balance, { currency, symbol, decimals: 2 })}
                         </div>
                         {isConversionEnabled && convertedBalance !== null && (
                             <div className="text-xs font-bold text-muted-foreground/60 mt-1 flex items-center justify-end gap-2">
@@ -85,7 +86,7 @@ export default function AccountInfoCard({ account, balance, currencies, onDelete
                                     <div className="animate-pulse h-4 w-20 bg-muted rounded" />
                                 ) : (
                                     <>
-                                        <span>≈ {convertedSymbol}{convertedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                        <span>≈ {formatCurrency(convertedBalance, { currency: targetCurrency, symbol: convertedSymbol, decimals: 2 })}</span>
                                         <span className="bg-muted px-1.5 py-0.5 rounded text-[10px]" title={`Rate: 1 ${currency} = ${rate} ${targetCurrency}`}>
                                             {targetCurrency}
                                         </span>

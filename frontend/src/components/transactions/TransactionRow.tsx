@@ -4,6 +4,7 @@ import type { Transaction } from '../../types';
 import { Button } from '../ui/Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { cn, formatDate } from '../../lib/utils';
+import { formatCurrency } from '../../lib/format';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { updateTransactionCategory } from '../../store/slices/transactionsSlice';
 import { fetchCategories } from '../../store/slices/categoriesSlice';
@@ -95,7 +96,7 @@ const TransactionRow = memo(({
                 "font-black text-lg tabular-nums tracking-tighter",
                 Number(tx.amount || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'
             )}>
-                {Number(tx.amount || 0) >= 0 ? '+' : '-'}{currencySymbol}{Math.abs(Number(tx.amount || 0)).toFixed(2)}
+                {formatCurrency(tx.amount, { currency: tx.currency, symbol: currencySymbol, decimals: 2, signed: true })}
             </span>
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {onEdit && (

@@ -13,6 +13,7 @@ import AccountQuickView from './AccountQuickView';
 import type { SummaryResponse, AccountSummary, Account } from '../../../types';
 import { TRANSACTION_TYPE } from '../../../constants';
 import { cn } from '../../../lib/utils';
+import { formatNumber } from '../../../lib/format';
 
 interface AccountSummaryPanelProps {
     data: SummaryResponse;
@@ -83,14 +84,14 @@ const AccountCard = memo(({
                     <div className="flex gap-6">
                         <div className="text-right">
                             <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">Inflow</div>
-                            <div className="text-sm font-black text-emerald-600 tabular-nums">
-                                +{inTotal.toLocaleString()}
+                            <div className="text-sm font-black text-emerald-600 tabular-nums" title={formatNumber(inTotal, { currency: account.currency, decimals: 2 })}>
+                                +{formatNumber(inTotal, { currency: account.currency, compact: true })}
                             </div>
                         </div>
                         <div className="text-right">
                             <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">Outflow</div>
-                            <div className="text-sm font-black text-rose-600 tabular-nums">
-                                -{outTotal.toLocaleString()}
+                            <div className="text-sm font-black text-rose-600 tabular-nums" title={formatNumber(outTotal, { currency: account.currency, decimals: 2 })}>
+                                -{formatNumber(outTotal, { currency: account.currency, compact: true })}
                             </div>
                         </div>
                     </div>
@@ -126,7 +127,7 @@ const AccountCard = memo(({
                                         </div>
                                         <div className="col-span-6 text-sm font-medium text-foreground">{cat.name}</div>
                                         <div className={`col-span-5 text-right text-sm font-bold tabular-nums ${cat.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-emerald-600' : 'text-foreground'}`}>
-                                            {cat.transaction_type === TRANSACTION_TYPE.CREDIT ? '+' : ''}{Number(cat.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            {cat.transaction_type === TRANSACTION_TYPE.CREDIT ? '+' : ''}{formatNumber(cat.total_amount, { currency: account.currency, decimals: 2 })}
                                         </div>
                                     </div>
                                 ))

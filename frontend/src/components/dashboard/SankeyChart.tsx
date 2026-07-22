@@ -2,6 +2,7 @@ import { useMemo, memo } from 'react';
 import { Sankey, Tooltip, ResponsiveContainer } from 'recharts';
 
 import type { CategorySummary } from '../../types';
+import { formatCurrency } from '../../lib/format';
 
 interface SankeyChartProps {
     inflows: CategorySummary[];
@@ -128,7 +129,7 @@ const SankeyChart = memo(({ inflows, outflows, symbol, accountType, accountName 
                         )}
                     </div>
                     <div className="font-black text-2xl text-foreground tabular-nums tracking-tighter">
-                        {symbol}{(payload[0].value as number).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        {formatCurrency(payload[0].value as number, { symbol, decimals: 2 })}
                     </div>
                 </div>
             );
@@ -182,7 +183,7 @@ const SankeyChart = memo(({ inflows, outflows, symbol, accountType, accountName 
                     className="fill-muted-foreground text-[10px] font-medium tabular-nums tracking-wide"
                     alignmentBaseline="middle"
                 >
-                    {symbol}{Math.round(payload.value).toLocaleString()}
+                    {formatCurrency(payload.value, { symbol, compact: true, decimals: 0 })}
                 </text>
             </g>
         );

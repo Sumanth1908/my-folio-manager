@@ -1,5 +1,6 @@
 import { Card } from '../../ui/Card';
 import type { Account } from '../../../types';
+import { formatCurrency } from '../../../lib/format';
 
 interface SavingsDetailsProps {
     account: Account;
@@ -28,7 +29,7 @@ export default function SavingsDetails({ account, symbol }: SavingsDetailsProps)
                 <div className="bg-background p-5 rounded-2xl border border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Min Balance</p>
                     <p className="text-xl font-black text-foreground tabular-nums">
-                        {symbol}{md.min_balance?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
+                        {formatCurrency(md.min_balance, { currency: account.currency, symbol, decimals: 2 })}
                     </p>
                 </div>
                 <div className="bg-background p-5 rounded-2xl border border-border/50">

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Card, CardTitle } from '../components/ui/Card';
 import { cn } from '../lib/utils';
+import { formatCurrency, formatNumber } from '../lib/format';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchAccounts } from '../store/slices/accountsSlice';
 import { fetchSettings } from '../store/slices/settingsSlice';
@@ -50,6 +51,9 @@ export default function Portfolio() {
 
     const defaultCurrency = settings?.default_currency || 'USD';
     const currencySymbol = currencies?.find(c => c.code === defaultCurrency)?.symbol || defaultCurrency;
+
+    const money = (value: number) => formatCurrency(value, { currency: defaultCurrency, symbol: currencySymbol, decimals: 2 });
+    const compactMoney = (value: number) => formatCurrency(value, { currency: defaultCurrency, symbol: currencySymbol, compact: true, decimals: 2 });
 
     useEffect(() => {
         dispatch(fetchAccounts());
@@ -256,8 +260,8 @@ export default function Portfolio() {
 
                     <div className="text-right">
                         <p className="text-muted-foreground text-[10px] uppercase tracking-widest font-bold mb-1 opacity-70">Total Net Worth</p>
-                        <div className="text-3xl font-bold text-foreground tabular-nums tracking-tight">
-                            {currencySymbol}{netWorth.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        <div className="text-3xl font-bold text-foreground tabular-nums tracking-tight" title={money(netWorth)}>
+                            {compactMoney(netWorth)}
                         </div>
                     </div>
                 </div>
@@ -280,7 +284,7 @@ export default function Portfolio() {
                                     backgroundColor: item.color
                                 }}
                                 className="h-full border-r border-background/10 last:border-0 first:rounded-l-full last:rounded-r-full shadow-sm"
-                                title={`${item.name}: ${item.value.toLocaleString()}`}
+                                title={`${item.name}: ${money(item.value)}`}
                             />
                         ))}
                     </div>
@@ -353,10 +357,13 @@ export default function Portfolio() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5 text-right tabular-nums font-medium text-xs">
-                                                {holding.totalQuantity.toLocaleString()}
+                                                {formatNumber(holding.totalQuantity, { currency: defaultCurrency, maxDecimals: 4 })}
                                             </td>
-                                            <td className="px-6 py-5 text-right tabular-nums font-bold text-sm text-foreground">
-                                                {holding.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            <td
+                                                className="px-6 py-5 text-right tabular-nums font-bold text-sm text-foreground"
+                                                title={formatNumber(holding.totalValue, { currency: defaultCurrency, decimals: 2 })}
+                                            >
+                                                {formatNumber(holding.totalValue, { currency: defaultCurrency, compact: true, decimals: 2 })}
                                             </td>
                                             <td className="px-6 py-5 text-right">
                                                 <div className={cn(
@@ -396,9 +403,9 @@ export default function Portfolio() {
                                 <div className={cn(
                                     "text-2xl font-bold tabular-nums flex items-center gap-2",
                                     totalInvestmentProfit >= 0 ? "text-green-500" : "text-red-500"
-                                )}>
+                                )} title={money(Math.abs(totalInvestmentProfit))}>
                                     {totalInvestmentProfit >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
-                                    {currencySymbol}{Math.abs(totalInvestmentProfit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    {compactMoney(Math.abs(totalInvestmentProfit))}
                                 </div>
                             </div>
 

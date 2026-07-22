@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
 import type { Account } from '../../../types';
 import AccountBadges from '../common/AccountBadges';
+import { formatCurrency } from '../../../lib/format';
 
 interface SavingsAccountCardProps {
     account: Account;
@@ -31,8 +32,11 @@ export default function SavingsAccountCard({ account, balance, symbol, onClick }
                 )}
                 <div className="text-sm text-muted-foreground flex justify-between pt-2 border-t border-border/50 mt-2">
                     <span>Current Value:</span>
-                    <span className={`text-xl font-black tabular-nums ${balance >= 0 ? 'text-foreground' : 'text-destructive'}`}>
-                        {symbol}{balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <span
+                        className={`text-xl font-black tabular-nums ${balance >= 0 ? 'text-foreground' : 'text-destructive'}`}
+                        title={formatCurrency(balance, { currency: account.currency, symbol, decimals: 2 })}
+                    >
+                        {formatCurrency(balance, { currency: account.currency, symbol, compact: true, decimals: 2 })}
                     </span>
                 </div>
             </CardContent>

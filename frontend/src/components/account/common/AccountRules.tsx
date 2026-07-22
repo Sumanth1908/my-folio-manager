@@ -5,6 +5,7 @@ import type { Rule, RuleExecution, RulePreview } from '../../../types';
 import api, { handleApiError } from '../../../api';
 import { Button } from '../../ui/Button';
 import { cn, formatDate } from '../../../lib/utils';
+import { formatCurrency } from '../../../lib/format';
 import { TRANSACTION_TYPE, RULE_TYPE } from '../../../constants';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import { useAppSelector } from '../../../store/hooks';
@@ -52,7 +53,7 @@ export default function AccountRules({
             const p = res.data;
             const direction = p.is_debit ? 'debit' : 'credit';
             toast(
-                `Dry run: would ${direction} ${symbol}${Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}` +
+                `Dry run: would ${direction} ${formatCurrency(p.amount, { symbol, decimals: 2 })}` +
                 (p.period_start && p.period_end
                     ? ` for ${formatDate(p.period_start)} → ${formatDate(p.period_end)} (${p.days} days)`
                     : ''),
@@ -175,7 +176,7 @@ export default function AccountRules({
                                                 <span className="text-primary">{rule.configuration?.frequency}</span>
                                                 <span className="text-muted-foreground/30">•</span>
                                                 <span className={displayColor}>
-                                                    {displayLabel} {symbol}{rule.configuration?.transaction_amount}
+                                                    {displayLabel} {formatCurrency(rule.configuration?.transaction_amount, { symbol, decimals: 2 })}
                                                 </span>
                                                 {rule.next_run_at && (
                                                     <span className="ml-2 text-[10px] text-primary/70 italic lowercase">
@@ -289,7 +290,7 @@ export default function AccountRules({
                                                     </div>
                                                     {exec.amount != null && (
                                                         <span className="font-bold tabular-nums text-foreground">
-                                                            {symbol}{Math.abs(Number(exec.amount)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                            {formatCurrency(Math.abs(Number(exec.amount)), { symbol, decimals: 2 })}
                                                         </span>
                                                     )}
                                                 </div>

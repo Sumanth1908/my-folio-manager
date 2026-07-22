@@ -13,6 +13,7 @@ import type { RootState } from '../../store';
 import type { BudgetItem } from '../../types';
 import LoadingSpinner from '../common/LoadingSpinner';
 import BudgetFormModal from './BudgetFormModal';
+import { formatNumber } from '../../lib/format';
 
 interface BudgetsPanelProps {
     symbol: string;
@@ -20,10 +21,12 @@ interface BudgetsPanelProps {
     rates: Record<string, number>;
 }
 
-const formatMoney = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 0 });
-
 const BudgetsPanel = memo(({ symbol, defaultCurrency, rates }: BudgetsPanelProps) => {
     const dispatch = useAppDispatch();
+    // Budget figures are round numbers by nature, so they read better consolidated
+    // (`30L`, `1.2M`) — `formatExact` backs the tooltips with the full amount.
+    const formatMoney = (value: number) => formatNumber(value, { currency: defaultCurrency, symbol, compact: true });
+    const formatExact = (value: number) => formatNumber(value, { currency: defaultCurrency, symbol, decimals: 2 });
     const { items: budgets, loading, selectedMonth } = useAppSelector((state: RootState) => state.budgets);
     const { items: categories } = useAppSelector((state: RootState) => state.categories);
 
@@ -150,11 +153,11 @@ const BudgetsPanel = memo(({ symbol, defaultCurrency, rates }: BudgetsPanelProps
                         <div className="grid grid-cols-3 gap-3">
                             <div className="rounded-xl bg-muted/40 border border-border p-3">
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Budgeted</p>
-                                <p className="text-lg font-bold tabular-nums mt-0.5">{symbol}{formatMoney(totals.budgeted)}</p>
+                                <p className="text-lg font-bold tabular-nums mt-0.5" title={`${symbol}${formatExact(totals.budgeted)}`}>{symbol}{formatMoney(totals.budgeted)}</p>
                             </div>
                             <div className="rounded-xl bg-muted/40 border border-border p-3">
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Spent</p>
-                                <p className="text-lg font-bold tabular-nums mt-0.5">{symbol}{formatMoney(totals.spent)}</p>
+                                <p className="text-lg font-bold tabular-nums mt-0.5" title={`${symbol}${formatExact(totals.spent)}`}>{symbol}{formatMoney(totals.spent)}</p>
                             </div>
                             <div className="rounded-xl bg-muted/40 border border-border p-3">
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -163,7 +166,7 @@ const BudgetsPanel = memo(({ symbol, defaultCurrency, rates }: BudgetsPanelProps
                                 <p className={cn(
                                     "text-lg font-bold tabular-nums mt-0.5",
                                     totals.remaining >= 0 ? "text-emerald-600" : "text-rose-600"
-                                )}>
+                                )} title={`${symbol}${formatExact(Math.abs(totals.remaining))}`}>
                                     {symbol}{formatMoney(Math.abs(totals.remaining))}
                                 </p>
                             </div>
@@ -182,10 +185,13 @@ const BudgetsPanel = memo(({ symbol, defaultCurrency, rates }: BudgetsPanelProps
                                                 {budget.category_name || `Category ${budget.category_id}`}
                                             </span>
                                             <div className="flex items-center gap-1 shrink-0">
-                                                <span className={cn(
-                                                    "text-xs font-bold tabular-nums mr-1",
-                                                    over ? "text-rose-600" : "text-muted-foreground"
-                                                )}>
+                                                <span
+                                                    className={cn(
+                                                        "text-xs font-bold tabular-nums mr-1",
+                                                        over ? "text-rose-600" : "text-muted-foreground"
+                                                    )}
+                                                    title={`Spent ${symbol}${formatExact(spent)} of ${symbol}${formatExact(budget.amount)}`}
+                                                >
                                                     {symbol}{formatMoney(spent)} / {symbol}{formatMoney(budget.amount)}
                                                 </span>
                                                 <button

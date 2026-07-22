@@ -3,6 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } 
 import { ChevronDown, Layers } from 'lucide-react';
 import type { CategorySummary } from '../../types';
 import { Card, CardTitle, CardContent } from '../ui/Card';
+import { formatCurrency } from '../../lib/format';
 
 interface SpendingBreakdownProps {
     data: CategorySummary[];
@@ -85,7 +86,7 @@ const SpendingBreakdown = memo(({ data, symbol }: SpendingBreakdownProps) => {
                                             return (
                                                 <div className="bg-popover text-popover-foreground p-3 border border-border rounded-xl shadow-xl text-sm">
                                                     <div className="font-bold">{p.name}</div>
-                                                    <div className="text-muted-foreground">{symbol}{p.value.toLocaleString()} ({p.percentage.toFixed(1)}%)</div>
+                                                    <div className="text-muted-foreground">{formatCurrency(p.value, { symbol, decimals: 2 })} ({p.percentage.toFixed(1)}%)</div>
                                                 </div>
                                             );
                                         }
@@ -96,8 +97,8 @@ const SpendingBreakdown = memo(({ data, symbol }: SpendingBreakdownProps) => {
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                             <span className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Total Outflows</span>
-                            <span className="text-3xl font-black text-foreground mt-1">
-                                {symbol}{chartData.total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            <span className="text-3xl font-black text-foreground mt-1" title={formatCurrency(chartData.total, { symbol, decimals: 2 })}>
+                                {formatCurrency(chartData.total, { symbol, compact: true, decimals: 0 })}
                             </span>
                         </div>
                     </div>
@@ -119,8 +120,8 @@ const SpendingBreakdown = memo(({ data, symbol }: SpendingBreakdownProps) => {
                                             </div>
                                             <span className="font-semibold text-foreground truncate">{item.name}</span>
                                         </div>
-                                        <div className="col-span-3 text-right font-bold text-foreground">
-                                            {symbol}{item.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        <div className="col-span-3 text-right font-bold text-foreground" title={formatCurrency(item.value, { symbol, decimals: 2 })}>
+                                            {formatCurrency(item.value, { symbol, compact: true, decimals: 2 })}
                                         </div>
                                         <div className="col-span-3 text-right font-medium text-muted-foreground">
                                             {item.percentage.toFixed(1)}%

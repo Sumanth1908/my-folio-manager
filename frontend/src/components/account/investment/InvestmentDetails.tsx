@@ -11,6 +11,7 @@ import { deleteHolding, refreshStockPrices } from '../../../store/slices/holding
 import type { RootState } from '../../../store';
 import { Button } from '../../ui/Button';
 import { cn, formatDate } from '../../../lib/utils';
+import { formatCurrency, formatNumber, type AmountFormatOptions } from '../../../lib/format';
 
 interface InvestmentDetailsProps {
     account: Account;
@@ -25,6 +26,12 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
     const [buyMoreHolding, setBuyMoreHolding] = useState<{ symbol: string, name: string } | null>(null);
     const [sellingHolding, setSellingHolding] = useState<InvestmentHolding | null>(null);
     const [confirmDeleteHolding, setConfirmDeleteHolding] = useState<InvestmentHolding | null>(null);
+
+    const money = (value: number, options: AmountFormatOptions = {}) =>
+        formatCurrency(value, { currency: account.currency, symbol, decimals: 2, ...options });
+    // Summary tiles aggregate the whole portfolio, so they consolidate (`₹30L`)
+    // and carry the exact amount in a tooltip; per-holding rows stay exact.
+    const summaryMoney = (value: number) => money(value, { compact: true });
 
     const holdings = account.investment_holdings || [];
     const totalValue = holdings.reduce((sum, h) => sum + (Number(h.quantity || 0) * (Number(h.current_price || 0) || Number(h.average_price || 0))), 0);
@@ -85,20 +92,20 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                     <div className={cn(
                         'text-2xl font-bold flex items-center gap-2',
                         (account.balance || 0) >= 0 ? 'text-emerald-500' : 'text-destructive'
-                    )}>
-                        {symbol}{(account.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    )} title={money(account.balance || 0)}>
+                        {summaryMoney(account.balance || 0)}
                     </div>
                 </div>
                 <div className="bg-card p-5 rounded-2xl shadow-sm border border-border">
                     <div className="text-sm text-muted-foreground mb-1">Total Market Value</div>
-                    <div className="text-2xl font-bold text-foreground">
-                        {symbol}{totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    <div className="text-2xl font-bold text-foreground" title={money(totalValue)}>
+                        {summaryMoney(totalValue)}
                     </div>
                 </div>
                 <div className="bg-card p-5 rounded-2xl shadow-sm border border-border">
                     <div className="text-sm text-muted-foreground mb-1">Total Cost</div>
-                    <div className="text-2xl font-bold text-foreground">
-                        {symbol}{totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    <div className="text-2xl font-bold text-foreground" title={money(totalCost)}>
+                        {summaryMoney(totalCost)}
                     </div>
                 </div>
                 <div className="bg-card p-5 rounded-2xl shadow-sm border border-border">
@@ -106,9 +113,9 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                     <div className={cn(
                         'text-2xl font-bold flex items-center gap-2',
                         totalProfit >= 0 ? 'text-emerald-500' : 'text-destructive'
-                    )}>
+                    )} title={money(Math.abs(totalProfit))}>
                         {totalProfit >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
-                        {symbol}{Math.abs(totalProfit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {summaryMoney(Math.abs(totalProfit))}
                         <span className="text-sm font-medium">({profitPercentage.toFixed(2)}%)</span>
                     </div>
                 </div>
@@ -175,15 +182,15 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                                             <div className="font-bold text-foreground">{holding.symbol}</div>
                                             <div className="text-xs text-muted-foreground">{holding.name}</div>
                                         </td>
-                                        <td className="px-6 py-4 text-right font-medium text-foreground">{q.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
-                                        <td className="px-6 py-4 text-right text-muted-foreground">{symbol}{ap.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-right font-medium text-foreground">{symbol}{cp.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-right font-bold text-foreground">{symbol}{marketValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                        <td className="px-6 py-4 text-right font-medium text-foreground">{formatNumber(q, { currency: account.currency, maxDecimals: 4 })}</td>
+                                        <td className="px-6 py-4 text-right text-muted-foreground">{money(ap)}</td>
+                                        <td className="px-6 py-4 text-right font-medium text-foreground">{money(cp)}</td>
+                                        <td className="px-6 py-4 text-right font-bold text-foreground">{money(marketValue)}</td>
                                         <td className={cn(
                                             'px-6 py-4 text-right font-semibold',
                                             profit >= 0 ? 'text-emerald-500' : 'text-destructive'
                                         )}>
-                                            <div>{profit >= 0 ? '+' : '-'}{symbol}{Math.abs(profit).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                                            <div>{profit >= 0 ? '+' : '-'}{money(Math.abs(profit))}</div>
                                             <div className="text-[10px]">{pPercentage.toFixed(2)}%</div>
                                         </td>
                                         <td className="px-6 py-4">
