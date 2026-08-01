@@ -29,16 +29,38 @@ export default function AccountInfoCard({ account, balance, currencies, onDelete
     const convertedSymbol = currencies?.find(c => c.code === targetCurrency)?.symbol || targetCurrency;
 
     return (
-        <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none" />
-            <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div className="space-y-3">
-                    <h1 className="text-4xl font-black tracking-tight text-foreground">{account.account_name}</h1>
+        <Card className="bg-muted/20 p-4 rounded-xl border border-border">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-1.5">
+                    <h1 className="text-2xl font-black tracking-tight text-foreground">{account.account_name}</h1>
                     <AccountBadges account={account} />
                 </div>
 
-                <div className="flex flex-col items-end gap-4">
-                    <div className="flex items-center gap-1 -mr-2">
+                <div className="flex w-full items-center justify-between gap-3 md:w-auto md:justify-end">
+                    <div className="text-left md:text-right">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                            {account.account_type === 'INVESTMENT' ? 'Portfolio Value' : 'Current Balance'}
+                        </p>
+                        <div className={cn(
+                            "text-2xl font-black tabular-nums tracking-tight",
+                            balance >= 0 ? 'text-foreground' : 'text-destructive'
+                        )}>
+                            {formatCurrency(balance, { currency, symbol, decimals: 2 })}
+                        </div>
+                        {isConversionEnabled && convertedBalance !== null && (
+                            <div className="text-[11px] font-semibold text-muted-foreground/70 flex items-center gap-1 md:justify-end">
+                                {isRateLoading ? (
+                                    <div className="animate-pulse h-3 w-16 bg-muted rounded" />
+                                ) : (
+                                    <span title={`Rate: 1 ${currency} = ${rate} ${targetCurrency}`}>
+                                        ≈ {formatCurrency(convertedBalance, { currency: targetCurrency, symbol: convertedSymbol, decimals: 2 })} {targetCurrency}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-0.5">
                         <Button
                             variant="ghost"
                             size="icon"
@@ -68,32 +90,6 @@ export default function AccountInfoCard({ account, balance, currencies, onDelete
                         >
                             <Trash2 size={16} />
                         </Button>
-                    </div>
-
-                    <div className="text-right">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">
-                            {account.account_type === 'INVESTMENT' ? 'Portfolio Value' : 'Current Balance'}
-                        </p>
-                        <div className={cn(
-                            "text-4xl font-black tabular-nums tracking-tighter",
-                            balance >= 0 ? 'text-foreground' : 'text-destructive'
-                        )}>
-                            {formatCurrency(balance, { currency, symbol, decimals: 2 })}
-                        </div>
-                        {isConversionEnabled && convertedBalance !== null && (
-                            <div className="text-xs font-bold text-muted-foreground/60 mt-1 flex items-center justify-end gap-2">
-                                {isRateLoading ? (
-                                    <div className="animate-pulse h-4 w-20 bg-muted rounded" />
-                                ) : (
-                                    <>
-                                        <span>≈ {formatCurrency(convertedBalance, { currency: targetCurrency, symbol: convertedSymbol, decimals: 2 })}</span>
-                                        <span className="bg-muted px-1.5 py-0.5 rounded text-[10px]" title={`Rate: 1 ${currency} = ${rate} ${targetCurrency}`}>
-                                            {targetCurrency}
-                                        </span>
-                                    </>
-                                )}
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>

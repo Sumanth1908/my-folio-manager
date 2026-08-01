@@ -1,4 +1,3 @@
-import { Card } from '../../ui/Card';
 import type { Account } from '../../../types';
 import { formatDate } from '../../../lib/utils';
 import { formatCurrency } from '../../../lib/format';
@@ -17,68 +16,63 @@ const RDDetails = ({ account, symbol }: RDDetailsProps) => {
         formatCurrency(value, { currency: account.currency, symbol, decimals: 2 });
 
     return (
-        <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
-            <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500/10 rounded-lg">
-                    <Repeat className="w-5 h-5 text-indigo-500" />
-                </div>
-                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/80">
-                    Recurring Deposit Details
-                </h2>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                <div className="bg-background p-5 rounded-2xl border border-border/50">
+        <section className="space-y-2">
+            <h2 className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+                <Repeat className="h-3.5 w-3.5 text-indigo-500" /> Recurring deposit details
+            </h2>
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                <div className="rounded-xl border border-border bg-card p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Current Balance</p>
-                    <p className="text-xl font-black text-primary tabular-nums">
+                    <p className="text-lg font-bold text-primary tabular-nums">
                         {money((account as any).balance)}
                     </p>
                 </div>
-                <div className="bg-background p-5 rounded-2xl border border-border/50">
+                <div className="rounded-xl border border-border bg-card p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Monthly Deposit</p>
-                    <p className="text-xl font-black text-foreground tabular-nums">
+                    <p className="text-lg font-bold text-foreground tabular-nums">
                         {money(md.deposit_amount)}
                     </p>
                 </div>
-                <div className="bg-background p-5 rounded-2xl border border-border/50">
+                <div className="rounded-xl border border-border bg-card p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Interest Rate</p>
-                    <p className="text-xl font-black text-primary tabular-nums">
+                    <p className="text-lg font-bold text-primary tabular-nums">
                         {md.interest_rate}% p.a.
                     </p>
                 </div>
-                <div className="bg-background p-5 rounded-2xl border border-border/50">
+                <div className="rounded-xl border border-border bg-card p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Maturity Amount</p>
-                    <p className="text-xl font-black text-primary tabular-nums">
+                    <p className="text-lg font-bold text-primary tabular-nums">
                         {money(md.maturity_amount)}
                     </p>
                 </div>
-                <div className="bg-background p-5 rounded-2xl border border-border/50">
+                <div className="rounded-xl border border-border bg-card p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Start Date</p>
-                    <p className="text-xl font-black text-foreground">
+                    <p className="text-lg font-bold text-foreground">
                         {md.start_date ? formatDate(md.start_date) : '-'}
                     </p>
                 </div>
-                <div className="bg-background p-5 rounded-2xl border border-border/50">
+                <div className="rounded-xl border border-border bg-card p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Maturity Date</p>
-                    <p className="text-xl font-black text-foreground">
+                    <p className="text-lg font-bold text-foreground">
                         {md.maturity_date ? formatDate(md.maturity_date) : '-'}
                     </p>
                 </div>
-                <div className="bg-background p-5 rounded-2xl border border-border/50">
+                <div className="rounded-xl border border-border bg-card p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Deposit Day</p>
-                    <p className="text-xl font-black text-foreground">
+                    <p className="text-lg font-bold text-foreground">
                         {md.deposit_day ? `${md.deposit_day}th of month` : '-'}
                     </p>
                 </div>
                 {md.is_auto_deposit && (
-                    <div className="bg-background p-5 rounded-2xl border border-border/50">
+                    <div className="rounded-xl border border-border bg-card p-3">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Auto Deposit</p>
-                        <p className="text-xl font-black text-emerald-500">
+                        <p className="text-lg font-bold text-emerald-500">
                             Enabled
                         </p>
                     </div>
                 )}
             </div>
-        </Card>
+        </section>
     );
 }
 

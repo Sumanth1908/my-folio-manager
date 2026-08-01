@@ -28,6 +28,7 @@ interface AccountEditFormData {
     name: string;
     status: string;
     interestRate: string;
+    interestFrequency: string;
     emiAmount: string;
     tenure: string;
     accrualDay: string;
@@ -50,6 +51,7 @@ const createInitialFormData = (account: Account): AccountEditFormData => ({
     name: account.account_name ?? '',
     status: account.status ?? 'Active',
     interestRate: getInitialInterestRate(account),
+    interestFrequency: account.metadata_?.interest_frequency ?? 'MONTHLY',
     emiAmount: account.metadata_?.emi_amount?.toString() ?? '',
     tenure: account.metadata_?.tenure_months?.toString() ?? '',
     accrualDay: getInitialAccrualDay(account),
@@ -75,7 +77,7 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const { name, status, interestRate, emiAmount, tenure, accrualDay, startDate, emiStartDate } = formData;
+        const { name, status, interestRate, interestFrequency, emiAmount, tenure, accrualDay, startDate, emiStartDate } = formData;
 
         const data: Record<string, unknown> = {
             account_name: name,
@@ -96,6 +98,7 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
             data.metadata_ = {
                 ...(account.metadata_ || {}),
                 interest_rate: parseFloat(interestRate),
+                interest_frequency: interestFrequency,
                 interest_accrual_day: parseInt(accrualDay, 10)
             };
         } else if (account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT || account.account_type === ACCOUNT_TYPE.RECURRING_DEPOSIT) {
@@ -126,6 +129,8 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
                     <SavingsEditFields
                         interestRate={formData.interestRate}
                         setInterestRate={v => updateField('interestRate', v)}
+                        interestFrequency={formData.interestFrequency}
+                        setInterestFrequency={v => updateField('interestFrequency', v)}
                     />
                 );
             case ACCOUNT_TYPE.FIXED_DEPOSIT:

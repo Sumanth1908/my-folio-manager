@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, LayoutDashboard, Loader2, ReceiptText } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard, Loader2, Wand2 } from 'lucide-react';
 import { Tabs } from '@base-ui/react/tabs';
 import type { Transaction } from '../types';
 import Modal from '../components/common/Modal';
@@ -219,28 +219,28 @@ const AccountDetails = () => {
     const symbol = getCurrencySymbol();
 
     return (
-        <div className="page-shell">
-            <Button
-                variant="ghost"
-                onClick={() => navigate('/accounts')}
-                className="text-muted-foreground hover:text-foreground -ml-2 gap-2"
-            >
-                <ArrowLeft size={18} />
-                <span className="font-bold uppercase tracking-widest text-[10px]">Back to Accounts</span>
-            </Button>
-
-
+        <div className="mx-auto w-full max-w-7xl pb-10">
             <Tabs.Root defaultValue="overview">
-                <Tabs.List className="sticky top-16 z-30 inline-flex rounded-md border border-border bg-card/95 p-1 shadow-sm backdrop-blur-md lg:top-0" aria-label="Account views">
-                    <Tabs.Tab value="overview" className="inline-flex h-9 items-center gap-2 rounded-sm px-4 text-sm font-semibold text-muted-foreground data-[active]:bg-primary data-[active]:text-primary-foreground">
-                        <LayoutDashboard className="h-4 w-4" /> Overview
-                    </Tabs.Tab>
-                    <Tabs.Tab value="activity" className="inline-flex h-9 items-center gap-2 rounded-sm px-4 text-sm font-semibold text-muted-foreground data-[active]:bg-primary data-[active]:text-primary-foreground">
-                        <ReceiptText className="h-4 w-4" /> Activity
-                    </Tabs.Tab>
-                </Tabs.List>
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate('/accounts')}
+                        className="h-9 gap-1.5 px-2 text-muted-foreground hover:text-foreground"
+                    >
+                        <ArrowLeft size={16} />
+                        <span className="text-xs font-semibold">Accounts</span>
+                    </Button>
+                    <Tabs.List className="inline-flex rounded-md border border-border bg-card p-1" aria-label="Account views">
+                        <Tabs.Tab value="overview" className="inline-flex h-8 items-center gap-1.5 rounded-sm px-3 text-xs font-semibold text-muted-foreground data-[active]:bg-primary data-[active]:text-primary-foreground">
+                            <LayoutDashboard className="h-3.5 w-3.5" /> Overview
+                        </Tabs.Tab>
+                        <Tabs.Tab value="automations" className="inline-flex h-8 items-center gap-1.5 rounded-sm px-3 text-xs font-semibold text-muted-foreground data-[active]:bg-primary data-[active]:text-primary-foreground">
+                            <Wand2 className="h-3.5 w-3.5" /> Automations
+                        </Tabs.Tab>
+                    </Tabs.List>
+                </div>
 
-                <Tabs.Panel value="overview" className="mt-5 space-y-6 focus:outline-none">
+                <Tabs.Panel value="overview" className="space-y-3 focus:outline-none">
                     <AccountInfoCard
                         account={account!}
                         balance={balance}
@@ -250,10 +250,24 @@ const AccountDetails = () => {
                         onClose={account?.account_type === ACCOUNT_TYPE.LOAN && account.status !== 'Closed' ? handleCloseAccountConfirm : undefined}
                     />
                     <AccountTypeDetails account={account!} symbol={symbol} />
+                    <AccountActivityPanel
+                        view="transactions"
+                        transactions={transactions}
+                        rules={rules}
+                        isLoadingTransactions={isTransactionsLoading}
+                        isLoadingRules={isRulesLoading}
+                        symbol={symbol}
+                        accountId={accountId!}
+                        onRefresh={refreshData}
+                        onLoadMore={handleLoadMore}
+                        hasMore={hasNextPage}
+                        isFetchingNextPage={isFetchingNextPage}
+                    />
                 </Tabs.Panel>
 
-                <Tabs.Panel value="activity" className="mt-5 focus:outline-none">
+                <Tabs.Panel value="automations" className="focus:outline-none">
                     <AccountActivityPanel
+                        view="rules"
                         transactions={transactions}
                         rules={rules}
                         isLoadingTransactions={isTransactionsLoading}

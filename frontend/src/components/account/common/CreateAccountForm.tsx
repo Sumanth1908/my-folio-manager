@@ -84,6 +84,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
     // Savings Specific State
     const [savingsInterestRate, setSavingsInterestRate] = useState('');
     const [savingsMinBalance, setSavingsMinBalance] = useState('');
+    const [savingsInterestFrequency, setSavingsInterestFrequency] = useState('MONTHLY');
 
     // Loan Specific State
     const [loanAmount, setLoanAmount] = useState('');
@@ -203,6 +204,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                 metadata.interest_rate = savingsInterestRate ? parseFloat(savingsInterestRate) : null;
                 metadata.min_balance = savingsMinBalance ? parseFloat(savingsMinBalance) : 0;
                 metadata.interest_accrual_day = 1;
+                metadata.interest_frequency = savingsInterestFrequency;
             } else if (accountType === ACCOUNT_TYPE.LOAN) {
                 metadata.loan_amount = parseFloat(loanAmount);
                 metadata.outstanding_amount = parseFloat(loanAmount);
@@ -382,6 +384,8 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                         <SavingsEditFields
                                             interestRate={savingsInterestRate}
                                             setInterestRate={setSavingsInterestRate}
+                                            interestFrequency={savingsInterestFrequency}
+                                            setInterestFrequency={setSavingsInterestFrequency}
                                         />
                                         <div>
                                             <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Min Balance Required</label>

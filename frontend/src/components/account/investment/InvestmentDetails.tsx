@@ -85,10 +85,10 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
     }, null as Date | null);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
             {/* Investment Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-card p-5 rounded-2xl shadow-sm border border-border">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                <div className="bg-card p-3 rounded-xl border border-border">
                     <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">Cash Ledger Balance</div>
                     <div className={cn(
                         'text-2xl font-bold flex items-center gap-2',
@@ -97,19 +97,19 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                         {summaryMoney(account.balance || 0)}
                     </div>
                 </div>
-                <div className="bg-card p-5 rounded-2xl shadow-sm border border-border">
+                <div className="bg-card p-3 rounded-xl border border-border">
                     <div className="text-sm text-muted-foreground mb-1">Total Market Value</div>
                     <div className="text-2xl font-bold text-foreground" title={money(totalValue)}>
                         {summaryMoney(totalValue)}
                     </div>
                 </div>
-                <div className="bg-card p-5 rounded-2xl shadow-sm border border-border">
+                <div className="bg-card p-3 rounded-xl border border-border">
                     <div className="text-sm text-muted-foreground mb-1">Total Cost</div>
                     <div className="text-2xl font-bold text-foreground" title={money(totalCost)}>
                         {summaryMoney(totalCost)}
                     </div>
                 </div>
-                <div className="bg-card p-5 rounded-2xl shadow-sm border border-border">
+                <div className="bg-card p-3 rounded-xl border border-border">
                     <div className="text-sm text-muted-foreground mb-1">Total Logic Gain/Loss</div>
                     <div className={cn(
                         'text-2xl font-bold flex items-center gap-2',
@@ -123,8 +123,8 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
             </div>
 
             {/* Holdings List */}
-            <div className="bg-card rounded-2xl shadow-lg overflow-hidden border border-border">
-                <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
+            <div className="bg-card rounded-xl overflow-hidden border border-border">
+                <div className="p-3 border-b border-border flex justify-between items-center bg-muted/20">
                     <div>
                         <h3 className="text-lg font-bold text-foreground">Holdings</h3>
                         {lastUpdate && (
