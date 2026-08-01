@@ -523,7 +523,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                                 placeholder="e.g. 12"
                                                 value={rdTenure}
                                                 onChange={(e) => setRdTenure(e.target.value)}
-                                                className="w-full px-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
+                                                className="date-time-field"
                                             />
                                         </div>
                                     </div>
@@ -537,7 +537,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                                 placeholder="e.g. 6.5"
                                                 value={rdInterestRate}
                                                 onChange={(e) => setRdInterestRate(e.target.value)}
-                                                className="w-full px-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
+                                                className="date-time-field"
                                             />
                                         </div>
                                         <div>
@@ -548,7 +548,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                                 placeholder="e.g. 5"
                                                 value={rdDepositDay}
                                                 onChange={(e) => setRdDepositDay(e.target.value)}
-                                                className="w-full px-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
+                                                className="date-time-field"
                                             />
                                         </div>
                                     </div>
@@ -560,7 +560,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                                 type="date"
                                                 value={rdStartDate}
                                                 onChange={(e) => setRdStartDate(e.target.value)}
-                                                className="w-full px-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
+                                                className="date-time-field"
                                             />
                                         </div>
                                         <div>
@@ -569,7 +569,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                                 type="date"
                                                 value={rdMaturityDate}
                                                 onChange={(e) => setRdMaturityDate(e.target.value)}
-                                                className="w-full px-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
+                                                className="date-time-field"
                                             />
                                         </div>
                                     </div>
@@ -659,7 +659,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                                 type="date"
                                                 value={fdStartDate}
                                                 onChange={(e) => setFdStartDate(e.target.value)}
-                                                className="w-full px-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
+                                                className="date-time-field"
                                             />
                                         </div>
                                         <div>
@@ -668,7 +668,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                                 type="date"
                                                 value={fdMaturityDate}
                                                 onChange={(e) => setFdMaturityDate(e.target.value)}
-                                                className="w-full px-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
+                                                className="date-time-field"
                                             />
                                         </div>
                                     </div>

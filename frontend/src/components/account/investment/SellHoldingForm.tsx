@@ -100,7 +100,7 @@ const SellHoldingForm = ({ holding, currencySymbol, onSuccess, onCancel }: SellH
                     required
                     value={transactionDate}
                     onChange={e => setTransactionDate(e.target.value)}
-                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none transition"
+                    className="date-time-field"
                 />
             </div>
 

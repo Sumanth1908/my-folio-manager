@@ -20,6 +20,17 @@ from app.services.rule_strategy import RuleProcessorFactory, SCHEDULABLE_RULE_TY
 
 logger = logging.getLogger(__name__)
 
+SAVINGS_INTEREST_FREQUENCIES = {"DAILY", "MONTHLY", "QUARTERLY", "YEARLY"}
+
+
+def validate_savings_interest_frequency(metadata_: Optional[dict]) -> str:
+    """Return the configured savings posting frequency, defaulting legacy accounts to monthly."""
+    frequency = (metadata_ or {}).get("interest_frequency", "MONTHLY")
+    if frequency not in SAVINGS_INTEREST_FREQUENCIES:
+        options = ", ".join(sorted(SAVINGS_INTEREST_FREQUENCIES))
+        raise ValueError(f"Savings interest frequency must be one of: {options}")
+    return frequency
+
 def make_aware(dt: Optional[datetime]) -> Optional[datetime]:
     if dt is None:
         return None
@@ -91,6 +102,15 @@ def replace_day_clamped(dt: datetime, day: int) -> datetime:
     return dt.replace(day=min(int(day), last_day))
 
 
+def next_calendar_quarter_start(dt: datetime) -> datetime:
+    """Return the first day of the next calendar quarter, preserving the time and timezone."""
+    current_quarter_start_month = ((dt.month - 1) // 3) * 3 + 1
+    next_quarter_month = current_quarter_start_month + 3
+    if next_quarter_month > 12:
+        return dt.replace(year=dt.year + 1, month=1, day=1)
+    return dt.replace(month=next_quarter_month, day=1)
+
+
 def prepare_rule_posting(session: Session, rule: Rule, account: Account) -> dict:
     """Compute what a rule would post right now, without posting anything.
 
@@ -108,6 +128,8 @@ def prepare_rule_posting(session: Session, rule: Rule, account: Account) -> dict
         period_start = due_at - relativedelta(weeks=1)
     elif frequency == "MONTHLY":
         period_start = due_at - relativedelta(months=1)
+    elif frequency == "QUARTERLY":
+        period_start = due_at - relativedelta(months=3)
     elif frequency == "YEARLY":
         period_start = due_at - relativedelta(years=1)
     else:
@@ -163,38 +185,41 @@ def compute_next_run(rule: Rule, account: Account, frequency: Optional[str], now
 
     current_run = make_aware(rule.next_run_at) or now_utc
 
-    if frequency == "DAILY":
-        next_run = current_run + relativedelta(days=1) if now_utc <= current_run else now_utc + relativedelta(days=1)
-    elif frequency == "WEEKLY":
-        next_run = current_run + relativedelta(weeks=1)
-    elif frequency == "MONTHLY":
-        next_date = current_run + relativedelta(months=1)
+    accrual_day = 1
+    if rule.rule_type == RuleType.CALCULATION and account.metadata_:
+        accrual_day = account.metadata_.get("interest_accrual_day")
+        if not accrual_day and account.account_type == AccountType.RECURRING_DEPOSIT:
+            accrual_day = account.metadata_.get("deposit_day")
+        if not accrual_day and account.metadata_.get("start_date"):
+            try:
+                accrual_day = datetime.fromisoformat(account.metadata_["start_date"]).day
+            except ValueError:
+                pass
+        accrual_day = accrual_day or 1
 
-        if rule.rule_type == RuleType.CALCULATION:
-            accrual_day = 1
-            if account.metadata_:
-                accrual_day = account.metadata_.get("interest_accrual_day")
-                if not accrual_day and account.account_type == AccountType.RECURRING_DEPOSIT:
-                    accrual_day = account.metadata_.get("deposit_day")
-                if not accrual_day and account.metadata_.get("start_date"):
-                    try:
-                        start_dt = datetime.fromisoformat(account.metadata_["start_date"])
-                        accrual_day = start_dt.day
-                    except ValueError:
-                        pass
+    def advance(from_date: datetime) -> datetime:
+        if frequency == "DAILY":
+            return from_date + relativedelta(days=1)
+        if frequency == "WEEKLY":
+            return from_date + relativedelta(weeks=1)
+        if frequency == "MONTHLY":
+            candidate = from_date + relativedelta(months=1)
+            return replace_day_clamped(candidate, accrual_day) if rule.rule_type == RuleType.CALCULATION else candidate
+        if frequency == "QUARTERLY":
+            return next_calendar_quarter_start(from_date)
+        if frequency == "YEARLY":
+            return from_date + relativedelta(years=1)
+        raise ValueError(f"Unknown frequency: {frequency}")
 
-                accrual_day = accrual_day or 1
-
-            next_run = replace_day_clamped(next_date, accrual_day)
-        else:
-            next_run = next_date
-    elif frequency == "YEARLY":
-        next_run = current_run + relativedelta(years=1)
-    else:
+    if frequency not in {"DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "YEARLY"}:
         # Unknown frequency: configuration validation should make this
         # unreachable; deactivate rather than refire every scheduler tick.
         logger.error(f"Rule {rule.rule_id} has unknown frequency '{frequency}'; deactivating")
         return None, False
+
+    next_run = advance(current_run)
+    while make_aware(next_run) <= now_utc:
+        next_run = advance(next_run)
 
     config = rule.configuration or {}
     end_date = config.get("end_date")
@@ -449,10 +474,9 @@ def execute_rule_now_core(session: Session, rule_id: int, user_id: str):
     return rule
 
 def create_default_interest_rule(session: Session, account: Account, savings_data=None, loan_data=None, fd_data=None):
-    if not account.is_interest_enabled:
-        return None
-
-    rule_name = f"Daily Interest - {account.account_name}"
+    metadata_ = account.metadata_ or {}
+    frequency = validate_savings_interest_frequency(metadata_) if account.account_type == AccountType.SAVINGS else "MONTHLY"
+    rule_name = f"{frequency.title()} Interest - {account.account_name}"
     formula = ""
     is_debit = False
 
@@ -469,7 +493,24 @@ def create_default_interest_rule(session: Session, account: Account, savings_dat
     if not formula:
         return None
 
-    metadata_ = account.metadata_ or {}
+    interest_rule = session.exec(
+        select(Rule)
+        .where(Rule.account_id == account.account_id)
+        .where(Rule.rule_type == RuleType.CALCULATION)
+        .where(
+            (Rule.name.like("Daily Interest - %"))
+            | (Rule.name.like("Monthly Interest - %"))
+            | (Rule.name.like("Quarterly Interest - %"))
+            | (Rule.name.like("Yearly Interest - %"))
+        )
+    ).first()
+
+    if not account.is_interest_enabled:
+        if interest_rule:
+            interest_rule.is_active = False
+            interest_rule.next_run_at = None
+            session.add(interest_rule)
+        return interest_rule
 
     start_date_str = metadata_.get('emi_start_date') or metadata_.get('start_date')
     if start_date_str:
@@ -478,14 +519,17 @@ def create_default_interest_rule(session: Session, account: Account, savings_dat
     else:
         base_date = datetime.now(timezone.utc).replace(hour=1, minute=0, second=0, microsecond=0)
 
-    next_run = base_date + relativedelta(months=1)
+    if frequency == "DAILY":
+        next_run = base_date + relativedelta(days=1)
+    elif frequency == "QUARTERLY":
+        next_run = next_calendar_quarter_start(base_date)
+    elif frequency == "YEARLY":
+        next_run = base_date + relativedelta(years=1)
+    else:
+        next_run = base_date + relativedelta(months=1)
 
-    interest_rule = session.exec(
-        select(Rule)
-        .where(Rule.account_id == account.account_id)
-        .where(Rule.rule_type == RuleType.CALCULATION)
-        .where((Rule.name.like("Monthly Interest - %")) | (Rule.name.like("Daily Interest - %")))
-    ).first()
+    if frequency == "MONTHLY":
+        next_run = replace_day_clamped(next_run, metadata_.get("interest_accrual_day", 1) or 1)
 
     end_date = None
     if account.account_type == AccountType.LOAN and metadata_.get('tenure_months') and metadata_.get('start_date'):
@@ -498,16 +542,18 @@ def create_default_interest_rule(session: Session, account: Account, savings_dat
 
     config = {
         "formula": formula,
-        "frequency": "MONTHLY",
+        "frequency": frequency,
         "is_debit": is_debit
     }
     if end_date:
         config["end_date"] = end_date.isoformat()
 
     if interest_rule:
+        frequency_changed = (interest_rule.configuration or {}).get("frequency") != frequency
         interest_rule.name = rule_name
         interest_rule.configuration = config
-        if interest_rule.next_run_at is None:
+        interest_rule.is_active = True
+        if interest_rule.next_run_at is None or frequency_changed:
             interest_rule.next_run_at = next_run
         session.add(interest_rule)
     else:

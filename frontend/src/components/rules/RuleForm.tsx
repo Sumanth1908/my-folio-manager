@@ -391,7 +391,7 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
                             type="datetime-local"
                             value={formData.nextRunAt}
                             onChange={e => updateField('nextRunAt', e.target.value)}
-                            className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold h-11"
+                            className="date-time-field"
                             required
                         />
                     </div>
@@ -403,7 +403,7 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
                             type="date"
                             value={formData.endDate}
                             onChange={e => updateField('endDate', e.target.value)}
-                            className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none text-foreground font-bold h-11"
+                            className="date-time-field"
                         />
                     </div>
 

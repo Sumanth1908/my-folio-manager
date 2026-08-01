@@ -15,6 +15,7 @@ class RuleFrequency(str, Enum):
     DAILY = "DAILY"
     WEEKLY = "WEEKLY"
     MONTHLY = "MONTHLY"
+    QUARTERLY = "QUARTERLY"
     YEARLY = "YEARLY"
 
 

@@ -78,7 +78,7 @@ export default function EditTransactionForm({ transaction, onSuccess, onCancel }
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     disabled={isTransferLeg}
-                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground disabled:opacity-50"
+                    className="date-time-field disabled:opacity-50"
                 />
             </div>
 
@@ -104,7 +104,7 @@ export default function EditTransactionForm({ transaction, onSuccess, onCancel }
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     disabled={isTransferLeg}
-                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground disabled:opacity-50"
+                    className="date-time-field disabled:opacity-50"
                 />
             </div>
 

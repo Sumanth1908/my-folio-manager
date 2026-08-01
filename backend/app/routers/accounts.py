@@ -74,7 +74,10 @@ def update_account(
     current_user: User = Depends(get_current_user)
 ):
     """Update an account and its specific details."""
-    account = account_service.update_account(session, account_id, account_in, current_user.user_id)
+    try:
+        account = account_service.update_account(session, account_id, account_in, current_user.user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
         

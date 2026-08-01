@@ -8,6 +8,7 @@ from app.models import Account, AccountType, RuleExecution, RuleExecutionStatus,
 from app.models.rule import Rule, RuleType
 from app.schemas.rule import validate_rule_configuration
 from app.services.rules_service import (compute_next_run, process_single_rule,
+                                        next_calendar_quarter_start,
                                         replace_day_clamped)
 from tests.conftest import make_account, seed_transaction
 
@@ -42,6 +43,14 @@ class TestReplaceDayClamped:
         assert replace_day_clamped(datetime(2026, 3, 15), 10).day == 10
 
 
+class TestNextCalendarQuarterStart:
+    def test_mid_quarter_advances_to_next_quarter_boundary(self):
+        assert next_calendar_quarter_start(datetime(2026, 8, 15, 1)) == datetime(2026, 10, 1, 1)
+
+    def test_fourth_quarter_rolls_into_next_year(self):
+        assert next_calendar_quarter_start(datetime(2026, 12, 20, 1)) == datetime(2027, 1, 1, 1)
+
+
 class TestComputeNextRun:
     def test_monthly_calculation_clamps_accrual_day(self, session, user):
         # accrual day 31, moving Jan → Feb, must clamp instead of crashing
@@ -61,6 +70,21 @@ class TestComputeNextRun:
         next_run, active = compute_next_run(rule, account, "MONTLY", datetime.now(timezone.utc))
         assert next_run is None
         assert active is False
+
+    def test_quarterly_calculation_advances_to_calendar_quarter(self, session, user):
+        account = make_account(session, user, metadata={"interest_accrual_day": 31})
+        rule = make_rule(session, account, config={"frequency": "QUARTERLY"})
+        rule.next_run_at = datetime(2026, 1, 31)
+
+        next_run, active = compute_next_run(
+            rule,
+            account,
+            "QUARTERLY",
+            datetime(2026, 1, 31, tzinfo=timezone.utc),
+        )
+
+        assert active is True
+        assert next_run == datetime(2026, 4, 1, tzinfo=timezone.utc)
 
     def test_one_time_deactivates(self, session, user):
         account = make_account(session, user)
@@ -165,6 +189,12 @@ class TestConfigurationValidation:
         validate_rule_configuration(RuleType.CALCULATION, {
             "formula": "balance * (interest_rate / 100) / 365 * days",
             "frequency": "MONTHLY",
+        })
+
+    def test_quarterly_frequency_is_valid(self):
+        validate_rule_configuration(RuleType.CALCULATION, {
+            "formula": "balance * (interest_rate / 100) / 365 * days",
+            "frequency": "QUARTERLY",
         })
 
     def test_frequency_typo_rejected(self):

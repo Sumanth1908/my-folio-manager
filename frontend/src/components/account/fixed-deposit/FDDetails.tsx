@@ -55,10 +55,9 @@ const FDDetails = ({ account, symbol }: FDDetailsProps) => {
                     </p>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Calculation Basis</p>
-                    <p className="text-lg font-bold text-foreground">
-                        Daily
-                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Interest Schedule</p>
+                    <p className="text-lg font-bold text-foreground">Monthly</p>
+                    <p className="text-[10px] text-muted-foreground">Accrued daily</p>
                 </div>
             </div>
         </section>

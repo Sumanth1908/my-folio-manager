@@ -206,7 +206,7 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
                         type="date"
                         value={formData.date}
                         onChange={e => updateField('date', e.target.value)}
-                        className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground placeholder:text-muted-foreground/30"
+                        className="date-time-field"
                     />
                 </div>
             </div>

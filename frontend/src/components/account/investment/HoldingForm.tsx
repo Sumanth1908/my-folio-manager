@@ -163,7 +163,7 @@ const HoldingForm = ({ accountId, currencySymbol, currencyCode, prefill, onSucce
                     required
                     value={formData.transaction_date}
                     onChange={e => updateField('transaction_date', e.target.value)}
-                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none transition"
+                    className="date-time-field"
                 />
             </div>
 

@@ -104,7 +104,7 @@ const LoanEditFields = ({
                             type="date"
                             value={startDate ?? ''}
                             onChange={e => setStartDate(e.target.value)}
-                            className="w-full px-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                            className="date-time-field"
                             required
                         />
                     </div>
@@ -117,7 +117,7 @@ const LoanEditFields = ({
                                 type="date"
                                 value={emiStartDate ?? ''}
                                 onChange={e => setEmiStartDate(e.target.value)}
-                                className="w-full px-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                className="date-time-field"
                                 required
                             />
                         </div>

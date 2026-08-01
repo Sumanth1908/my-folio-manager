@@ -77,6 +77,8 @@ def create_account(session: Session, account_in: AccountCreate, user_id: str) ->
     ONE database transaction — a failure at any step leaves nothing behind
     instead of a half-provisioned account."""
     account = Account(**account_in.model_dump(), user_id=user_id)
+    if account.account_type == AccountType.SAVINGS:
+        rules_service.validate_savings_interest_frequency(account.metadata_)
     session.add(account)
     session.flush()
 
@@ -126,10 +128,22 @@ def update_account(session: Session, account_id: str, account_in: AccountUpdate,
     if not account:
         return None
         
-    for key, value in account_in.model_dump(exclude_unset=True).items():
+    updates = account_in.model_dump(exclude_unset=True)
+    if account.account_type == AccountType.SAVINGS:
+        proposed_metadata = updates.get("metadata_", account.metadata_)
+        rules_service.validate_savings_interest_frequency(proposed_metadata)
+
+    for key, value in updates.items():
         setattr(account, key, value)
 
     session.add(account)
+    if account.account_type in {
+        AccountType.SAVINGS,
+        AccountType.LOAN,
+        AccountType.FIXED_DEPOSIT,
+        AccountType.RECURRING_DEPOSIT,
+    }:
+        rules_service.create_default_interest_rule(session, account)
     session.commit()
     session.refresh(account)
     return account
