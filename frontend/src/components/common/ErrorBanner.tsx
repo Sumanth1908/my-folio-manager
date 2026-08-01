@@ -9,8 +9,8 @@ interface ErrorBannerProps {
 /** Inline error state for failed fetches — replaces silently-empty screens. */
 export default function ErrorBanner({ message, onRetry }: ErrorBannerProps) {
     return (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl border border-red-500/30 bg-red-500/10 text-sm">
-            <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
+        <div className="flex flex-col items-start justify-between gap-3 rounded-lg border border-expense/30 bg-expense-muted p-4 text-sm sm:flex-row sm:items-center" role="alert">
+            <div className="flex items-center gap-3 text-expense">
                 <AlertTriangle size={18} className="shrink-0" />
                 <span className="font-medium">{message}</span>
             </div>

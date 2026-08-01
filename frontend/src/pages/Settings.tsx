@@ -1,29 +1,29 @@
 import { useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Trash2, User, Layers, Settings as SettingsIcon, Tag, Plus, Database } from 'lucide-react';
 import { handleApiError } from '../api';
-import Modal from '../components/common/Modal';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { PreferencesSettings } from '../components/settings/PreferencesSettings';
 import { DataSettings } from '../components/settings/DataSettings';
 import { SecuritySettings } from '../components/settings/SecuritySettings';
 import { Shield } from 'lucide-react';
-import CategoryForm from '../components/settings/CategoryForm';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { PageHeader } from '../components/ui/PageHeader';
 import { cn } from '../lib/utils';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchCategories, deleteCategory } from '../store/slices/categoriesSlice';
 import type { RootState } from '../store';
+import { useCreateFlow } from '../context/CreateFlowContext';
 
 const Settings = () => {
     const { user } = useAuth();
     const dispatch = useAppDispatch();
+    const { openCreate } = useCreateFlow();
     const [activeTab, setActiveTab] = useState<'general' | 'security' | 'categories' | 'preferences' | 'data'>('categories');
 
     // Category State
-    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
 
     const { items: categories, loading: isLoading } = useAppSelector((state: RootState) => state.categories);
@@ -43,25 +43,28 @@ const Settings = () => {
         }
     };
 
-    const closeCategoryModal = () => {
-        setIsCategoryModalOpen(false);
-    };
-
     return (
-        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
-            <h1 className="text-4xl font-black text-foreground tracking-tight">Settings</h1>
+        <div className="page-shell">
+            <PageHeader
+                eyebrow="Preferences"
+                title="Settings"
+                description="Manage your profile, security, categories, display preferences, and data."
+            />
 
             <div className="flex flex-col md:flex-row gap-10">
                 {/* Sidebar Navigation */}
                 <div className="w-full md:w-72 flex-shrink-0">
-                    <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
-                        <nav className="flex flex-col gap-1">
+                    <Card className="p-3 md:sticky md:top-3">
+                        <nav className="flex gap-1 overflow-x-auto md:flex-col" role="tablist" aria-label="Settings sections">
                             <button
                                 onClick={() => setActiveTab('general')}
+                                role="tab"
+                                aria-selected={activeTab === 'general'}
+                                aria-controls="settings-panel"
                                 className={cn(
-                                    "flex items-center gap-3 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                                    "flex min-w-max items-center gap-3 rounded-md px-3 py-3 text-sm font-medium transition-colors",
                                     activeTab === 'general'
-                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                        ? "bg-primary/10 text-primary"
                                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                 )}
                             >
@@ -70,10 +73,13 @@ const Settings = () => {
                             </button>
                             <button
                                 onClick={() => setActiveTab('security')}
+                                role="tab"
+                                aria-selected={activeTab === 'security'}
+                                aria-controls="settings-panel"
                                 className={cn(
-                                    "flex items-center gap-3 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                                    "flex min-w-max items-center gap-3 rounded-md px-3 py-3 text-sm font-medium transition-colors",
                                     activeTab === 'security'
-                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                        ? "bg-primary/10 text-primary"
                                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                 )}
                             >
@@ -82,10 +88,13 @@ const Settings = () => {
                             </button>
                             <button
                                 onClick={() => setActiveTab('categories')}
+                                role="tab"
+                                aria-selected={activeTab === 'categories'}
+                                aria-controls="settings-panel"
                                 className={cn(
-                                    "flex items-center gap-3 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                                    "flex min-w-max items-center gap-3 rounded-md px-3 py-3 text-sm font-medium transition-colors",
                                     activeTab === 'categories'
-                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                        ? "bg-primary/10 text-primary"
                                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                 )}
                             >
@@ -94,10 +103,13 @@ const Settings = () => {
                             </button>
                             <button
                                 onClick={() => setActiveTab('preferences')}
+                                role="tab"
+                                aria-selected={activeTab === 'preferences'}
+                                aria-controls="settings-panel"
                                 className={cn(
-                                    "flex items-center gap-3 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                                    "flex min-w-max items-center gap-3 rounded-md px-3 py-3 text-sm font-medium transition-colors",
                                     activeTab === 'preferences'
-                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                        ? "bg-primary/10 text-primary"
                                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                 )}
                             >
@@ -106,10 +118,13 @@ const Settings = () => {
                             </button>
                             <button
                                 onClick={() => setActiveTab('data')}
+                                role="tab"
+                                aria-selected={activeTab === 'data'}
+                                aria-controls="settings-panel"
                                 className={cn(
-                                    "flex items-center gap-3 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                                    "flex min-w-max items-center gap-3 rounded-md px-3 py-3 text-sm font-medium transition-colors",
                                     activeTab === 'data'
-                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                        ? "bg-primary/10 text-primary"
                                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                 )}
                             >
@@ -121,7 +136,7 @@ const Settings = () => {
                 </div>
 
                 {/* Main Content Area */}
-                <div className="flex-1">
+                <div className="min-w-0 flex-1" id="settings-panel" role="tabpanel">
                     {activeTab === 'general' && (
                         <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
                             <div>
@@ -157,11 +172,11 @@ const Settings = () => {
                         <Card className="bg-muted/30 p-8 rounded-2xl border border-border space-y-6">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <h2 className="text-2xl font-black text-foreground tracking-tight uppercase tracking-tighter">Taxonomy</h2>
-                                    <p className="text-sm text-muted-foreground mt-1">Classify your financial activity.</p>
+                                    <h2 className="text-xl font-semibold text-foreground tracking-tight">Categories</h2>
+                                    <p className="mt-1 text-sm text-muted-foreground">Create and manage labels for financial activity.</p>
                                 </div>
                                 <Button
-                                    onClick={() => setIsCategoryModalOpen(true)}
+                                    onClick={() => openCreate('category')}
                                     size="icon"
                                     className="h-12 w-12 rounded-full shadow-lg shadow-primary/20"
                                 >
@@ -196,7 +211,7 @@ const Settings = () => {
                                     {categories?.length === 0 && (
                                         <div className="col-span-full py-20 bg-muted/10 rounded-3xl border border-dashed border-border text-center">
                                             <Tag className="mx-auto text-muted-foreground/30 mb-4" size={40} />
-                                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Zero tags mapped</p>
+                                            <p className="text-sm font-medium text-muted-foreground">No categories yet</p>
                                         </div>
                                     )}
                                 </div>
@@ -209,10 +224,6 @@ const Settings = () => {
                     {activeTab === 'data' && <DataSettings />}
                 </div>
             </div>
-
-            <Modal isOpen={isCategoryModalOpen} onClose={closeCategoryModal} title="New Category">
-                <CategoryForm onSuccess={closeCategoryModal} onCancel={closeCategoryModal} />
-            </Modal>
 
             <ConfirmModal
                 isOpen={!!categoryToDelete}

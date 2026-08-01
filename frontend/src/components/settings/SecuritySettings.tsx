@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import api, { handleApiError } from '../../api';

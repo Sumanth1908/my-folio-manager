@@ -4,6 +4,8 @@ import LoadingSpinner from '../../common/LoadingSpinner';
 import TransactionRow from '../../transactions/TransactionRow';
 import { useAppSelector } from '../../../store/hooks';
 import type { RootState } from '../../../store';
+import { EmptyState } from '../../ui/EmptyState';
+import { ReceiptText } from 'lucide-react';
 
 interface AccountTransactionsProps {
     transactions: Transaction[] | undefined;
@@ -47,6 +49,25 @@ const AccountTransactions = memo(({
         return symbol || '$';
     };
 
+    const groupedTransactions = useMemo(() => {
+        const groups = new Map<string, Transaction[]>();
+        (transactions || []).forEach((transaction) => {
+            const key = transaction.transaction_date.slice(0, 10);
+            groups.set(key, [...(groups.get(key) || []), transaction]);
+        });
+        return Array.from(groups.entries());
+    }, [transactions]);
+
+    const formatGroupDate = (dateValue: string) => {
+        const date = new Date(`${dateValue}T00:00:00`);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const offset = Math.round((today.getTime() - date.getTime()) / 86_400_000);
+        if (offset === 0) return 'Today';
+        if (offset === 1) return 'Yesterday';
+        return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    };
+
     return (
         <>
             {isLoading ? (
@@ -54,24 +75,29 @@ const AccountTransactions = memo(({
                     <LoadingSpinner />
                 </div>
             ) : (
-                <div className="divide-y divide-border/50">
-                    {transactions?.map((tx: Transaction) => (
-                        <TransactionRow
-                            key={tx.transaction_id}
-                            tx={tx}
-                            accountName={showAccountName ? accountsMap.nameMap.get(tx.account_id) : undefined}
-                            accountType={accountsMap.typeMap.get(tx.account_id)}
-                            currencySymbol={getCurrencySymbol(tx)}
-
-                            onDelete={onDelete}
-                            onEdit={onEdit}
-                        />
+                <div>
+                    {groupedTransactions.map(([date, dateTransactions]) => (
+                        <section key={date} aria-labelledby={`transactions-${date}`}>
+                            <h3 id={`transactions-${date}`} className="sticky top-16 z-20 border-y border-border bg-muted/95 px-4 py-2 text-xs font-semibold text-muted-foreground backdrop-blur-md sm:px-5 lg:top-[4.125rem]">
+                                {formatGroupDate(date)}
+                            </h3>
+                            <div className="divide-y divide-border/50">
+                                {dateTransactions.map((tx: Transaction) => (
+                                    <TransactionRow
+                                        key={tx.transaction_id}
+                                        tx={tx}
+                                        accountName={showAccountName ? accountsMap.nameMap.get(tx.account_id) : undefined}
+                                        accountType={accountsMap.typeMap.get(tx.account_id)}
+                                        currencySymbol={getCurrencySymbol(tx)}
+                                        onDelete={onDelete}
+                                        onEdit={onEdit}
+                                    />
+                                ))}
+                            </div>
+                        </section>
                     ))}
                     {transactions?.length === 0 && (
-                        <div className="text-center py-24">
-                            <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">No transactions found</p>
-                            <p className="text-[10px] text-muted-foreground/50 mt-1 lowercase italic">Try adjusting your filters</p>
-                        </div>
+                        <EmptyState icon={<ReceiptText className="h-5 w-5" />} title="No transactions found" description="Try adjusting your filters or add a new transaction." />
                     )}
                 </div>
             )}
@@ -82,4 +108,3 @@ const AccountTransactions = memo(({
 AccountTransactions.displayName = 'AccountTransactions';
 
 export default AccountTransactions;
-

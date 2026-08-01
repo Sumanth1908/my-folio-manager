@@ -11,15 +11,27 @@ import { formatDate, cn } from '../lib/utils';
 import RuleForm from '../components/rules/RuleForm';
 import Modal from '../components/common/Modal';
 import { Card } from '../components/ui/Card';
-import toast from 'react-hot-toast';
+import { PageHeader } from '../components/ui/PageHeader';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
+import { PageToolbar } from '../components/ui/PageToolbar';
+import { EmptyState } from '../components/ui/EmptyState';
+import ConfirmModal from '../components/common/ConfirmModal';
+import { toast } from 'sonner';
+import { useCreateFlow } from '../context/CreateFlowContext';
 
-export default function Rules() {
+interface RulesProps {
+    embedded?: boolean;
+}
+
+export default function Rules({ embedded = false }: RulesProps) {
     const dispatch = useAppDispatch();
+    const { openCreate } = useCreateFlow();
     const { items: rules, loading } = useAppSelector((state: RootState) => state.rules);
     const { items: accounts, loading: accountsLoading } = useAppSelector((state: RootState) => state.accounts);
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [ruleToEdit, setRuleToEdit] = useState<Rule | null>(null);
+    const [ruleToDelete, setRuleToDelete] = useState<Rule | null>(null);
     const [statusFilter, setStatusFilter] = useState<'Active' | 'Closed' | 'all'>('Active');
 
     useEffect(() => {
@@ -51,11 +63,12 @@ export default function Rules() {
         }
     };
 
-    const handleDelete = async (ruleId: number) => {
-        if (!window.confirm('Are you sure you want to delete this rule?')) return;
+    const handleDelete = async () => {
+        if (!ruleToDelete) return;
         try {
-            await dispatch(deleteRule({ id: ruleId, accountId: null })).unwrap();
+            await dispatch(deleteRule({ id: ruleToDelete.rule_id, accountId: null })).unwrap();
             toast.success('Rule deleted');
+            setRuleToDelete(null);
         } catch (error: any) {
             toast.error(error?.message || 'Failed to delete rule');
         }
@@ -104,9 +117,30 @@ export default function Rules() {
         [groupedRules]
     );
 
+    const actions = (
+        <>
+            <SegmentedControl
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+                label="Rule account status"
+                options={[
+                    { value: 'Active', label: 'Open' },
+                    { value: 'Closed', label: 'Closed' },
+                    { value: 'all', label: 'All' },
+                ]}
+            />
+            <Button onClick={handleTriggerAutomation} variant="outline" title="Run all due rules now">
+                <Zap /> Run due rules
+            </Button>
+            <Button onClick={() => openCreate('automation')}>
+                <Plus /> New rule
+            </Button>
+        </>
+    );
+
     if (loading || accountsLoading) {
         return (
-            <div className="flex h-[calc(100vh-5rem)] items-center justify-center">
+            <div className={cn('flex items-center justify-center', embedded ? 'py-20' : 'h-[calc(100vh-5rem)]')}>
                 <div className="flex flex-col items-center gap-4">
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                     <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground animate-pulse">Loading Rules...</p>
@@ -116,55 +150,25 @@ export default function Rules() {
     }
 
     return (
-        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
-            <Card className="p-8 border-border/50 bg-background/90 text-foreground">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">Automated Rules</h1>
-                        <p className="text-muted-foreground text-sm mt-1">Manage categorizations, transfers, and calculations across all accounts.</p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                        <div className="flex bg-muted/50 p-1 rounded-xl border border-border">
-                            {(['Active', 'Closed', 'all'] as const).map((s) => (
-                                <Button
-                                    key={s}
-                                    variant={statusFilter === s ? "default" : "ghost"}
-                                    size="sm"
-                                    onClick={() => setStatusFilter(s)}
-                                    title={s === 'Active' ? 'Open accounts' : s === 'Closed' ? 'Closed accounts' : 'All accounts'}
-                                    className={cn(
-                                        "text-[10px] font-bold uppercase tracking-wider px-3 rounded-lg transition-colors duration-200 h-8",
-                                        statusFilter !== s && "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    {s === 'Active' ? 'Open' : s === 'Closed' ? 'Closed' : 'All'}
-                                </Button>
-                            ))}
-                        </div>
-                        <Button
-                            onClick={handleTriggerAutomation}
-                            variant="outline"
-                            size="icon"
-                            title="Run all due rules now"
-                            className="rounded-full h-10 w-10 transition-all"
-                        >
-                            <Zap size={18} />
-                        </Button>
-                        <Button
-                            onClick={() => setIsFormOpen(true)}
-                            size="icon"
-                            title="Create Rule"
-                            className="rounded-full h-10 w-10 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
-                        >
-                            <Plus size={20} />
-                        </Button>
-                    </div>
-                </div>
+        <div className={embedded ? 'space-y-5' : 'page-shell'}>
+            {embedded ? (
+                <PageToolbar label="Automation controls">{actions}</PageToolbar>
+            ) : (
+                <PageHeader
+                eyebrow="Automate"
+                title="Rules"
+                description="Manage categorizations, transfers, and calculations across every account."
+                actions={actions}
+            />
+            )}
+
+            <Card className="p-5 sm:p-6">
 
             <Modal
                 isOpen={isFormOpen}
                 onClose={handleCloseForm}
-                title={ruleToEdit ? 'Edit Rule' : 'New Rule'}
+                title={ruleToEdit ? 'Edit rule' : 'New rule'}
+                description="Choose what should happen and when this automation should run."
                 maxWidth="max-w-2xl"
             >
                 <RuleForm 
@@ -175,17 +179,13 @@ export default function Rules() {
             </Modal>
 
             {visibleRuleCount === 0 ? (
-                <div className="text-center py-20 bg-muted/20 border border-border/50 border-dashed rounded-3xl">
-                    <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-6">
-                        <RefreshCw className="text-muted-foreground" size={24} />
-                    </div>
-                    <h3 className="text-xl font-black text-foreground mb-2">No Rules Found</h3>
-                    <p className="text-muted-foreground max-w-md mx-auto">
-                        {rules.length === 0
-                            ? 'Create rules to automatically categorize transactions, transfer funds, or calculate interest across your accounts.'
-                            : `No rules for ${statusFilter === 'Active' ? 'open' : 'closed'} accounts.`}
-                    </p>
-                </div>
+                <EmptyState
+                    icon={<RefreshCw className="h-5 w-5" />}
+                    title="No rules found"
+                    description={rules.length === 0
+                        ? 'Create rules to automatically categorize transactions, transfer funds, or calculate interest across your accounts.'
+                        : `No rules for ${statusFilter === 'Active' ? 'open' : 'closed'} accounts.`}
+                />
             ) : (
                 <div className="space-y-12">
                     {Object.entries(groupedRules).map(([accountId, accountRules]) => {
@@ -278,7 +278,7 @@ export default function Rules() {
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                onClick={() => handleDelete(rule.rule_id)}
+                                                onClick={() => setRuleToDelete(rule)}
                                                 className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
                                                 title="Delete Rule"
                                             >
@@ -294,6 +294,15 @@ export default function Rules() {
                 </div>
             )}
             </Card>
+            <ConfirmModal
+                isOpen={Boolean(ruleToDelete)}
+                onClose={() => setRuleToDelete(null)}
+                onConfirm={handleDelete}
+                title="Delete rule?"
+                message={`“${ruleToDelete?.name || 'This rule'}” will stop running and cannot be recovered.`}
+                confirmText="Delete rule"
+                variant="danger"
+            />
         </div>
     );
 }

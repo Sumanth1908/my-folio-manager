@@ -9,6 +9,7 @@ interface ModalProps {
     title: string
     children: React.ReactNode
     maxWidth?: string
+    description?: string
 }
 
 export default function Modal({
@@ -17,34 +18,40 @@ export default function Modal({
     title,
     children,
     maxWidth = "max-w-md",
+    description,
 }: ModalProps) {
     return (
         <DialogPrimitive.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogPrimitive.Portal>
                 <DialogPrimitive.Overlay
-                    className="fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0"
+                    className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-[2px]"
                 />
                 <DialogPrimitive.Content
                     className={cn(
-                        "fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 sm:rounded-2xl max-h-[90vh] overflow-y-auto",
+                        "fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg border border-border bg-background shadow-xl",
                         maxWidth
                     )}
                 >
-                    <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-                        <div className="flex items-center justify-between">
-                            <DialogPrimitive.Title className="text-lg font-semibold leading-none tracking-tight">
-                                {title}
-                            </DialogPrimitive.Title>
+                    <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
+                        <div className="min-w-0">
+                            <DialogPrimitive.Title className="text-lg font-semibold leading-tight tracking-tight">
+                                    {title}
+                                </DialogPrimitive.Title>
+                            {description && (
+                                <DialogPrimitive.Description className="mt-1 text-sm leading-5 text-muted-foreground">
+                                    {description}
+                                </DialogPrimitive.Description>
+                            )}
+                        </div>
                             <DialogPrimitive.Close
-                                className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
                                 onClick={onClose}
                             >
                                 <X className="h-4 w-4" />
                                 <span className="sr-only">Close</span>
                             </DialogPrimitive.Close>
-                        </div>
                     </div>
-                    <div className="py-2">{children}</div>
+                    <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
                 </DialogPrimitive.Content>
             </DialogPrimitive.Portal>
         </DialogPrimitive.Root>

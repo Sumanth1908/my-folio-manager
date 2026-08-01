@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Download, Upload, AlertTriangle, CheckCircle, Database, HardDrive, FileJson, FileSpreadsheet } from 'lucide-react';
 import api, { handleApiError } from '../../api';
 import { Card } from '../ui/Card';

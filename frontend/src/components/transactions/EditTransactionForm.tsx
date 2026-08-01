@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import type { Transaction } from '../../types';
 import { Button } from '../ui/Button';
 import { useAppDispatch } from '../../store/hooks';

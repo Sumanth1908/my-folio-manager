@@ -18,7 +18,7 @@ import {
 import { cn } from '../../../lib/utils';
 import { formatNumber } from '../../../lib/format';
 import { ACCOUNT_TYPES, DEFAULT_CURRENCY, DEFAULT_ACCRUAL_DAY, ACCOUNT_TYPE } from '../../../constants';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { PiggyBank, TrendingUp, Landmark, ShieldCheck, Repeat } from 'lucide-react';
 
 import SavingsEditFields from '../savings/SavingsEditFields';
@@ -760,7 +760,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                         (accountType === ACCOUNT_TYPE.RECURRING_DEPOSIT && (!rdDepositAmount || !rdInterestRate || !rdTenure || !rdStartDate || (rdIsAutoDeposit && !rdLinkedAccountId)))
                     }
                 >
-                    {isSubmitting ? 'Creating...' : 'Create Account'}
+                    {isSubmitting ? 'Creating...' : 'Create account'}
                 </Button>
             </div>
         </form>

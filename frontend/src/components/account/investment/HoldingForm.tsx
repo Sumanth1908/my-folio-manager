@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { createHolding } from '../../../store/slices/holdingsSlice';
 import { type RootState } from '../../../store';

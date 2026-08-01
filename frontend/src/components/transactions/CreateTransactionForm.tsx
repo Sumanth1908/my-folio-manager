@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { type RootState } from '../../store';
@@ -376,7 +376,7 @@ const CreateTransactionForm = ({ accountId, onSuccess, onCancel }: CreateTransac
                     Cancel
                 </Button>
                 <Button type="submit" disabled={!isValid}>
-                    Create Transaction
+                    Create transaction
                 </Button>
             </div>
         </form>

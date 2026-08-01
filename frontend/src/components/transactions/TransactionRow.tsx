@@ -8,7 +8,7 @@ import { formatCurrency } from '../../lib/format';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { updateTransactionCategory } from '../../store/slices/transactionsSlice';
 import { fetchCategories } from '../../store/slices/categoriesSlice';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 interface TransactionRowProps {
     tx: Transaction;
@@ -50,36 +50,36 @@ const TransactionRow = memo(({
     };
 
     return (
-    <div className="group flex justify-between items-center p-6 hover:bg-muted/30 transition-colors">
-        <div className="flex items-center gap-5">
+    <div className="group flex flex-col gap-4 p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
             <div className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors shadow-sm",
-                Number(tx.amount || 0) >= 0 ? "bg-emerald-600/15 text-emerald-600" : "bg-rose-600/15 text-rose-600"
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors",
+                Number(tx.amount || 0) >= 0 ? "bg-income-muted text-income" : "bg-expense-muted text-expense"
             )}>
                 {Number(tx.amount || 0) >= 0 ? <Plus size={20} /> : <div className="w-4 h-0.5 bg-current rounded-full" />}
             </div>
-            <div>
-                <div className="font-bold text-base text-foreground leading-tight mb-1">{tx.description || 'No Description'}</div>
+            <div className="min-w-0">
+                <div className="truncate text-sm font-semibold leading-tight text-foreground sm:text-base">{tx.description || 'No description'}</div>
                 {tx.additional_info && (
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/80 mb-2 italic">
+                    <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Info size={11} className="shrink-0" />
                         <span>{tx.additional_info}</span>
                     </div>
                 )}
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">{`ID: ${tx.transaction_id}`}</span>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span className="rounded-sm border border-border bg-muted/50 px-2 py-0.5">#{tx.transaction_id}</span>
                     {accountName && (
                         <>
-                            <span className="text-primary/70">{accountName}</span>
+                            <span className="font-medium text-foreground/80">{accountName}</span>
                             <span className="text-muted-foreground/30">•</span>
                         </>
                     )}
-                    <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50">{formatDate(tx.transaction_date, true)}</span>
+                    <span>{formatDate(tx.transaction_date, true)}</span>
                     <Select 
                         value={tx.category_id?.toString() || "none"}
                         onValueChange={handleCategoryChange}
                     >
-                        <SelectTrigger className="flex h-auto w-auto items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[9px] border border-border/50 hover:bg-muted transition-colors font-bold uppercase tracking-widest text-muted-foreground shadow-none ring-0 focus:ring-0 [&>svg:last-child]:hidden cursor-pointer">
+                        <SelectTrigger className="flex h-7 w-auto items-center gap-1.5 rounded-sm border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground shadow-none ring-0 focus:ring-0 [&>svg:last-child]:hidden cursor-pointer">
                             <Tag size={10} className="shrink-0" />
                             <SelectValue placeholder="Add Category" />
                         </SelectTrigger>
@@ -91,14 +91,14 @@ const TransactionRow = memo(({
                 </div>
             </div>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center justify-between gap-4 pl-[3.25rem] sm:justify-end sm:pl-0">
             <span className={cn(
-                "font-black text-lg tabular-nums tracking-tighter",
-                Number(tx.amount || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                "amount text-base sm:text-lg",
+                Number(tx.amount || 0) >= 0 ? 'text-income' : 'text-expense'
             )}>
                 {formatCurrency(tx.amount, { currency: tx.currency, symbol: currencySymbol, decimals: 2, signed: true })}
             </span>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex gap-1 opacity-100 transition-opacity lg:opacity-0 lg:group-focus-within:opacity-100 lg:group-hover:opacity-100">
                 {onEdit && (
                     <Button
                         variant="ghost"
@@ -106,6 +106,7 @@ const TransactionRow = memo(({
                         onClick={() => onEdit(tx)}
                         className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
                         title="Edit Transaction"
+                        aria-label={`Edit ${tx.description || 'transaction'}`}
                     >
                         <Pencil size={14} />
                     </Button>
@@ -117,6 +118,7 @@ const TransactionRow = memo(({
                         onClick={() => onDelete(tx.transaction_id)}
                         className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
                         title="Delete Transaction"
+                        aria-label={`Delete ${tx.description || 'transaction'}`}
                     >
                         <Trash2 size={14} />
                     </Button>

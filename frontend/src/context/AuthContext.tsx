@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import api, { handleApiError } from '../api';
 import type { User } from '../types';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 interface AuthContextType {
     user: User | null;

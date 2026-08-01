@@ -4,7 +4,7 @@ import { updateAccount } from '../../../store/slices/accountsSlice';
 import type { Account } from '../../../types';
 import { ACCOUNT_TYPE } from '../../../constants';
 import { Button } from '../../ui/Button';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
     Select,
     SelectContent,

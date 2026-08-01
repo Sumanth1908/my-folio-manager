@@ -1,13 +1,11 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Plus, Search, Filter, X, Wand2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import type { Transaction, Rule } from '../../../types';
 import { Button } from '../../ui/Button';
 import { Card } from '../../ui/Card';
 import Modal from '../../common/Modal';
 import ConfirmModal from '../../common/ConfirmModal';
-import CreateTransactionForm from '../../transactions/CreateTransactionForm';
-
 import RuleForm from '../../rules/RuleForm';
 import { cn } from '../../../lib/utils';
 import AccountTransactions from './AccountTransactions';
@@ -17,6 +15,7 @@ import { RULE_TYPE } from '../../../constants';
 import { useAppDispatch } from '../../../store/hooks';
 import { deleteTransaction } from '../../../store/slices/transactionsSlice';
 import { deleteRule, executeRule, updateRule } from '../../../store/slices/rulesSlice';
+import { useCreateFlow } from '../../../context/CreateFlowContext';
 
 interface AccountActivityPanelProps {
     transactions: Transaction[] | undefined;
@@ -45,6 +44,7 @@ const AccountActivityPanel = ({
     isFetchingNextPage
 }: AccountActivityPanelProps) => {
     const dispatch = useAppDispatch();
+    const { openCreate } = useCreateFlow();
 
     // Tab & Filter State
     const [activeTab, setActiveTab] = useState<'transactions' | 'rules'>('transactions');
@@ -53,9 +53,6 @@ const AccountActivityPanel = ({
     const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     // Modal State
-    const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-
-
     const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
     const [editingRule, setEditingRule] = useState<Rule | null>(null);
 
@@ -117,8 +114,8 @@ const AccountActivityPanel = ({
 
     // Transaction Handlers
     const handleNewTransaction = useCallback(() => {
-        setIsTransactionModalOpen(true);
-    }, []);
+        openCreate('transaction', { accountId });
+    }, [openCreate, accountId]);
 
 
 
@@ -134,9 +131,8 @@ const AccountActivityPanel = ({
 
     // Rule Handlers
     const handleNewRule = useCallback(() => {
-        setEditingRule(null);
-        setIsRuleModalOpen(true);
-    }, []);
+        openCreate('automation', { accountId });
+    }, [openCreate, accountId]);
 
     const handleEditRule = useCallback((rule: Rule) => {
         setEditingRule(rule);
@@ -371,21 +367,6 @@ const AccountActivityPanel = ({
             </Card>
 
             {/* Modals */}
-            <Modal
-                isOpen={isTransactionModalOpen}
-                onClose={() => setIsTransactionModalOpen(false)}
-                title="New Transaction"
-            >
-                <CreateTransactionForm
-                    accountId={accountId}
-                    onSuccess={() => {
-                        setIsTransactionModalOpen(false);
-                        onRefresh();
-                    }}
-                    onCancel={() => setIsTransactionModalOpen(false)}
-                />
-            </Modal>
-
             <Modal
                 isOpen={isRuleModalOpen}
                 onClose={() => setIsRuleModalOpen(false)}

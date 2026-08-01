@@ -16,7 +16,7 @@ const SelectTrigger = React.forwardRef<
     <SelectPrimitive.Trigger
         ref={ref}
         className={cn(
-            "flex h-12 w-full items-center justify-between rounded-xl border border-border bg-background px-4 py-2 text-sm font-bold ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 transition-all duration-200 hover:bg-muted/30 hover:border-primary/50",
+            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 transition-colors hover:border-primary/50",
             className
         )}
         {...props}
@@ -72,7 +72,7 @@ const SelectContent = React.forwardRef<
         <SelectPrimitive.Content
             ref={ref}
             className={cn(
-                "relative z-[999] max-h-[300px] min-w-[8rem] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+                "relative z-[999] max-h-[300px] min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-xl",
                 className
             )}
             position={position}
@@ -101,7 +101,7 @@ const SelectLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <SelectPrimitive.Label
         ref={ref}
-        className={cn("py-1.5 pl-8 pr-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 select-none", className)}
+        className={cn("py-1.5 pl-8 pr-2 text-xs font-semibold text-muted-foreground select-none", className)}
         {...props}
     />
 ))
@@ -114,7 +114,7 @@ const SelectItem = React.forwardRef<
     <SelectPrimitive.Item
         ref={ref}
         className={cn(
-            "relative flex w-full cursor-pointer select-none items-center rounded-lg py-2.5 pl-8 pr-2 text-sm font-bold outline-none focus:bg-primary/10 focus:text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-50 transition-colors duration-150 data-[state=checked]:text-primary data-[state=checked]:bg-primary/5",
+            "relative flex w-full cursor-pointer select-none items-center rounded-sm py-2.5 pl-8 pr-2 text-sm font-medium outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 transition-colors data-[state=checked]:text-primary data-[state=checked]:bg-primary/5",
             className
         )}
         {...props}

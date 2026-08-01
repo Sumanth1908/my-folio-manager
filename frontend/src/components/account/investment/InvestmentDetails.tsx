@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Trash2, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import type { Account, InvestmentHolding } from '../../../types';
 import Modal from '../../common/Modal';
 import HoldingForm from './HoldingForm';
@@ -12,6 +12,7 @@ import type { RootState } from '../../../store';
 import { Button } from '../../ui/Button';
 import { cn, formatDate } from '../../../lib/utils';
 import { formatCurrency, formatNumber, type AmountFormatOptions } from '../../../lib/format';
+import { useCreateFlow } from '../../../context/CreateFlowContext';
 
 interface InvestmentDetailsProps {
     account: Account;
@@ -20,6 +21,7 @@ interface InvestmentDetailsProps {
 
 const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
     const dispatch = useAppDispatch();
+    const { openCreate } = useCreateFlow();
     const { loading: isHoldingsLoading } = useAppSelector((state: RootState) => state.holdings);
 
     const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
@@ -61,8 +63,7 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
     };
 
     const handleAddNewHolding = () => {
-        setBuyMoreHolding(null);
-        setIsBuyModalOpen(true);
+        openCreate('holding', { accountId: account.account_id });
     };
 
     const handleRefreshPrices = async () => {

@@ -1,23 +1,24 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Loader2, Search } from 'lucide-react';
-import Modal from '../components/common/Modal';
 import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
+import { Input } from '../components/ui/Input';
+import { PageHeader } from '../components/ui/PageHeader';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
+import { PageToolbar } from '../components/ui/PageToolbar';
+import { EmptyState } from '../components/ui/EmptyState';
 import AccountSummaryPanel from '../components/account/common/AccountSummaryPanel';
-import CreateAccountForm from '../components/account/common/CreateAccountForm';
 import ErrorBanner from '../components/common/ErrorBanner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { RootState } from '../store';
-import { openModal, closeModal as closeReduxModal } from '../store/slices/uiSlice';
 import { fetchAccounts } from '../store/slices/accountsSlice';
 import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchSummary, setSummaryTimeRange } from '../store/slices/summarySlice';
-import { cn } from '../lib/utils';
 import { ACCOUNT_TYPES, TIME_RANGES } from '../constants';
+import { useCreateFlow } from '../context/CreateFlowContext';
 
 const Accounts = () => {
     const dispatch = useAppDispatch();
-    const isModalOpen = useAppSelector((state: RootState) => state.ui.modals['createAccount']);
+    const { openCreate } = useCreateFlow();
     const { items: accounts, loading: isAccountsLoading, error: accountsError } = useAppSelector((state: RootState) => state.accounts);
     const { data: summaryData, loading: isSummaryLoading, error: summaryError, filters: summaryFilters } = useAppSelector((state: RootState) => state.summary);
 
@@ -37,10 +38,6 @@ const Accounts = () => {
         }));
     }, [dispatch, timeRange]);
 
-    const closeModal = useCallback(() => {
-        dispatch(closeReduxModal('createAccount'));
-    }, [dispatch]);
-
     const filteredSummaryData = summaryData ? {
         ...summaryData,
         accounts: summaryData.accounts.filter(account => {
@@ -58,7 +55,7 @@ const Accounts = () => {
     } : null;
 
     return (
-        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
+        <div className="page-shell">
             {(accountsError || summaryError) && (
                 <ErrorBanner
                     message={accountsError || summaryError || 'Failed to load accounts'}
@@ -68,70 +65,52 @@ const Accounts = () => {
                     }}
                 />
             )}
-            <Card className="p-8 border-border/50 bg-background/90 text-foreground">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">Accounts</h1>
-                        <p className="text-muted-foreground text-sm mt-1">Manage your financial portfolio and tracking</p>
+            <PageHeader
+                eyebrow="Workspace"
+                title="Accounts"
+                description="Manage balances, account status, and activity across your financial portfolio."
+            />
+
+            <PageToolbar label="Account filters">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                    <div className="w-full lg:max-w-xs">
+                        <Input
+                            type="search"
+                            placeholder="Search accounts"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            leadingIcon={<Search />}
+                            aria-label="Search accounts"
+                        />
                     </div>
-
-                    <div className="flex flex-col md:flex-row items-end md:items-center gap-4 w-full md:w-auto">
-                        <div className="relative w-full md:w-64 self-start md:self-auto">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                            <input
-                                type="text"
-                                placeholder="Search accounts..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2 bg-background border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
-                            />
-                        </div>
-
-                        <div className="flex bg-muted/50 p-1 rounded-xl border border-border self-start md:self-auto">
-                            {(['Active', 'Closed', 'all'] as const).map((s) => (
-                                <Button
-                                    key={s}
-                                    variant={statusFilter === s ? "default" : "ghost"}
-                                    size="sm"
-                                    onClick={() => setStatusFilter(s)}
-                                    className={cn(
-                                        "text-[10px] font-bold uppercase tracking-wider px-4 rounded-lg transition-colors duration-200 h-8",
-                                        statusFilter !== s && "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    {s === 'Active' ? 'Open' : s === 'Closed' ? 'Closed' : 'All'}
-                                </Button>
-                            ))}
-                        </div>
-
-                        <div className="flex bg-muted/50 p-1 rounded-xl border border-border self-start md:self-auto">
-                            {TIME_RANGES.map((range) => (
-                                <Button
-                                    key={range}
-                                    variant={timeRange === range ? "default" : "ghost"}
-                                    size="sm"
-                                    onClick={() => dispatch(setSummaryTimeRange(range))}
-                                    className={cn(
-                                        "text-[10px] font-bold uppercase tracking-wider px-4 rounded-lg transition-colors duration-200 h-8",
-                                        timeRange !== range && "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    {range === 'last30Days' ? '30D' : range === 'currentMonth' ? 'This Month' : range === 'lastMonth' ? 'Last Month' : 'All'}
-                                </Button>
-                            ))}
-                        </div>
-
-                        <Button
-                            size="icon"
-                            className="rounded-full h-10 w-10 shadow-md hover:bg-primary/90 transition-colors"
-                            onClick={() => dispatch(openModal('createAccount'))}
-                            title="New Account"
-                        >
-                            <Plus size={20} />
+                    <div className="flex flex-wrap gap-2 lg:ml-auto">
+                        <SegmentedControl
+                            value={statusFilter}
+                            onValueChange={setStatusFilter}
+                            label="Account status"
+                            options={[
+                                { value: 'Active', label: 'Open' },
+                                { value: 'Closed', label: 'Closed' },
+                                { value: 'all', label: 'All' },
+                            ]}
+                        />
+                        <SegmentedControl
+                            value={timeRange}
+                            onValueChange={(range) => dispatch(setSummaryTimeRange(range))}
+                            label="Account summary period"
+                            options={TIME_RANGES.map((range) => ({
+                                value: range,
+                                label: range === 'last30Days' ? '30 days' : range === 'currentMonth' ? 'This month' : range === 'lastMonth' ? 'Last month' : 'All time',
+                            }))}
+                        />
+                        <Button onClick={() => openCreate('account')} className="ml-auto sm:ml-0">
+                            <Plus /> New account
                         </Button>
                     </div>
                 </div>
+            </PageToolbar>
 
+            <div>
                 {isSummaryLoading || isAccountsLoading ? (
                     <div className="flex items-center justify-center p-20">
                         <Loader2 className="animate-spin text-primary" size={40} />
@@ -143,18 +122,10 @@ const Accounts = () => {
                         emptyMessage={statusFilter === 'all' ? undefined : `No ${statusFilter === 'Active' ? 'open' : 'closed'} accounts found.`}
                     />
                 ) : (
-                    <div className="text-center py-20 bg-muted/10 rounded-3xl border-2 border-dashed border-border/50">
-                        <p className="text-muted-foreground">No account data found for this period.</p>
-                    </div>
+                    <EmptyState title="No account data" description="No account data was found for the selected period." />
                 )}
-            </Card>
+            </div>
 
-            <Modal isOpen={isModalOpen} onClose={closeModal} title="Create New Account" maxWidth="max-w-3xl">
-                <CreateAccountForm
-                    onSuccess={closeModal}
-                    onCancel={closeModal}
-                />
-            </Modal>
         </div>
     );
 }

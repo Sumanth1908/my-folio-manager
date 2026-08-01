@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
-import { Card, CardContent, CardHeader } from '../components/ui/Card';
+import { Card, CardContent } from '../components/ui/Card';
+import { Input } from '../components/ui/Input';
+import { Field } from '../components/ui/Field';
 
 export default function Register() {
     const [email, setEmail] = useState('');
@@ -19,7 +21,7 @@ export default function Register() {
         try {
             await register(email, password, fullName);
             navigate('/');
-        } catch (error) {
+        } catch {
             // Error handled in AuthContext
         } finally {
             setIsLoading(false);
@@ -27,36 +29,28 @@ export default function Register() {
     };
 
     return (
-        <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="flex min-h-screen flex-col justify-center bg-background px-4 py-12 sm:px-6">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="flex justify-center">
-                    <img src="/logo.svg" className="h-20 w-auto object-contain animate-in fade-in zoom-in duration-1000" alt="My Folio Manager" />
+                    <img src="/logo.svg" className="h-16 w-auto object-contain" alt="Zenfolio" />
                 </div>
-                <h2 className="mt-6 text-center text-3xl font-black text-foreground tracking-tight">
+                <h1 className="mt-6 text-center text-3xl font-semibold tracking-tight text-foreground">
                     Create your account
-                </h2>
+                </h1>
                 <p className="mt-2 text-center text-sm text-muted-foreground">
                     Already have an account?{' '}
-                    <Link to="/login" className="font-bold text-primary hover:text-primary/80 transition-colors">
+                    <Link to="/login" className="font-semibold text-primary hover:text-primary/80 transition-colors">
                         Sign in
                     </Link>
                 </p>
             </div>
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-                <Card className="py-8 px-4 sm:px-10">
-                    <CardHeader className="p-0 pb-6">
-                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                            Fill in your details
-                        </p>
-                    </CardHeader>
-                    <CardContent className="p-0">
+                <Card>
+                    <CardContent className="p-6 sm:p-8">
                         <form className="space-y-5" onSubmit={handleSubmit}>
-                            <div>
-                                <label htmlFor="name" className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                                    Full Name
-                                </label>
-                                <input
+                            <Field label="Full name" htmlFor="name" required>
+                                <Input
                                     id="name"
                                     name="name"
                                     type="text"
@@ -64,16 +58,12 @@ export default function Register() {
                                     required
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
-                                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none placeholder:text-muted-foreground/40 text-foreground transition"
                                     placeholder="John Doe"
                                 />
-                            </div>
+                            </Field>
 
-                            <div>
-                                <label htmlFor="email" className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                                    Email address
-                                </label>
-                                <input
+                            <Field label="Email address" htmlFor="email" required>
+                                <Input
                                     id="email"
                                     name="email"
                                     type="email"
@@ -81,16 +71,12 @@ export default function Register() {
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none placeholder:text-muted-foreground/40 text-foreground transition"
                                     placeholder="you@example.com"
                                 />
-                            </div>
+                            </Field>
 
-                            <div>
-                                <label htmlFor="password" className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                                    Password
-                                </label>
-                                <input
+                            <Field label="Password" htmlFor="password" description="Use at least six characters." required>
+                                <Input
                                     id="password"
                                     name="password"
                                     type="password"
@@ -98,14 +84,13 @@ export default function Register() {
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none placeholder:text-muted-foreground/40 text-foreground transition"
                                     placeholder="••••••••"
                                 />
-                            </div>
+                            </Field>
 
                             <Button
                                 type="submit"
-                                className="w-full shadow-lg shadow-primary/20"
+                                className="w-full"
                                 isLoading={isLoading}
                             >
                                 Create Account

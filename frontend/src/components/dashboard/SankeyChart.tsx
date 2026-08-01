@@ -190,7 +190,7 @@ const SankeyChart = memo(({ inflows, outflows, symbol, accountType, accountName 
     };
 
     return (
-        <div className="w-full h-[500px] bg-card p-6 rounded-3xl relative overflow-hidden border border-border">
+        <div className="relative h-[500px] min-w-0 w-full overflow-hidden rounded-lg border border-border bg-card p-4 sm:p-6">
             <ResponsiveContainer width="100%" height="100%">
                 <Sankey
                     data={data}

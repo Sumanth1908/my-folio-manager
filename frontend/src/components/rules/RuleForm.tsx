@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { type Rule, type RuleType, type Frequency } from '../../types';
 import { RULE_TYPE, FREQUENCY, TRANSACTION_TYPE, ACCOUNT_TYPE } from '../../constants';
 import { Button } from '../ui/Button';
@@ -539,10 +539,10 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
             {/* Actions */}
             <div className="pt-6 flex justify-end gap-3 border-t border-border/50">
                 <Button type="button" variant="ghost" onClick={onCancel}>
-                    Dismiss
+                    Cancel
                 </Button>
                 <Button type="submit">
-                    Save Configuration
+                    {ruleToEdit ? 'Save changes' : 'Create automation'}
                 </Button>
             </div>
         </form>

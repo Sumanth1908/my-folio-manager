@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import Modal from '../common/Modal';
@@ -27,7 +27,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
     );
 }
 
-export default function BudgetFormModal({ isOpen, onClose, editing, symbol }: BudgetFormModalProps) {
+export function BudgetFormContent({ isOpen, onClose, editing, symbol }: BudgetFormModalProps) {
     const dispatch = useAppDispatch();
     const { items: budgets, selectedMonth } = useAppSelector((state: RootState) => state.budgets);
     const { items: categories } = useAppSelector((state: RootState) => state.categories);
@@ -87,12 +87,6 @@ export default function BudgetFormModal({ isOpen, onClose, editing, symbol }: Bu
     };
 
     return (
-        <Modal
-            isOpen={isOpen}
-            onClose={onClose}
-            title={editing ? `Edit budget · ${editing.category_name || `Category ${editing.category_id}`}` : 'Add budget'}
-            maxWidth="max-w-sm"
-        >
             <div className="space-y-4">
                 {!editing && (
                     <div className="space-y-1.5">
@@ -175,6 +169,19 @@ export default function BudgetFormModal({ isOpen, onClose, editing, symbol }: Bu
                     </Button>
                 </div>
             </div>
+    );
+}
+
+export default function BudgetFormModal(props: BudgetFormModalProps) {
+    return (
+        <Modal
+            isOpen={props.isOpen}
+            onClose={props.onClose}
+            title={props.editing ? `Edit budget · ${props.editing.category_name || `Category ${props.editing.category_id}`}` : 'Add budget'}
+            description="Set a monthly spending limit for a category."
+            maxWidth="max-w-sm"
+        >
+            <BudgetFormContent {...props} />
         </Modal>
     );
 }

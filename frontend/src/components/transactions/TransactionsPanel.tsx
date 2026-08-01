@@ -1,9 +1,18 @@
 import { useState } from 'react';
-import { Plus, Search, Filter, X } from 'lucide-react';
+import { CalendarDays, Plus, Search, X } from 'lucide-react';
 import type { Transaction, Currency, Category } from '../../types';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
-import { cn, getCurrentMonthRange } from '../../lib/utils';
+import { Input } from '../ui/Input';
+import { PageToolbar } from '../ui/PageToolbar';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '../ui/Select';
+import { getCurrentMonthRange } from '../../lib/utils';
 import AccountTransactions from '../account/common/AccountTransactions';
 import LoadingSpinner from '../common/LoadingSpinner';
 import Modal from '../common/Modal';
@@ -12,20 +21,17 @@ import EditTransactionForm from './EditTransactionForm';
 interface TransactionsPanelProps {
     transactions: Transaction[];
     isLoading: boolean;
-    // Pagination
     onLoadMore?: () => void;
     hasMore?: boolean;
     isFetchingNextPage?: boolean;
-    // Filters
     searchQuery: string;
     onSearchChange: (query: string) => void;
-    selectedCategoryId: string; // 'all' or categoryId
+    selectedCategoryId: string;
     onCategoryChange: (categoryId: string) => void;
     startDate?: string;
     endDate?: string;
     onDateChange?: (start: string, end: string) => void;
     categories: Category[];
-    // Config
     currencies?: Currency[];
     defaultCurrencySymbol?: string;
     onDelete?: (id: number) => void;
@@ -33,6 +39,7 @@ interface TransactionsPanelProps {
     showAccountName?: boolean;
     title?: string;
     description?: string;
+    stickyToolbar?: boolean;
 }
 
 export default function TransactionsPanel({
@@ -55,180 +62,135 @@ export default function TransactionsPanel({
     onNew,
     showAccountName = false,
     title,
-    description
+    description,
+    stickyToolbar = false,
 }: TransactionsPanelProps) {
-    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+    const currentMonth = getCurrentMonthRange();
+    const isCurrentMonth = startDate === currentMonth.start && endDate === currentMonth.end;
+    const selectedCategory = categories.find((category) => category.category_id.toString() === selectedCategoryId);
+    const hasCustomDates = Boolean((startDate || endDate) && !isCurrentMonth);
 
     return (
-        <Card className="bg-muted/30 border border-border overflow-hidden rounded-2xl">
-            {/* Header Section */}
-            <div className="p-6 md:p-8 space-y-6">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    {/* Title */}
-                    <div>
-                        {title && <h1 className="text-3xl font-bold tracking-tight text-foreground">{title}</h1>}
-                        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        <div className="space-y-4">
+            {(title || description) && (
+                <div>
+                    {title && <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{title}</h1>}
+                    {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+                </div>
+            )}
+
+            <PageToolbar sticky={stickyToolbar} label="Transaction filters">
+                <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
+                    <div className="min-w-0 flex-1 xl:max-w-sm">
+                        <Input
+                            type="search"
+                            placeholder="Search transactions"
+                            value={searchQuery}
+                            onChange={(event) => onSearchChange(event.target.value)}
+                            leadingIcon={<Search />}
+                            aria-label="Search transactions"
+                        />
                     </div>
 
-                    {/* Actions: Search & New */}
-                    <div className="flex items-center gap-3 w-full md:w-auto">
-                        <div className={cn(
-                            "flex items-center bg-background border border-border/50 rounded-xl px-3 transition-[width,background-color] duration-300 overflow-hidden",
-                            isSearchOpen ? "w-full md:w-64" : "w-10 h-10 md:w-11 md:h-11 justify-center p-0 hover:bg-muted/50"
-                        )}>
-                            <Search
-                                size={18}
-                                className={cn(
-                                    "text-muted-foreground shrink-0 cursor-pointer hover:text-foreground transition-colors",
-                                    isSearchOpen ? "mr-2" : ""
-                                )}
-                                onClick={() => {
-                                    if (!isSearchOpen) setIsSearchOpen(true);
-                                }}
-                            />
-                            {isSearchOpen && (
-                                <div className="flex items-center flex-1">
-                                    <input
-                                        type="text"
-                                        placeholder="Search transactions..."
-                                        value={searchQuery}
-                                        onChange={(e) => onSearchChange(e.target.value)}
-                                        className="bg-transparent border-none outline-none text-sm w-full py-2.5 placeholder:text-muted-foreground/50"
-                                        autoFocus
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            if (searchQuery) onSearchChange('');
-                                            else setIsSearchOpen(false);
-                                        }}
-                                        className="ml-2 text-muted-foreground hover:text-foreground"
-                                    >
-                                        <X size={14} />
-                                    </button>
-                                </div>
-                            )}
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:items-center">
+                        <div className="min-w-44">
+                            <Select value={selectedCategoryId} onValueChange={onCategoryChange}>
+                                <SelectTrigger aria-label="Transaction category">
+                                    <SelectValue placeholder="All categories" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All categories</SelectItem>
+                                    {categories.map((category) => (
+                                        <SelectItem key={category.category_id} value={category.category_id.toString()}>
+                                            {category.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
-                        {!isSearchOpen && (
-                            <Button
-                                onClick={() => isSearchOpen ? {} : setIsSearchOpen(true)}
-                                variant="ghost"
-                                size="icon"
-                                className="md:hidden text-muted-foreground"
-                            >
-                                <Search size={20} />
-                            </Button>
+                        {onDateChange && (
+                            <>
+                                <Input
+                                    type="date"
+                                    value={startDate || ''}
+                                    onChange={(event) => onDateChange(event.target.value, endDate || '')}
+                                    aria-label="Activity start date"
+                                    containerClassName="xl:w-40"
+                                />
+                                <Input
+                                    type="date"
+                                    value={endDate || ''}
+                                    onChange={(event) => onDateChange(startDate || '', event.target.value)}
+                                    aria-label="Activity end date"
+                                    containerClassName="xl:w-40"
+                                />
+                                <Button
+                                    type="button"
+                                    variant={isCurrentMonth ? 'secondary' : 'outline'}
+                                    onClick={() => onDateChange(currentMonth.start, currentMonth.end)}
+                                >
+                                    <CalendarDays /> This month
+                                </Button>
+                            </>
                         )}
 
                         {onNew && (
-                            <Button
-                                onClick={onNew}
-                                className="rounded-full h-10 w-10 md:h-12 md:w-12 p-0 shadow-lg shadow-primary/20 shrink-0"
-                                title="New Transaction"
-                            >
-                                <Plus size={20} className="md:w-6 md:h-6" />
+                            <Button type="button" onClick={onNew}>
+                                <Plus /> New transaction
                             </Button>
                         )}
                     </div>
                 </div>
 
-                {/* Filters */}
-                {(categories && categories.length > 0 || onDateChange) && (
-                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none mask-fade-right">
-                        <div className="flex items-center gap-2 pr-4 text-muted-foreground/50 text-xs font-bold uppercase tracking-widest">
-                            <Filter size={12} />
-                            <span>Filter:</span>
+                {(selectedCategory || hasCustomDates) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                        <span className="text-xs font-medium text-muted-foreground">Active filters:</span>
+                        {selectedCategory && (
+                            <Button variant="secondary" size="sm" onClick={() => onCategoryChange('all')}>
+                                {selectedCategory.name}<X />
+                            </Button>
+                        )}
+                        {hasCustomDates && onDateChange && (
+                            <Button variant="secondary" size="sm" onClick={() => onDateChange('', '')}>
+                                {startDate || 'Any date'} – {endDate || 'Present'}<X />
+                            </Button>
+                        )}
+                    </div>
+                )}
+            </PageToolbar>
+
+            <Card className="overflow-visible">
+                <div className="min-h-[300px] divide-y divide-border">
+                    <AccountTransactions
+                        transactions={transactions}
+                        isLoading={isLoading}
+                        symbol={defaultCurrencySymbol}
+                        currencies={currencies}
+                        showAccountName={showAccountName}
+                        onDelete={onDelete}
+                        onEdit={setEditingTx}
+                    />
+
+                    {hasMore && (
+                        <div className="flex justify-center p-4">
+                            <Button variant="outline" onClick={onLoadMore} disabled={isFetchingNextPage}>
+                                {isFetchingNextPage
+                                    ? <span className="flex items-center gap-2"><LoadingSpinner size="small" />Loading…</span>
+                                    : 'Load more'}
+                            </Button>
                         </div>
-                        <button
-                            onClick={() => onCategoryChange('all')}
-                            className={cn(
-                                "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors border",
-                                selectedCategoryId === 'all'
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-muted-foreground border-border hover:border-primary/50"
-                            )}
-                        >
-                            All
-                        </button>
-                        {onDateChange && (() => {
-                            const currentMonth = getCurrentMonthRange();
-                            const isCurrentMonth = startDate === currentMonth.start && endDate === currentMonth.end;
-                            return (
-                                <div className="flex items-center gap-2 ml-2 border-l border-border/50 pl-4">
-                                    <button
-                                        onClick={() => onDateChange(currentMonth.start, currentMonth.end)}
-                                        className={cn(
-                                            "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors border",
-                                            isCurrentMonth
-                                                ? "bg-primary text-primary-foreground border-primary"
-                                                : "bg-background text-muted-foreground border-border hover:border-primary/50"
-                                        )}
-                                    >
-                                        This Month
-                                    </button>
-                                    <input
-                                        type="date"
-                                        value={startDate || ''}
-                                        onChange={(e) => onDateChange(e.target.value, endDate || '')}
-                                        className="bg-background border border-border rounded-lg px-2 py-1 text-[10px] uppercase font-bold tracking-widest text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                                    />
-                                    <span className="text-muted-foreground/50 text-[10px] font-bold">-</span>
-                                    <input
-                                        type="date"
-                                        value={endDate || ''}
-                                        onChange={(e) => onDateChange(startDate || '', e.target.value)}
-                                        className="bg-background border border-border rounded-lg px-2 py-1 text-[10px] uppercase font-bold tracking-widest text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                                    />
-                                </div>
-                            );
-                        })()}
-                        {categories.map(cat => (
-                            <button
-                                key={cat.category_id}
-                                onClick={() => onCategoryChange(cat.category_id.toString())}
-                                className={cn(
-                                    "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors border",
-                                    selectedCategoryId === cat.category_id.toString()
-                                        ? "bg-primary text-primary-foreground border-primary"
-                                        : "bg-background text-muted-foreground border-border hover:border-primary/50"
-                                )}
-                            >
-                                {cat.name}
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            </Card>
 
-            {/* List Content */}
-            <div className="border-t border-border bg-background/30 min-h-[300px]">
-                <AccountTransactions
-                    transactions={transactions}
-                    isLoading={isLoading}
-                    symbol={defaultCurrencySymbol}
-                    currencies={currencies}
-                    showAccountName={showAccountName}
-                    onDelete={onDelete}
-                    onEdit={setEditingTx}
-                />
-
-                {/* Load More Button */}
-                {hasMore && (
-                    <div className="p-4 flex justify-center border-t border-border/50">
-                        <Button
-                            variant="ghost"
-                            onClick={onLoadMore}
-                            disabled={isFetchingNextPage}
-                            className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary"
-                        >
-                            {isFetchingNextPage ? <span className="flex items-center gap-2"><LoadingSpinner size="small" /> Loading...</span> : "Load More"}
-                        </Button>
-                    </div>
-                )}
-            </div>
-
-            <Modal isOpen={!!editingTx} onClose={() => setEditingTx(null)} title="Edit Transaction">
+            <Modal
+                isOpen={Boolean(editingTx)}
+                onClose={() => setEditingTx(null)}
+                title="Edit transaction"
+                description="Update the transaction details or category."
+            >
                 {editingTx && (
                     <EditTransactionForm
                         transaction={editingTx}
@@ -237,6 +199,6 @@ export default function TransactionsPanel({
                     />
                 )}
             </Modal>
-        </Card>
+        </div>
     );
 }

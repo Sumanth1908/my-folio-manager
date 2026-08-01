@@ -6,8 +6,8 @@ import ErrorBanner from '../components/common/ErrorBanner';
 import { useAuth } from '../context/AuthContext';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardTitle } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { cn } from '../lib/utils';
+import { PageHeader } from '../components/ui/PageHeader';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { convertAmount } from '../lib/currency';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchSummary, setSummaryTimeRange } from '../store/slices/summarySlice';
@@ -121,16 +121,13 @@ export default function Dashboard() {
     }, [summaryData, rates, convert, selectedAccountId]);
 
     return (
-        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
-            {/* Minimal Header */}
-            <Card className="p-6 bg-background/90 text-foreground">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div>
-                        <CardTitle className="text-3xl font-bold tracking-tight text-foreground">Dashboard</CardTitle>
-                        <p className="text-muted-foreground text-sm mt-1">Welcome back, {user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Sumanth'}</p>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row items-end md:items-center gap-4 w-full md:w-auto">
+        <div className="page-shell">
+            <PageHeader
+                eyebrow="Overview"
+                title="Your financial picture"
+                description={`Welcome back, ${user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'there'}. Review cash flow, upcoming payments, and spending in one place.`}
+                actions={
+                    <>
                         <div className="w-full md:w-64">
                             <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
                                 <SelectTrigger className="h-10 bg-muted/50 border-border/50 hover:bg-muted transition-colors">
@@ -146,26 +143,18 @@ export default function Dashboard() {
                                 </SelectContent>
                             </Select>
                         </div>
-
-                        <div className="flex bg-muted/50 p-1 rounded-xl border border-border self-start md:self-auto">
-                            {TIME_RANGES.map((range) => (
-                                <Button
-                                    key={range}
-                                    variant={timeRange === range ? "default" : "ghost"}
-                                    size="sm"
-                                    onClick={() => dispatch(setSummaryTimeRange(range))}
-                                    className={cn(
-                                        "text-[10px] font-bold uppercase tracking-wider px-4 rounded-lg transition-colors duration-200 h-8",
-                                        timeRange !== range && "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    {range === 'last30Days' ? '30D' : range === 'currentMonth' ? 'This Month' : range === 'lastMonth' ? 'Last Month' : 'All'}
-                                </Button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </Card>
+                        <SegmentedControl
+                            value={timeRange}
+                            onValueChange={(range) => dispatch(setSummaryTimeRange(range))}
+                            label="Summary period"
+                            options={TIME_RANGES.map((range) => ({
+                                value: range,
+                                label: range === 'last30Days' ? '30 days' : range === 'currentMonth' ? 'This month' : range === 'lastMonth' ? 'Last month' : 'All time',
+                            }))}
+                        />
+                    </>
+                }
+            />
 
             {summaryError && (
                 <ErrorBanner

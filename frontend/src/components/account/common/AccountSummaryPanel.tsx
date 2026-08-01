@@ -7,9 +7,11 @@ import {
     Info,
     Eye
 } from 'lucide-react';
-import { Card, CardContent } from '../../ui/Card';
 import Modal from '../../common/Modal';
 import AccountQuickView from './AccountQuickView';
+import { Badge } from '../../ui/Badge';
+import { Button } from '../../ui/Button';
+import { EmptyState } from '../../ui/EmptyState';
 import type { SummaryResponse, AccountSummary, Account } from '../../../types';
 import { TRANSACTION_TYPE } from '../../../constants';
 import { cn } from '../../../lib/utils';
@@ -43,74 +45,75 @@ const AccountCard = memo(({
     const outTotal = (account.categories || []).filter(c => c.transaction_type === TRANSACTION_TYPE.DEBIT).reduce((acc, c) => acc + Number(c.total_amount || 0), 0);
 
     return (
-        <Card className="overflow-hidden border-border/40 transition-[border-color,box-shadow,transform] duration-300">
-            <div
-                className="p-4 flex justify-between items-center cursor-pointer hover:bg-accent/30 transition-colors"
-                onClick={onToggle}
-            >
-                <div className="flex items-center gap-4">
-                    <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}>
-                        <ChevronDown size={20} className="text-muted-foreground" />
-                    </div>
-                    <div>
+        <div className="bg-card">
+            <div className="grid gap-4 p-4 transition-colors hover:bg-muted/25 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5">
+                <div className="flex min-w-0 items-center gap-3">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 shrink-0 text-muted-foreground"
+                        onClick={onToggle}
+                        aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${account.account_name || 'account'}`}
+                        aria-expanded={isExpanded}
+                    >
+                        <ChevronDown size={18} className={cn('transition-transform', !isExpanded && '-rotate-90')} />
+                    </Button>
+                    <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                            <div className="font-bold text-base text-foreground">{account.account_name || 'Unnamed Account'}</div>
-                            <button
+                            <div className="truncate text-sm font-semibold text-foreground sm:text-base">{account.account_name || 'Unnamed Account'}</div>
+                            <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={(e) => onOpenInfo(account.account_id, e)}
-                                className="p-1 hover:bg-primary/10 rounded-full text-muted-foreground hover:text-primary transition-colors opacity-60 hover:opacity-100"
+                                className="h-7 w-7 shrink-0 text-muted-foreground"
                                 title="Quick Info"
+                                aria-label={`Quick information for ${account.account_name || 'account'}`}
                             >
                                 <Info size={12} />
-                            </button>
+                            </Button>
                         </div>
-                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
-                            <span className={cn(
-                                "px-2 py-0.5 rounded-full font-bold",
-                                account.account_type === 'SAVINGS' ? "bg-emerald-600/15 text-emerald-600" :
-                                account.account_type === 'INVESTMENT' ? "bg-blue-600/15 text-blue-600" :
-                                account.account_type === 'FIXED_DEPOSIT' ? "bg-amber-600/15 text-amber-600" :
-                                account.account_type === 'LOAN' ? "bg-rose-600/15 text-rose-600" :
-                                "bg-primary/15 text-primary"
-                            )}>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                            <Badge variant={account.account_type === 'LOAN' ? 'expense' : account.account_type === 'SAVINGS' ? 'income' : 'primary'} className="py-0.5 text-[11px]">
                                 {account.account_type.replace('_', ' ')}
-                            </span>
-                            <span className="w-1 h-1 rounded-full bg-border" />
+                            </Badge>
+                            <span aria-hidden="true">·</span>
                             <span>{account.currency}</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-6 pr-2">
-                    <div className="flex gap-6">
+                <div className="flex items-center justify-between gap-3 pl-12 sm:justify-end sm:pl-0">
+                    <div className="grid grid-cols-2 gap-5">
                         <div className="text-right">
-                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">Inflow</div>
-                            <div className="text-sm font-black text-emerald-600 tabular-nums" title={formatNumber(inTotal, { currency: account.currency, decimals: 2 })}>
+                            <div className="text-xs text-muted-foreground">Inflow</div>
+                            <div className="amount text-sm text-income" title={formatNumber(inTotal, { currency: account.currency, decimals: 2 })}>
                                 +{formatNumber(inTotal, { currency: account.currency, compact: true })}
                             </div>
                         </div>
                         <div className="text-right">
-                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">Outflow</div>
-                            <div className="text-sm font-black text-rose-600 tabular-nums" title={formatNumber(outTotal, { currency: account.currency, decimals: 2 })}>
+                            <div className="text-xs text-muted-foreground">Outflow</div>
+                            <div className="amount text-sm text-expense" title={formatNumber(outTotal, { currency: account.currency, decimals: 2 })}>
                                 -{formatNumber(outTotal, { currency: account.currency, compact: true })}
                             </div>
                         </div>
                     </div>
-
-                    <div className="h-8 w-px bg-border/40 mx-1 hidden sm:block"></div>
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={handleView}
-                        className="p-2 hover:bg-primary/10 rounded-xl text-muted-foreground hover:text-primary transition-colors group"
+                        className="text-muted-foreground hover:text-primary"
                         title="View Details"
+                        aria-label={`View ${account.account_name || 'account'} details`}
                     >
-                        <Eye size={18} className="group-hover:scale-110 transition-transform" />
-                    </button>
+                        <Eye size={18} />
+                    </Button>
                 </div>
             </div>
 
             {isExpanded && (
-                <CardContent className="pt-0 pb-4 px-4">
-                    <div className="bg-muted/30 rounded-xl border border-border/50 overflow-hidden mt-2">
-                        <div className="grid grid-cols-12 p-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border/50">
+                <div className="border-t border-border bg-muted/15 px-4 py-4 sm:px-5">
+                    <div className="overflow-hidden rounded-md border border-border bg-background">
+                        <div className="grid grid-cols-12 border-b border-border p-3 text-xs font-medium text-muted-foreground">
                             <div className="col-span-1"></div>
                             <div className="col-span-6">Category</div>
                             <div className="col-span-5 text-right">Amount ({account.currency})</div>
@@ -121,12 +124,12 @@ const AccountCard = memo(({
                                     <div key={idx} className="grid grid-cols-12 p-3 items-center hover:bg-accent/20 transition-colors">
                                         <div className="col-span-1 flex justify-center">
                                             {cat.transaction_type === TRANSACTION_TYPE.CREDIT ?
-                                                <TrendingUp size={14} className="text-emerald-600" /> :
-                                                <TrendingDown size={14} className="text-rose-600" />
+                                                <TrendingUp size={14} className="text-income" /> :
+                                                <TrendingDown size={14} className="text-expense" />
                                             }
                                         </div>
                                         <div className="col-span-6 text-sm font-medium text-foreground">{cat.name}</div>
-                                        <div className={`col-span-5 text-right text-sm font-bold tabular-nums ${cat.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-emerald-600' : 'text-foreground'}`}>
+                                        <div className={cn('col-span-5 text-right text-sm font-semibold tabular-nums', cat.transaction_type === TRANSACTION_TYPE.CREDIT ? 'text-income' : 'text-expense')}>
                                             {cat.transaction_type === TRANSACTION_TYPE.CREDIT ? '+' : ''}{formatNumber(cat.total_amount, { currency: account.currency, decimals: 2 })}
                                         </div>
                                     </div>
@@ -136,9 +139,9 @@ const AccountCard = memo(({
                             )}
                         </div>
                     </div>
-                </CardContent>
+                </div>
             )}
-        </Card>
+        </div>
     );
 });
 
@@ -162,39 +165,37 @@ const AccountSummaryPanel = memo(({ data, accountsData, emptyMessage }: AccountS
     }, [accountsData]);
 
     return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center px-1">
-                <h3 className="text-lg font-bold text-foreground">Account Breakdowns</h3>
+        <section className="space-y-3" aria-labelledby="account-breakdowns-title">
+            <div className="flex items-center justify-between px-1">
+                <h2 id="account-breakdowns-title" className="text-lg font-semibold text-foreground">Account breakdowns</h2>
+                <span className="text-xs text-muted-foreground">{data.accounts.length} accounts</span>
             </div>
             {data.accounts.length > 0 ? (
-                data.accounts.map((account: AccountSummary) => (
-                    <AccountCard
-                        key={account.account_id}
-                        account={account}
-                        isExpanded={!!expandedAccounts[account.account_id]}
-                        onToggle={() => toggleAccount(account.account_id)}
-                        onOpenInfo={openInfo}
-                    />
-                ))
+                <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+                    {data.accounts.map((account: AccountSummary) => (
+                        <AccountCard
+                            key={account.account_id}
+                            account={account}
+                            isExpanded={!!expandedAccounts[account.account_id]}
+                            onToggle={() => toggleAccount(account.account_id)}
+                            onOpenInfo={openInfo}
+                        />
+                    ))}
+                </div>
             ) : (
-                <Card className="p-12 border-dashed border-2 flex flex-col items-center justify-center text-center space-y-4 bg-muted/10">
-                    <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center border border-border/50 shadow-inner">
-                        <TrendingDown className="text-muted-foreground/50 rotate-45" size={28} />
-                    </div>
-                    <div className="space-y-2">
-                        <p className="text-lg font-bold text-foreground">No accounts found</p>
-                        <p className="text-sm text-muted-foreground max-w-[300px] leading-relaxed">
-                            {emptyMessage || "We couldn't find any account data to display. Add some transactions or connect an account to see your breakdown."}
-                        </p>
-                    </div>
-                </Card>
+                <EmptyState
+                    icon={<TrendingDown className="rotate-45" size={20} />}
+                    title="No accounts found"
+                    description={emptyMessage || "We couldn't find any account data to display. Add some transactions or connect an account to see your breakdown."}
+                />
             )}
 
             {/* Account Info Modal (Quick View) */}
             <Modal
                 isOpen={!!infoAccount}
                 onClose={() => setInfoAccount(null)}
-                title="Account Information"
+                title={infoAccount?.account_name || 'Account information'}
+                description="A quick summary of this account."
                 maxWidth="max-w-md"
             >
                 {infoAccount && (
@@ -204,7 +205,7 @@ const AccountSummaryPanel = memo(({ data, accountsData, emptyMessage }: AccountS
                     />
                 )}
             </Modal>
-        </div>
+        </section>
     );
 });
 

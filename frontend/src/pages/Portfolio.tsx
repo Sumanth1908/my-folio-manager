@@ -13,6 +13,7 @@ import {
     Repeat
 } from 'lucide-react';
 import { Card, CardTitle } from '../components/ui/Card';
+import { PageHeader } from '../components/ui/PageHeader';
 import { cn } from '../lib/utils';
 import { formatCurrency, formatNumber } from '../lib/format';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -22,6 +23,9 @@ import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchRates } from '../store/slices/converterSlice';
 import { fetchPortfolioSummary } from '../store/slices/portfolioSlice';
 import type { RootState } from '../store';
+import type { ColumnDef } from '@tanstack/react-table';
+import { DataTable } from '../components/ui/DataTable';
+import { Badge } from '../components/ui/Badge';
 
 import { BalanceSectionView, type BalanceItem, type BalanceSection, type SubHolding } from '../components/portfolio/BalanceSheetView';
 
@@ -247,25 +251,60 @@ export default function Portfolio() {
     }
 
     const netWorth = assets.total - liabilities.total;
+    const holdingColumns: ColumnDef<AggregatedHolding, unknown>[] = [
+        {
+            accessorKey: 'symbol',
+            header: 'Holding',
+            cell: ({ row }) => (
+                <div className="min-w-0">
+                    <div className="font-semibold text-foreground">{row.original.symbol}</div>
+                    <div className="max-w-44 truncate text-xs text-muted-foreground">{row.original.name}</div>
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'totalQuantity',
+            header: 'Quantity',
+            cell: ({ getValue }) => <div className="amount text-right">{formatNumber(Number(getValue()), { currency: defaultCurrency, maxDecimals: 4 })}</div>,
+        },
+        {
+            accessorKey: 'totalValue',
+            header: `Value (${currencySymbol})`,
+            cell: ({ getValue }) => {
+                const value = Number(getValue());
+                return <div className="amount text-right" title={formatNumber(value, { currency: defaultCurrency, decimals: 2 })}>{formatNumber(value, { currency: defaultCurrency, compact: true, decimals: 2 })}</div>;
+            },
+        },
+        {
+            accessorKey: 'profitPercent',
+            header: 'Return',
+            cell: ({ row, getValue }) => {
+                const profit = row.original.profit;
+                return (
+                    <div className="text-right">
+                        <Badge variant={profit >= 0 ? 'income' : 'expense'}>
+                            {profit >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                            {Number(getValue()).toFixed(1)}%
+                        </Badge>
+                    </div>
+                );
+            },
+        },
+    ];
 
     return (
-        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
-            {/* Standard Header - matching Dashboard styling */}
-            <Card className="p-6 bg-background/90 shadow-none border-border/50">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div>
-                        <CardTitle className="text-3xl font-bold tracking-tight text-foreground">Portfolio</CardTitle>
-                        <p className="text-muted-foreground text-sm mt-1">Real-time breakdown of your financial position</p>
+        <div className="page-shell">
+            <PageHeader
+                eyebrow="Assets and liabilities"
+                title="Wealth"
+                description="A consolidated view of assets, liabilities, holdings, and performance."
+                actions={
+                    <div className="min-w-40 rounded-md border border-border bg-card px-4 py-3 text-right">
+                        <p className="text-xs font-medium text-muted-foreground">Total net worth</p>
+                        <div className="amount mt-0.5 text-2xl" title={money(netWorth)}>{compactMoney(netWorth)}</div>
                     </div>
-
-                    <div className="text-right">
-                        <p className="text-muted-foreground text-[10px] uppercase tracking-widest font-bold mb-1 opacity-70">Total Net Worth</p>
-                        <div className="text-3xl font-bold text-foreground tabular-nums tracking-tight" title={money(netWorth)}>
-                            {compactMoney(netWorth)}
-                        </div>
-                    </div>
-                </div>
-            </Card>
+                }
+            />
 
             {/* Allocation Overview Bar */}
             <Card className="p-6 md:p-8 space-y-6 bg-background/80">
@@ -337,54 +376,12 @@ export default function Portfolio() {
                                 {aggregatedHoldings.length} Positions
                             </span>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground bg-muted/5">
-                                        <th className="px-8 py-4">Symbol</th>
-                                        <th className="px-6 py-4 text-right">Qty</th>
-                                        <th className="px-6 py-4 text-right">Value ({currencySymbol})</th>
-                                        <th className="px-6 py-4 text-right">P/L %</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/20">
-                                    {aggregatedHoldings.map((holding) => (
-                                        <tr key={holding.symbol} className="hover:bg-accent/20 transition-colors group">
-                                            <td className="px-8 py-5">
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{holding.symbol}</span>
-                                                    <span className="text-[10px] text-muted-foreground/60 truncate max-w-[120px]">{holding.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5 text-right tabular-nums font-medium text-xs">
-                                                {formatNumber(holding.totalQuantity, { currency: defaultCurrency, maxDecimals: 4 })}
-                                            </td>
-                                            <td
-                                                className="px-6 py-5 text-right tabular-nums font-bold text-sm text-foreground"
-                                                title={formatNumber(holding.totalValue, { currency: defaultCurrency, decimals: 2 })}
-                                            >
-                                                {formatNumber(holding.totalValue, { currency: defaultCurrency, compact: true, decimals: 2 })}
-                                            </td>
-                                            <td className="px-6 py-5 text-right">
-                                                <div className={cn(
-                                                    "inline-flex items-center gap-1 font-bold text-[10px] px-2 py-0.5 rounded-md",
-                                                    holding.profit >= 0 ? "text-green-500 bg-green-500/10" : "text-red-500 bg-green-500/10"
-                                                )}>
-                                                    {holding.profitPercent.toFixed(1)}%
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {aggregatedHoldings.length === 0 && (
-                                        <tr>
-                                            <td colSpan={4} className="px-8 py-12 text-center text-muted-foreground italic text-sm bg-muted/5">
-                                                No active investment holdings found. Add an investment account with holdings to see analysis.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                        <DataTable
+                            columns={holdingColumns}
+                            data={aggregatedHoldings}
+                            label="Active investment holdings"
+                            emptyMessage="No active investment holdings found. Add an investment account with holdings to see analysis."
+                        />
                     </Card>
                 </div>
 
@@ -459,5 +456,3 @@ export default function Portfolio() {
         </div>
     );
 }
-
-

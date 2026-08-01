@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { createCategory } from '../../store/slices/categoriesSlice';
 import { handleApiError } from '../../api';
 import type { RootState } from '../../store';
+import { Input } from '../ui/Input';
 
 interface CategoryFormProps {
     onSuccess: () => void;
@@ -33,25 +34,25 @@ const CategoryForm = ({ onSuccess, onCancel }: CategoryFormProps) => {
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                    Category Identifier
+                <label className="mb-2 block text-xs font-semibold text-muted-foreground" htmlFor="category-name">
+                    Category name
                 </label>
-                <input
+                <Input
+                    id="category-name"
                     type="text"
-                    placeholder="e.g. Wellness, Exploration"
+                    placeholder="For example, Wellness"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    className="w-full p-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-primary outline-none transition text-foreground placeholder:text-muted-foreground/30 font-bold"
                     autoFocus
                 />
             </div>
 
             <div className="pt-6 flex justify-end gap-3 border-t border-border/50">
                 <Button type="button" variant="ghost" onClick={onCancel}>
-                    Dismiss
+                    Cancel
                 </Button>
                 <Button type="submit" disabled={!isValid || isLoading}>
-                    {isLoading ? 'Propagating...' : 'Map Category'}
+                    {isLoading ? 'Creating...' : 'Create category'}
                 </Button>
             </div>
         </form>

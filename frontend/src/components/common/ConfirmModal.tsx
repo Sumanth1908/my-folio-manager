@@ -26,11 +26,11 @@ const ConfirmModal = ({
 }: ConfirmModalProps) => {
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
-            <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">{message}</p>
-                <div className="flex justify-end gap-3 pt-2">
+            <div className="space-y-5">
+                <p className="text-sm leading-6 text-muted-foreground">{message}</p>
+                <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
                     <Button
-                        variant="ghost"
+                        variant="outline"
                         onClick={onClose}
                         disabled={isLoading}
                     >

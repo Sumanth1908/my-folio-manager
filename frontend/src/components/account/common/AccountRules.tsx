@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Wand2, Play, Power, Pencil, Trash2, Eye, History } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import type { Rule, RuleExecution, RulePreview } from '../../../types';
 import api, { handleApiError } from '../../../api';
 import { Button } from '../../ui/Button';

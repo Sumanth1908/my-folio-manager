@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { ChevronLeft, ChevronRight, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -14,6 +14,8 @@ import type { BudgetItem } from '../../types';
 import LoadingSpinner from '../common/LoadingSpinner';
 import BudgetFormModal from './BudgetFormModal';
 import { formatNumber } from '../../lib/format';
+import { useCreateFlow } from '../../context/CreateFlowContext';
+import ConfirmModal from '../common/ConfirmModal';
 
 interface BudgetsPanelProps {
     symbol: string;
@@ -23,6 +25,7 @@ interface BudgetsPanelProps {
 
 const BudgetsPanel = memo(({ symbol, defaultCurrency, rates }: BudgetsPanelProps) => {
     const dispatch = useAppDispatch();
+    const { openCreate } = useCreateFlow();
     // Budget figures are round numbers by nature, so they read better consolidated
     // (`30L`, `1.2M`) — `formatExact` backs the tooltips with the full amount.
     const formatMoney = (value: number) => formatNumber(value, { currency: defaultCurrency, symbol, compact: true });
@@ -32,6 +35,7 @@ const BudgetsPanel = memo(({ symbol, defaultCurrency, rates }: BudgetsPanelProps
 
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState<BudgetItem | null>(null);
+    const [budgetToDelete, setBudgetToDelete] = useState<BudgetItem | null>(null);
 
     useEffect(() => {
         dispatch(fetchBudgets(selectedMonth));
@@ -66,8 +70,7 @@ const BudgetsPanel = memo(({ symbol, defaultCurrency, rates }: BudgetsPanelProps
     }, [budgets, spentByBudget]);
 
     const openAdd = () => {
-        setEditing(null);
-        setFormOpen(true);
+        openCreate('budget');
     };
 
     const openEdit = (budget: BudgetItem) => {
@@ -75,12 +78,12 @@ const BudgetsPanel = memo(({ symbol, defaultCurrency, rates }: BudgetsPanelProps
         setFormOpen(true);
     };
 
-    const handleDelete = async (budget: BudgetItem) => {
-        const name = budget.category_name || `Category ${budget.category_id}`;
-        if (!window.confirm(`Delete the ${name} budget for ${formatMonthLabel(selectedMonth)}? Other months are not affected.`)) return;
+    const handleDelete = async () => {
+        if (!budgetToDelete) return;
         try {
-            await dispatch(deleteBudget(budget.budget_id)).unwrap();
+            await dispatch(deleteBudget(budgetToDelete.budget_id)).unwrap();
             toast.success('Budget removed');
+            setBudgetToDelete(null);
         } catch (err) {
             toast.error(typeof err === 'string' ? err : 'Failed to delete budget');
         }
@@ -202,7 +205,7 @@ const BudgetsPanel = memo(({ symbol, defaultCurrency, rates }: BudgetsPanelProps
                                                     <Pencil size={13} />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(budget)}
+                                                    onClick={() => setBudgetToDelete(budget)}
                                                     className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
                                                     title="Delete budget"
                                                 >
@@ -240,6 +243,15 @@ const BudgetsPanel = memo(({ symbol, defaultCurrency, rates }: BudgetsPanelProps
                 onClose={() => setFormOpen(false)}
                 editing={editing}
                 symbol={symbol}
+            />
+            <ConfirmModal
+                isOpen={Boolean(budgetToDelete)}
+                onClose={() => setBudgetToDelete(null)}
+                onConfirm={handleDelete}
+                title="Delete budget?"
+                message={`Delete the ${budgetToDelete?.category_name || 'selected'} budget for ${formatMonthLabel(selectedMonth)}? Other months are not affected.`}
+                confirmText="Delete budget"
+                variant="danger"
             />
         </Card>
     );

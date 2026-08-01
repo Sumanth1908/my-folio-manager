@@ -1,23 +1,23 @@
 import { useState, useEffect } from 'react';
-import type {  } from '../types';
-import Modal from '../components/common/Modal';
-import CreateTransactionForm from '../components/transactions/CreateTransactionForm';
-
 import ConfirmModal from '../components/common/ConfirmModal';
 import ErrorBanner from '../components/common/ErrorBanner';
 import TransactionsPanel from '../components/transactions/TransactionsPanel';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchTransactions, deleteTransaction, setFilters } from '../store/slices/transactionsSlice';
 import { fetchAccounts } from '../store/slices/accountsSlice';
 import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchCategories } from '../store/slices/categoriesSlice';
-import { openModal, closeModal as closeReduxModal } from '../store/slices/uiSlice';
 import type { RootState } from '../store';
+import { useCreateFlow } from '../context/CreateFlowContext';
 
-const AllTransactions = () => {
+interface AllTransactionsProps {
+    embedded?: boolean;
+}
+
+const AllTransactions = ({ embedded = false }: AllTransactionsProps) => {
     const dispatch = useAppDispatch();
-    const isModalOpen = useAppSelector((state: RootState) => state.ui.modals['transactionAction']);
+    const { openCreate } = useCreateFlow();
 
 
     const [confirmModal, setConfirmModal] = useState<{
@@ -97,16 +97,12 @@ const AllTransactions = () => {
         }
     };
 
-    const closeModal = () => {
-        dispatch(closeReduxModal('transactionAction'));
-    };
-
     const closeConfirmModal = () => {
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
     };
 
     const onNewTransaction = () => {
-        dispatch(openModal('transactionAction'));
+        openCreate('transaction');
     };
 
 
@@ -132,7 +128,7 @@ const AllTransactions = () => {
 
 
     return (
-        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
+        <div className={embedded ? 'space-y-5' : 'page-shell'}>
             {transactionsError && (
                 <ErrorBanner
                     message={transactionsError}
@@ -140,8 +136,8 @@ const AllTransactions = () => {
                 />
             )}
             <TransactionsPanel
-                title="Financial Stream"
-                description="Chronological view of all your movements"
+                title={embedded ? undefined : 'Activity'}
+                description={embedded ? undefined : 'Chronological view of your transactions'}
                 transactions={transactions}
                 isLoading={isLoadingTransactions}
                 onLoadMore={handleLoadMore}
@@ -159,14 +155,8 @@ const AllTransactions = () => {
                 showAccountName={true}
                 onNew={onNewTransaction}
                 onDelete={onDeleteTransactionConfirm}
+                stickyToolbar
             />
-
-            <Modal isOpen={isModalOpen} onClose={closeModal} title="New Transaction">
-                <CreateTransactionForm
-                    onSuccess={closeModal}
-                    onCancel={closeModal}
-                />
-            </Modal>
 
             <ConfirmModal
                 isOpen={confirmModal.isOpen}

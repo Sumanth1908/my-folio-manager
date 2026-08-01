@@ -11,16 +11,21 @@ interface SpendingBreakdownProps {
 }
 
 const COLORS = [
-    '#dc2626', // Housing - Red 600
-    '#2563eb', // Utility - Blue 600
-    '#ea580c', // Food - Orange 600
-    '#059669', // Health - Emerald 600
-    '#4f46e5', // Entertainment - Indigo 600
-    '#d97706', // Education - Amber 600
-    '#7c3aed', // Shopping - Violet 600
-    '#0d9488', // Travel - Teal 600
-    '#4b5563', // Uncategorized - Gray 600
+    'var(--chart-1)',
+    'var(--chart-2)',
+    'var(--chart-3)',
+    'var(--chart-4)',
+    'var(--chart-5)',
+    'var(--chart-6)',
+    'var(--chart-7)',
+    'var(--chart-8)',
+    'var(--chart-9)',
 ];
+
+const colorForCategory = (name: string) => {
+    const hash = Array.from(name).reduce((value, character) => ((value * 31) + character.charCodeAt(0)) >>> 0, 0);
+    return COLORS[hash % COLORS.length];
+};
 
 const SpendingBreakdown = memo(({ data, symbol }: SpendingBreakdownProps) => {
     const [isExpanded, setIsExpanded] = useState(true);
@@ -30,13 +35,13 @@ const SpendingBreakdown = memo(({ data, symbol }: SpendingBreakdownProps) => {
 
         const sortedData = [...data]
             .sort((a, b) => Number(b.total_amount || 0) - Number(a.total_amount || 0))
-            .map((item, index) => {
+            .map((item) => {
                 const val = Number(item.total_amount || 0);
                 return {
                     ...item,
                     value: val,
                     percentage: totalOutflow > 0 ? (val / totalOutflow) * 100 : 0,
-                    color: COLORS[index % COLORS.length]
+                    color: colorForCategory(item.name)
                 };
             });
 
@@ -64,7 +69,7 @@ const SpendingBreakdown = memo(({ data, symbol }: SpendingBreakdownProps) => {
             {isExpanded && (
                 <CardContent className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pb-10">
                     {/* Radial Chart Column */}
-                    <div className="lg:col-span-5 h-[300px] relative flex items-center justify-center">
+                    <div className="relative flex h-[300px] min-w-0 items-center justify-center lg:col-span-5">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -115,7 +120,7 @@ const SpendingBreakdown = memo(({ data, symbol }: SpendingBreakdownProps) => {
                                 {chartData.items.map((item, idx) => (
                                     <div key={idx} className="grid grid-cols-12 p-4 items-center hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0">
                                         <div className="col-span-6 flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${item.color}20`, color: item.color }}>
+                                            <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ backgroundColor: `color-mix(in oklch, ${item.color} 14%, transparent)`, color: item.color }}>
                                                 <Layers size={16} />
                                             </div>
                                             <span className="font-semibold text-foreground truncate">{item.name}</span>

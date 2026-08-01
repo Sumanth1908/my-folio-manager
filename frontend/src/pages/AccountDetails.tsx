@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { ArrowLeft, LayoutDashboard, Loader2, ReceiptText } from 'lucide-react';
+import { Tabs } from '@base-ui/react/tabs';
 import type { Transaction } from '../types';
 import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
@@ -218,7 +219,7 @@ const AccountDetails = () => {
     const symbol = getCurrencySymbol();
 
     return (
-        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 min-h-screen pb-20">
+        <div className="page-shell">
             <Button
                 variant="ghost"
                 onClick={() => navigate('/accounts')}
@@ -229,41 +230,49 @@ const AccountDetails = () => {
             </Button>
 
 
-            <AccountInfoCard
-                account={account!}
-                balance={balance}
-                currencies={currencies}
-                onDelete={handleDeleteAccountConfirm}
-                onEdit={() => {
-                    dispatch(openModal('accountAction'));
-                }}
-                onClose={
-                    account?.account_type === ACCOUNT_TYPE.LOAN && account.status !== 'Closed'
-                        ? handleCloseAccountConfirm
-                        : undefined
-                }
-            />
+            <Tabs.Root defaultValue="overview">
+                <Tabs.List className="sticky top-16 z-30 inline-flex rounded-md border border-border bg-card/95 p-1 shadow-sm backdrop-blur-md lg:top-0" aria-label="Account views">
+                    <Tabs.Tab value="overview" className="inline-flex h-9 items-center gap-2 rounded-sm px-4 text-sm font-semibold text-muted-foreground data-[active]:bg-primary data-[active]:text-primary-foreground">
+                        <LayoutDashboard className="h-4 w-4" /> Overview
+                    </Tabs.Tab>
+                    <Tabs.Tab value="activity" className="inline-flex h-9 items-center gap-2 rounded-sm px-4 text-sm font-semibold text-muted-foreground data-[active]:bg-primary data-[active]:text-primary-foreground">
+                        <ReceiptText className="h-4 w-4" /> Activity
+                    </Tabs.Tab>
+                </Tabs.List>
 
+                <Tabs.Panel value="overview" className="mt-5 space-y-6 focus:outline-none">
+                    <AccountInfoCard
+                        account={account!}
+                        balance={balance}
+                        currencies={currencies}
+                        onDelete={handleDeleteAccountConfirm}
+                        onEdit={() => dispatch(openModal('accountAction'))}
+                        onClose={account?.account_type === ACCOUNT_TYPE.LOAN && account.status !== 'Closed' ? handleCloseAccountConfirm : undefined}
+                    />
+                    <AccountTypeDetails account={account!} symbol={symbol} />
+                </Tabs.Panel>
 
-            <AccountTypeDetails account={account!} symbol={symbol} />
-
-            <AccountActivityPanel
-                transactions={transactions}
-                rules={rules}
-                isLoadingTransactions={isTransactionsLoading}
-                isLoadingRules={isRulesLoading}
-                symbol={symbol}
-                accountId={accountId!}
-                onRefresh={refreshData}
-                onLoadMore={handleLoadMore}
-                hasMore={hasNextPage}
-                isFetchingNextPage={isFetchingNextPage}
-            />
+                <Tabs.Panel value="activity" className="mt-5 focus:outline-none">
+                    <AccountActivityPanel
+                        transactions={transactions}
+                        rules={rules}
+                        isLoadingTransactions={isTransactionsLoading}
+                        isLoadingRules={isRulesLoading}
+                        symbol={symbol}
+                        accountId={accountId!}
+                        onRefresh={refreshData}
+                        onLoadMore={handleLoadMore}
+                        hasMore={hasNextPage}
+                        isFetchingNextPage={isFetchingNextPage}
+                    />
+                </Tabs.Panel>
+            </Tabs.Root>
 
             <Modal
                 isOpen={isModalOpen}
                 onClose={closeModal}
-                title="Edit Account Details"
+                title="Edit account details"
+                description="Update the account name, institution, currency, and other details."
             >
                 <AccountEditForm
                     account={account!}
@@ -285,7 +294,8 @@ const AccountDetails = () => {
             <Modal
                 isOpen={isCloseLoanFormOpen}
                 onClose={() => setIsCloseLoanFormOpen(false)}
-                title="Close Loan"
+                title="Close loan"
+                description="Choose the source account used to settle the remaining balance."
             >
                 {account && (
                     <CloseLoanForm
