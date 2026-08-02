@@ -103,7 +103,7 @@ const createInitialFormData = (rule?: Rule | null, accountId?: string | null): R
     };
 };
 
-const FORMULA_VARIABLES = {
+const FORMULA_VARIABLES: Record<string, { name: string; desc: string }[]> = {
     [ACCOUNT_TYPE.SAVINGS]: [
         { name: 'balance', desc: 'Current Account Balance' },
         { name: 'interest_rate', desc: 'Annual Interest Rate (%)' },
@@ -130,7 +130,11 @@ const FORMULA_VARIABLES = {
     [ACCOUNT_TYPE.INVESTMENT]: [
         { name: 'balance', desc: 'Current Cash Balance' },
         { name: 'days', desc: 'Days elapsed since last run' }
-    ]
+    ],
+    [ACCOUNT_TYPE.CASH]: [
+        { name: 'balance', desc: 'Current Account Balance' },
+        { name: 'days', desc: 'Days elapsed since last run' }
+    ],
 };
 
 const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps) => {
@@ -232,7 +236,7 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
         } catch (err: unknown) {
             toast.error((err as Error)?.message ?? 'Failed to save rule');
         }
-    }, [formData, accountId, ruleToEdit, dispatch, onSuccess]);
+    }, [formData, accountId, ruleToEdit, dispatch, onSuccess, selectedAccountId]);
 
     const isCategorization = formData.ruleType === RULE_TYPE.CATEGORIZATION;
     const isTransfer = formData.txType === TRANSACTION_TYPE.TRANSFER;

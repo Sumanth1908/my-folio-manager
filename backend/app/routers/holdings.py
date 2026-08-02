@@ -70,10 +70,14 @@ def update_holding(
     current_user: User = Depends(get_current_user)
 ):
     """Update an existing holding."""
-    holding = investment_service.update_holding(session, holding_id, holding_in, current_user.user_id)
-    if not holding:
-        raise HTTPException(status_code=404, detail="Holding not found")
-    return holding
+    try:
+        holding = investment_service.update_holding(session, holding_id, holding_in, current_user.user_id)
+        if not holding:
+            raise HTTPException(status_code=404, detail="Holding not found")
+        return holding
+    except ValueError as e:
+        status_code = 404 if "not found" in str(e).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(e))
 
 
 @router.post("/{holding_id}/sell", response_model=InvestmentHoldingRead)

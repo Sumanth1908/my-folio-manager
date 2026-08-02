@@ -4,7 +4,7 @@ A comprehensive personal finance and portfolio management application designed t
 
 ## 🚀 Features
 
--   **Portfolio Management**: Track Savings, Loans, Fixed Deposits, and Investment holdings in one unified place.
+-   **Portfolio Management**: Track cash, savings, loans, fixed/recurring deposits, securities, commodities (including gold), crypto, property, and custom assets in one unified place.
 -   **Visual Dashboards**: 
     -   Real-time Net Worth calculation across all account types.
     -   Interactive **Cashflow Sankey Charts** to visualize money movement.
@@ -16,6 +16,8 @@ A comprehensive personal finance and portfolio management application designed t
 
 ## 🧠 Architecture Highlights
 -   **Unified Account Model**: Extensible `metadata_` JSON field replaces rigid subclassing.
+-   **Capability-based Account Types**: Account identifiers are stored as strings, while a backend registry describes built-in behavior. Custom types safely default to ledger accounts and can opt into holdings through metadata.
+-   **Generalized Holdings**: A holding records its asset class, unit, price source, and optional metadata. This supports both market-priced securities and manually valued assets such as grams of gold or a property.
 -   **Pure Ledger**: Balances are calculated strictly on-the-fly via `SUM(amount)` using signed transactions (+ for credits, - for debits), guaranteeing data consistency.
 -   **Rule Normalization**: Automation rules utilize JSON configuration blocks instead of sparse "God Table" columns, making them endlessly extensible.
 
@@ -24,7 +26,7 @@ A comprehensive personal finance and portfolio management application designed t
 ### Backend
 -   **Language**: Python 3.11+
 -   **Framework**: FastAPI
--   **Database**: PostgreSQL (via SQLModel)
+-   **Database**: MySQL (via SQLModel)
 -   **Background Jobs**: Celery with Redis
 -   **Dependency Management**: Poetry
 
@@ -63,6 +65,7 @@ Navigate to the `backend` directory:
 ```bash
 cd backend
 poetry install
+poetry run alembic upgrade head
 poetry run python dev.py
 ```
 *The backend will be available at http://localhost:8000. You can access the API docs at http://localhost:8000/docs.*
@@ -166,3 +169,25 @@ flutter build ipa --release
 
 ## ⚙️ Background Tasks
 Interest accruals are processed automatically on the 1st of every month (or as configured per account). Ensure the Celery worker and beat are running (can be started via `poetry run worker` and `poetry run beat`).
+
+## Extensible asset example
+
+Built-in account definitions and their capabilities are available from `GET /api/v1/accounts/types`. For example, gold can be represented by a `COMMODITY` account and a manually priced holding:
+
+```json
+{
+  "account_id": "<commodity-account-id>",
+  "symbol": "GOLD_24K",
+  "name": "24K gold",
+  "asset_type": "GOLD",
+  "quantity": 12.5,
+  "unit": "gram",
+  "average_price": 7000,
+  "current_price": 7500,
+  "currency": "INR",
+  "price_source": "MANUAL",
+  "metadata_": {"purity": "999"}
+}
+```
+
+Send this object to `POST /api/v1/holdings/`. Account responses expose the ledger `balance`, holdings `asset_value`, and valuation-oriented `net_value` separately.

@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api, { handleApiError } from '../../api';
 import { fetchAccounts } from './accountsSlice';
+import type { HoldingUpsertPayload } from '../../types';
 
 interface HoldingsState {
     loading: boolean;
@@ -14,12 +15,12 @@ const initialState: HoldingsState = {
 
 export const createHolding = createAsyncThunk(
     'holdings/createHolding',
-    async (payload: any, { dispatch, rejectWithValue }) => {
+    async (payload: Record<string, unknown>, { dispatch, rejectWithValue }) => {
         try {
             const res = await api.post('/holdings/', payload);
             dispatch(fetchAccounts());
             return res.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             return rejectWithValue(handleApiError(error, 'Failed to create holding'));
         }
     }
@@ -32,8 +33,21 @@ export const sellHolding = createAsyncThunk(
             const res = await api.post(`/holdings/${holdingId}/sell`, { quantity, price, transaction_date });
             dispatch(fetchAccounts());
             return res.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             return rejectWithValue(handleApiError(error, 'Failed to sell holding'));
+        }
+    }
+);
+
+export const updateHolding = createAsyncThunk(
+    'holdings/updateHolding',
+    async ({ holdingId, data }: { holdingId: number; data: HoldingUpsertPayload }, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await api.patch(`/holdings/${holdingId}`, data);
+            dispatch(fetchAccounts());
+            return res.data;
+        } catch (error: unknown) {
+            return rejectWithValue(handleApiError(error, 'Failed to update asset'));
         }
     }
 );
@@ -45,7 +59,7 @@ export const deleteHolding = createAsyncThunk(
             await api.delete(`/holdings/${holdingId}`);
             dispatch(fetchAccounts());
             return holdingId;
-        } catch (error: any) {
+        } catch (error: unknown) {
             return rejectWithValue(handleApiError(error, 'Failed to delete holding'));
         }
     }
@@ -60,7 +74,7 @@ export const refreshStockPrices = createAsyncThunk(
             });
             dispatch(fetchAccounts());
             return res.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             return rejectWithValue(handleApiError(error, 'Failed to refresh prices'));
         }
     }
@@ -74,7 +88,7 @@ export const searchStockSymbols = createAsyncThunk(
                 params: { q: query, currency }
             });
             return res.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             return rejectWithValue(handleApiError(error, 'Failed to search symbols'));
         }
     }
@@ -110,6 +124,17 @@ export const holdingsSlice = createSlice({
                 state.loading = false;
             })
             .addCase(sellHolding.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            })
+            .addCase(updateHolding.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(updateHolding.fulfilled, (state) => {
+                state.loading = false;
+            })
+            .addCase(updateHolding.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload as string;
             })

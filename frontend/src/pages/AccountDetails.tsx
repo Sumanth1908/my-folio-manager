@@ -22,6 +22,7 @@ import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchSettings } from '../store/slices/settingsSlice';
 import { fetchRates } from '../store/slices/converterSlice';
 import { ACCOUNT_TYPE } from '../constants';
+import { getAccountDisplayValue } from '../lib/accounts';
 
 const AccountDetails = () => {
     const { id: accountId } = useParams<{ id: string }>();
@@ -101,7 +102,7 @@ const AccountDetails = () => {
             await dispatch(deleteAccount(accountId)).unwrap();
             toast.success('Account deleted successfully');
             navigate('/accounts');
-        } catch (error) {
+        } catch {
             toast.error('Failed to delete account');
         }
     };
@@ -160,20 +161,13 @@ const AccountDetails = () => {
     const getBalance = () => {
         if (!account) return 0;
 
-        // For investment accounts, calculate total portfolio value from holdings
-        if (account.account_type === ACCOUNT_TYPE.INVESTMENT) {
-            if (account.investment_holdings) {
-                return account.investment_holdings.reduce((total, holding) => {
-                    const price = holding.current_price ?? holding.average_price;
-                    return total + (holding.quantity * price);
-                }, 0);
-            }
-            return 0;
+        if (account.net_value !== undefined || account.asset_value !== undefined) {
+            return getAccountDisplayValue(account);
         }
 
         // The backend now calculates balance dynamically and sends it in the response
-        if ((account as any).balance !== undefined) {
-            return Number((account as any).balance);
+        if (account.balance !== undefined) {
+            return Number(account.balance);
         }
 
         // Fallback to transaction sum for other cases (though usually redundant)

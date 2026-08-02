@@ -74,7 +74,7 @@ const AccountCard = memo(({
                         </div>
                         <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                             <Badge variant={account.account_type === 'LOAN' ? 'expense' : account.account_type === 'SAVINGS' ? 'income' : 'primary'} className="py-0.5 text-[11px]">
-                                {account.account_type.replace('_', ' ')}
+                                {account.account_type.replaceAll('_', ' ')}
                             </Badge>
                             <span aria-hidden="true">·</span>
                             <span>{account.currency}</span>

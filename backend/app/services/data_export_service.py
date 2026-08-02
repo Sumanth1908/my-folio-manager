@@ -19,7 +19,7 @@ from app.models import (
 class DataExportService:
     """Service for handling data export and import operations."""
 
-    EXPORT_VERSION = "1.1.0"
+    EXPORT_VERSION = "1.2.0"
 
     @staticmethod
     def _serialize_value(value: Any) -> Any:
@@ -175,6 +175,10 @@ class DataExportService:
                     currency=ih_data.get("currency", "USD"),
                     stock_exchange=ih_data.get("stock_exchange"),
                     last_price_update=datetime.fromisoformat(ih_data["last_price_update"]) if ih_data.get("last_price_update") else None,
+                    asset_type=ih_data.get("asset_type", "EQUITY"),
+                    unit=ih_data.get("unit", "unit"),
+                    price_source=ih_data.get("price_source", "MARKET"),
+                    metadata_=ih_data.get("metadata_"),
                 )
                 session.add(new_ih)
                 summary["investment_holdings"] += 1

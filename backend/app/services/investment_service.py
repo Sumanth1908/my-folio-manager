@@ -4,13 +4,15 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 from sqlmodel import Session, select
 
-from app.models.account import Account, AccountType
+from app.models.account import Account
+from app.models.asset import AssetType, PriceSource
 from app.models.investment_holding import InvestmentHolding
 from app.models.category import Category
 from app.schemas.transaction import TransactionCreate
 from app.schemas.investment import InvestmentHoldingCreate, InvestmentOperation
 from app.services.transaction_service import create_transaction_core
 from app.services.stock_service import get_exchange_suffix, get_stock_prices_batch
+from app.services.account_types import get_account_type_definition
 
 logger = logging.getLogger(__name__)
 
@@ -44,13 +46,16 @@ def buy_holding(session: Session, holding_in: InvestmentHoldingCreate, user_id: 
     if not account or account.user_id != user_id:
         return None
     
-    if account.account_type != AccountType.INVESTMENT:
-        raise ValueError("Only investment accounts can have holdings")
+    if not get_account_type_definition(account.account_type, account.metadata_).supports_holdings:
+        raise ValueError("This account type does not support holdings")
+    if holding_in.quantity <= 0 or holding_in.average_price < 0:
+        raise ValueError("Quantity must be positive and price cannot be negative")
 
     existing_holding = session.exec(
         select(InvestmentHolding).where(
             InvestmentHolding.account_id == holding_in.account_id,
-            InvestmentHolding.symbol == holding_in.symbol
+            InvestmentHolding.symbol == holding_in.symbol,
+            InvestmentHolding.asset_type == holding_in.asset_type,
         )
     ).first()
 
@@ -63,11 +68,25 @@ def buy_holding(session: Session, holding_in: InvestmentHoldingCreate, user_id: 
         
         if holding_in.name:
             existing_holding.name = holding_in.name
+        if holding_in.current_price is not None:
+            existing_holding.current_price = holding_in.current_price
+        existing_holding.currency = holding_in.currency
+        existing_holding.unit = holding_in.unit
+        existing_holding.price_source = holding_in.price_source
+        if holding_in.metadata_ is not None:
+            existing_holding.metadata_ = {
+                **(existing_holding.metadata_ or {}),
+                **holding_in.metadata_,
+            }
         holding = existing_holding
     else:
         exchange_suffix = get_exchange_suffix(holding_in.currency)
         holding_data = holding_in.model_dump()
-        if '.' not in holding_in.symbol and exchange_suffix:
+        if (
+            holding_in.asset_type in {AssetType.EQUITY.value, AssetType.ETF.value, AssetType.MUTUAL_FUND.value}
+            and '.' not in holding_in.symbol
+            and exchange_suffix
+        ):
             holding_data['stock_exchange'] = exchange_suffix
         holding = InvestmentHolding(**holding_data)
     
@@ -97,7 +116,9 @@ def sell_holding(session: Session, holding_id: int, sell_in: InvestmentOperation
     holding = get_holding_with_ownership(session, holding_id, user_id)
     if not holding:
         return None
-    
+    if sell_in.quantity <= 0 or sell_in.price < 0:
+        raise ValueError("Quantity must be positive and price cannot be negative")
+
     if holding.quantity < sell_in.quantity:
         raise ValueError("Insufficient quantity to sell")
 
@@ -132,8 +153,16 @@ def update_holding(session: Session, holding_id: int, holding_in: InvestmentHold
     holding = get_holding_with_ownership(session, holding_id, user_id)
     if not holding:
         return None
-        
-    for key, value in holding_in.model_dump().items():
+
+    target_account = session.get(Account, holding_in.account_id)
+    if not target_account or target_account.user_id != user_id:
+        raise ValueError("Target account not found")
+    if not get_account_type_definition(target_account.account_type, target_account.metadata_).supports_holdings:
+        raise ValueError("Target account type does not support holdings")
+    if holding_in.quantity <= 0 or holding_in.average_price < 0:
+        raise ValueError("Quantity must be positive and price cannot be negative")
+
+    for key, value in holding_in.model_dump(exclude={"transaction_date"}, exclude_unset=True).items():
         setattr(holding, key, value)
     
     session.add(holding)
@@ -159,13 +188,25 @@ def refresh_holding_prices(session: Session, account_id: str, user_id: str) -> L
     if not account or account.user_id != user_id:
         raise ValueError("Account not found")
     
-    if account.account_type != AccountType.INVESTMENT:
-        raise ValueError("Only investment accounts have stock holdings")
+    if not get_account_type_definition(account.account_type, account.metadata_).supports_holdings:
+        raise ValueError("This account type does not support holdings")
     
     holdings = session.exec(
         select(InvestmentHolding).where(InvestmentHolding.account_id == account_id)
     ).all()
     
+    market_asset_types = {
+        AssetType.EQUITY.value,
+        AssetType.ETF.value,
+        AssetType.MUTUAL_FUND.value,
+    }
+    holdings = [
+        holding
+        for holding in holdings
+        if holding.price_source == PriceSource.MARKET.value
+        and holding.asset_type in market_asset_types
+    ]
+
     if not holdings:
         return []
     

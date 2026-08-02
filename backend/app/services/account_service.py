@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 from sqlmodel import Session, func, select
@@ -7,6 +7,23 @@ from app.models import Account, AccountType, Transaction
 from app.models.investment_holding import InvestmentHolding
 from app.schemas.account import AccountCreate, AccountRead, AccountUpdate
 from app.services import rules_service
+from app.services.account_types import get_account_type_definition
+
+
+def calculate_asset_value(session: Session, account: Account) -> Decimal:
+    """Return the market/manual value of holdings owned by an account."""
+    if not get_account_type_definition(account.account_type, account.metadata_).supports_holdings:
+        return Decimal("0.00")
+
+    value = session.exec(
+        select(
+            func.sum(
+                InvestmentHolding.quantity
+                * func.coalesce(InvestmentHolding.current_price, InvestmentHolding.average_price)
+            )
+        ).where(InvestmentHolding.account_id == account.account_id)
+    ).one()
+    return Decimal(str(value or "0.00"))
 
 def calculate_account_balance(session: Session, account: Account) -> Decimal:
     """Calculate balance dynamically based on transactions."""
@@ -47,16 +64,61 @@ def get_balances_for_accounts(session: Session, accounts: List[Account]) -> dict
             balances[account.account_id] = total
     return balances
 
-def enrich_account(session: Session, account: Account, balance: Optional[Decimal] = None) -> AccountRead:
+
+def get_asset_values_for_accounts(session: Session, accounts: List[Account]) -> dict[str, Decimal]:
+    """Fetch holding values for a page of accounts in one grouped query."""
+    holding_account_ids = [
+        account.account_id
+        for account in accounts
+        if get_account_type_definition(account.account_type, account.metadata_).supports_holdings
+    ]
+    if not holding_account_ids:
+        return {}
+
+    rows = session.exec(
+        select(
+            InvestmentHolding.account_id,
+            func.sum(
+                InvestmentHolding.quantity
+                * func.coalesce(InvestmentHolding.current_price, InvestmentHolding.average_price)
+            ),
+        )
+        .where(InvestmentHolding.account_id.in_(holding_account_ids))
+        .group_by(InvestmentHolding.account_id)
+    ).all()
+    return {
+        account_id: Decimal(str(value or "0.00"))
+        for account_id, value in rows
+    }
+
+def enrich_account(
+    session: Session,
+    account: Account,
+    balance: Optional[Decimal] = None,
+    asset_value: Optional[Decimal] = None,
+) -> AccountRead:
     account_dict = account.model_dump()
 
     # Calculate real-time balance (callers listing many accounts pass a
     # precomputed balance from get_balances_for_accounts to avoid N+1 queries)
     account_dict['balance'] = balance if balance is not None else calculate_account_balance(session, account)
 
-    if account.account_type == AccountType.INVESTMENT:
+    type_definition = get_account_type_definition(account.account_type, account.metadata_)
+    resolved_asset_value = (
+        asset_value if asset_value is not None else calculate_asset_value(session, account)
+    )
+    account_dict["asset_value"] = resolved_asset_value
+    account_dict["net_value"] = (
+        resolved_asset_value
+        if type_definition.valuation_mode == "HOLDINGS"
+        else account_dict["balance"]
+    )
+    account_dict["account_nature"] = type_definition.nature.value
+
+    if type_definition.supports_holdings:
         holdings = session.exec(select(InvestmentHolding).where(InvestmentHolding.account_id == account.account_id)).all()
         account_dict['investment_holdings'] = [h.model_dump() for h in holdings]
+        account_dict['asset_holdings'] = account_dict['investment_holdings']
 
     return AccountRead.model_validate(account_dict)
 
@@ -106,7 +168,7 @@ def create_account(session: Session, account_in: AccountCreate, user_id: str) ->
                     amount=principal,
                     currency=account.currency,
                     description="Opening Principal",
-                    transaction_date=start_date
+                    transaction_date=datetime.fromisoformat(start_date) if start_date else datetime.now(timezone.utc)
                 )
                 session.add(initial_tx)
 
@@ -203,7 +265,7 @@ def close_account(session: Session, account_id: str, user_id: str, source_accoun
     from app.models.rule import Rule
     user_rules = session.exec(
         select(Rule).join(Account, Rule.account_id == Account.account_id)
-        .where(Account.user_id == user_id, Rule.is_active == True)
+        .where(Account.user_id == user_id, Rule.is_active.is_(True))
     ).all()
     for rule in user_rules:
         config = rule.configuration or {}

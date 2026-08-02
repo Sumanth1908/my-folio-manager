@@ -1,9 +1,10 @@
-import uuid
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Dict, Optional
 from datetime import datetime
-from sqlalchemy import Column, ForeignKey, String, Integer
+from sqlalchemy import Column, ForeignKey, String, JSON
 from sqlmodel import Field, SQLModel
+
+from app.models.asset import AssetType, PriceSource
 
 class InvestmentHolding(SQLModel, table=True):
     """Represents an individual holding within an Investment account."""
@@ -19,3 +20,10 @@ class InvestmentHolding(SQLModel, table=True):
     currency: str = Field(default="USD", max_length=10)
     stock_exchange: Optional[str] = Field(default=None, max_length=10)  # Exchange suffix (e.g., .NS, .L)
     last_price_update: Optional[datetime] = Field(default=None)  # Timestamp of last price fetch
+    asset_type: str = Field(
+        default=AssetType.EQUITY.value,
+        sa_column=Column(String(40), nullable=False, index=True),
+    )
+    unit: str = Field(default="unit", max_length=20)
+    price_source: str = Field(default=PriceSource.MARKET.value, max_length=20)
+    metadata_: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))

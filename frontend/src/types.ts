@@ -1,4 +1,4 @@
-import { TRANSACTION_TYPE, RULE_TYPE, FREQUENCY, ACCOUNT_TYPE } from './constants';
+import { TRANSACTION_TYPE, RULE_TYPE, FREQUENCY } from './constants';
 
 export interface PaginatedResponse<T> {
     items: T[];
@@ -80,26 +80,46 @@ export interface InvestmentHolding {
     currency: string;
     stock_exchange?: string;
     last_price_update?: string;
+    asset_type: string;
+    unit: string;
+    price_source: 'MANUAL' | 'MARKET';
+    metadata_?: Record<string, unknown>;
 }
 
 export type CreateHoldingDTO = Omit<InvestmentHolding, 'holding_id' | 'account_id'>;
+export type HoldingUpsertPayload = Omit<InvestmentHolding, 'holding_id' | 'last_price_update'> & {
+    transaction_date?: string;
+};
 
 // Base Account
 export interface Account {
     account_id: string;
     account_name?: string;
-    account_type: typeof ACCOUNT_TYPE[keyof typeof ACCOUNT_TYPE];
+    account_type: string;
     currency: string;
     status: string;
     is_interest_enabled: boolean;
     created_at: string;
     balance?: number;
+    asset_value?: number;
+    net_value?: number;
+    account_nature?: 'ASSET' | 'LIABILITY';
     metadata_?: Record<string, any>;
     // Nested account details (legacy)
     savings_account?: SavingsAccount;
     loan_account?: LoanAccount;
     fixed_deposit_account?: FixedDepositAccount;
     investment_holdings?: InvestmentHolding[];
+    asset_holdings?: InvestmentHolding[];
+}
+
+export interface AccountTypeDefinition {
+    key: string;
+    label: string;
+    nature: 'ASSET' | 'LIABILITY';
+    supports_holdings: boolean;
+    supports_interest: boolean;
+    valuation_mode: 'LEDGER' | 'HOLDINGS';
 }
 
 export interface Transaction {
@@ -121,7 +141,7 @@ export type CreateTransactionDTO = Omit<Transaction, 'transaction_id' | 'transac
 
 
 
-export type AccountType = 'SAVINGS' | 'INVESTMENT' | 'LOAN' | 'FIXED_DEPOSIT' | 'RECURRING_DEPOSIT';
+export type AccountType = string;
 export type RuleType = typeof RULE_TYPE[keyof typeof RULE_TYPE];
 export type Frequency = typeof FREQUENCY[keyof typeof FREQUENCY];
 
@@ -159,7 +179,7 @@ export interface CategorySummary {
 export interface AccountSummary {
     account_id: string;
     account_name?: string;
-    account_type: typeof ACCOUNT_TYPE[keyof typeof ACCOUNT_TYPE];
+    account_type: string;
     currency: string;
     categories: CategorySummary[];
 }

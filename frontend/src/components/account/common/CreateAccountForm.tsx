@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import type { RootState } from '../../../store';
-import { createAccount, fetchAccounts } from '../../../store/slices/accountsSlice';
+import { createAccount, fetchAccounts, fetchAccountTypes } from '../../../store/slices/accountsSlice';
 import { fetchSummary } from '../../../store/slices/summarySlice';
 import { handleApiError } from '../../../api';
 import { Button } from '../../ui/Button';
@@ -17,9 +17,9 @@ import {
 } from '../../ui/Select';
 import { cn } from '../../../lib/utils';
 import { formatNumber } from '../../../lib/format';
-import { ACCOUNT_TYPES, DEFAULT_CURRENCY, DEFAULT_ACCRUAL_DAY, ACCOUNT_TYPE } from '../../../constants';
+import { DEFAULT_CURRENCY, DEFAULT_ACCRUAL_DAY, ACCOUNT_TYPE, HOLDING_ACCOUNT_TYPES } from '../../../constants';
 import { toast } from 'sonner';
-import { PiggyBank, TrendingUp, Landmark, ShieldCheck, Repeat } from 'lucide-react';
+import { PiggyBank, TrendingUp, Landmark, ShieldCheck, Repeat, WalletCards, Gem, Bitcoin, Building2, Boxes } from 'lucide-react';
 
 import SavingsEditFields from '../savings/SavingsEditFields';
 import LoanEditFields from '../loan/LoanEditFields';
@@ -65,6 +65,41 @@ const ACCOUNT_TYPE_CONFIG = [
         description: 'Periodic deposits with fixed returns.',
         icon: Repeat,
         color: 'text-indigo-500'
+    },
+    {
+        id: ACCOUNT_TYPE.CASH,
+        title: 'Cash Account',
+        description: 'Track cash, wallets, and liquid balances.',
+        icon: WalletCards,
+        color: 'text-teal-500'
+    },
+    {
+        id: ACCOUNT_TYPE.COMMODITY,
+        title: 'Commodity / Gold',
+        description: 'Track gold, silver, and other commodities by unit.',
+        icon: Gem,
+        color: 'text-yellow-500'
+    },
+    {
+        id: ACCOUNT_TYPE.CRYPTO,
+        title: 'Crypto Assets',
+        description: 'Track digital assets with manual or market pricing.',
+        icon: Bitcoin,
+        color: 'text-orange-500'
+    },
+    {
+        id: ACCOUNT_TYPE.REAL_ESTATE,
+        title: 'Real Estate',
+        description: 'Track property cost and current valuation.',
+        icon: Building2,
+        color: 'text-cyan-500'
+    },
+    {
+        id: ACCOUNT_TYPE.OTHER_ASSET,
+        title: 'Other Asset',
+        description: 'Track collectibles, private assets, and anything else.',
+        icon: Boxes,
+        color: 'text-violet-500'
     }
 ];
 
@@ -72,6 +107,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
     const dispatch = useAppDispatch();
     const { items: currencies } = useAppSelector((state: RootState) => state.currencies);
     const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
+    const { accountTypes: accountTypeDefinitions } = useAppSelector((state: RootState) => state.accounts);
     const { filters: summaryFilters } = useAppSelector((state: RootState) => state.summary);
 
     // Form State
@@ -116,6 +152,28 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
     const [fdMaturityAmount, setFdMaturityAmount] = useState('');
     const [fdFundFromAccount, setFdFundFromAccount] = useState(false);
     const [fdLinkedAccount, setFdLinkedAccount] = useState('');
+
+    useEffect(() => {
+        if (accountTypeDefinitions.length === 0) {
+            dispatch(fetchAccountTypes());
+        }
+    }, [accountTypeDefinitions.length, dispatch]);
+
+    const accountTypeConfigs = useMemo(() => {
+        if (accountTypeDefinitions.length === 0) return ACCOUNT_TYPE_CONFIG;
+        return accountTypeDefinitions.map((definition) => {
+            const configured = ACCOUNT_TYPE_CONFIG.find((item) => item.id === definition.key);
+            return configured || {
+                id: definition.key,
+                title: definition.label,
+                description: definition.supports_holdings
+                    ? 'Track individually valued holdings in this account.'
+                    : 'Track this account through its transaction ledger.',
+                icon: definition.supports_holdings ? Boxes : WalletCards,
+                color: 'text-primary',
+            };
+        });
+    }, [accountTypeDefinitions]);
 
     useEffect(() => {
         if (accountType === ACCOUNT_TYPE.SAVINGS || accountType === ACCOUNT_TYPE.LOAN) {
@@ -198,7 +256,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
         if (newAccountName) {
             setIsSubmitting(true);
             
-            const metadata: any = {};
+            const metadata: Record<string, unknown> = {};
             
             if (accountType === ACCOUNT_TYPE.SAVINGS) {
                 metadata.interest_rate = savingsInterestRate ? parseFloat(savingsInterestRate) : null;
@@ -239,7 +297,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                 metadata.linked_account_id = rdLinkedAccountId || null;
             }
 
-            const payload: any = {
+            const payload = {
                 account_name: newAccountName,
                 account_type: accountType,
                 currency: currency,
@@ -251,10 +309,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
             try {
                 await dispatch(createAccount(payload)).unwrap();
                 toast.success('Account created successfully!');
-                dispatch(fetchSummary({
-                    timeRange: summaryFilters.timeRange,
-                    accountTypes: [...ACCOUNT_TYPES]
-                }));
+                dispatch(fetchSummary({ timeRange: summaryFilters.timeRange }));
                 dispatch(fetchAccounts());
                 onSuccess();
             } catch (err) {
@@ -265,8 +320,11 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
         }
     };
 
-    const selectedTypeConfig = ACCOUNT_TYPE_CONFIG.find(c => c.id === accountType);
+    const selectedTypeConfig = accountTypeConfigs.find(c => c.id === accountType);
     const SelectedIcon = selectedTypeConfig?.icon;
+    const selectedTypeDefinition = accountTypeDefinitions.find((definition) => definition.key === accountType);
+    const supportsHoldings = selectedTypeDefinition?.supports_holdings
+        ?? HOLDING_ACCOUNT_TYPES.some((type) => type === accountType);
 
     return (
         <form onSubmit={handleCreateAccount} className="space-y-6">
@@ -296,7 +354,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                 <SelectContent className="w-[300px]">
                                     <SelectGroup>
                                         <SelectLabel>Select Type</SelectLabel>
-                                        {ACCOUNT_TYPE_CONFIG.map((config) => {
+                                        {accountTypeConfigs.map((config) => {
                                             const Icon = config.icon;
                                             return (
                                                 <SelectItem 
@@ -731,12 +789,14 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                 </div>
                             )}
 
-                            {accountType === ACCOUNT_TYPE.INVESTMENT && (
+                            {supportsHoldings && (
                                 <div className="flex flex-col items-center justify-center h-48 space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
-                                    <div className="p-4 bg-blue-500/10 rounded-full">
-                                        <TrendingUp className="w-8 h-8 text-blue-500" />
+                                    <div className="p-4 bg-primary/10 rounded-full">
+                                        {SelectedIcon ? <SelectedIcon className="w-8 h-8 text-primary" /> : <TrendingUp className="w-8 h-8 text-primary" />}
                                     </div>
-                                    <p className="text-muted-foreground text-sm font-medium text-center">Ready to track your portfolio.<br/>No additional details required yet.</p>
+                                    <p className="text-muted-foreground text-sm font-medium text-center">
+                                        Create the account first, then add assets with quantities,<br />units, acquisition prices, and current values.
+                                    </p>
                                 </div>
                             )}
                         </div>

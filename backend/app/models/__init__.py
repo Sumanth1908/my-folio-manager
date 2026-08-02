@@ -1,5 +1,6 @@
 # Models package
 from app.models.account import Account, AccountType
+from app.models.asset import AssetType, PriceSource
 from app.models.budget import Budget
 from app.models.category import Category
 from app.models.currency import Currency
@@ -15,6 +16,8 @@ __all__ = [
     "Category",
     "Account",
     "AccountType",
+    "AssetType",
+    "PriceSource",
     "Budget",
     "Transaction",
     "Rule",

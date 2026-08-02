@@ -13,6 +13,7 @@ import type { Account } from '../../../types';
 import { ACCOUNT_TYPE } from '../../../constants';
 import { formatDate } from '../../../lib/utils';
 import { formatNumber } from '../../../lib/format';
+import { accountSupportsHoldings, getAccountHoldings } from '../../../lib/accounts';
 
 interface AccountQuickViewProps {
     account: Account;
@@ -23,6 +24,7 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
     // The currency code is already rendered next to each value, so these are
     // grouped numbers without a symbol.
     const money = (value: unknown) => formatNumber(Number(value ?? 0), { currency: account.currency, decimals: 2 });
+    const holdings = getAccountHoldings(account);
 
     return (
         <div className="space-y-6">
@@ -122,29 +124,33 @@ const AccountQuickView = ({ account, onClose }: AccountQuickViewProps) => {
                     </>
                 )}
 
-                {account.account_type === ACCOUNT_TYPE.INVESTMENT && account.investment_holdings && (
-                    <div className="col-span-2 space-y-3">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Asset Holdings ({account.investment_holdings.length})</p>
-                        <div className="bg-muted/30 rounded-2xl border border-border/50 overflow-hidden">
-                            {account.investment_holdings.map((holding, idx) => (
-                                <div key={idx} className="flex justify-between items-center p-3 border-b border-border/30 last:border-0 hover:bg-accent/10 transition-colors">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                                            <Layers size={14} />
+                {accountSupportsHoldings(account) && (
+                    <>
+                        <InfoCard disabled label="Current Asset Value" value={`${account.currency} ${money(account.asset_value ?? account.net_value ?? 0)}`} icon={<TrendingUp size={16} />} color="text-emerald-600" />
+                        <InfoCard disabled label="Ledger Balance" value={`${account.currency} ${money(account.balance ?? 0)}`} icon={<DollarSign size={16} />} />
+                        <div className="col-span-2 space-y-3">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Asset Holdings ({holdings.length})</p>
+                            <div className="bg-muted/30 rounded-2xl border border-border/50 overflow-hidden">
+                                {holdings.map((holding, idx) => (
+                                    <div key={idx} className="flex justify-between items-center p-3 border-b border-border/30 last:border-0 hover:bg-accent/10 transition-colors">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                                <Layers size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-foreground">{holding.symbol}</p>
+                                                <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{holding.name}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-foreground">{holding.symbol}</p>
-                                            <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{holding.name}</p>
+                                        <div className="text-right">
+                                            <p className="text-sm font-black text-foreground">{formatNumber(holding.quantity, { currency: account.currency, maxDecimals: 4 })} {holding.unit}</p>
+                                            <p className="text-[10px] text-muted-foreground">Current: {account.currency} {money(holding.current_price ?? holding.average_price)}</p>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-sm font-black text-foreground">{formatNumber(holding.quantity, { currency: account.currency, maxDecimals: 4 })} units</p>
-                                        <p className="text-[10px] text-muted-foreground">Avg: {account.currency} {money(holding.average_price)}</p>
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    </>
                 )}
             </div>
 

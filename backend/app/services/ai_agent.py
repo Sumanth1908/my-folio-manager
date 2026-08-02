@@ -28,7 +28,7 @@ if settings.GOOGLE_API_KEY:
 TOOLS = [
     {
         "name": "get_all_accounts",
-        "description": "Get a list of all user's financial accounts with their current balances. Includes savings accounts, loan accounts, investment accounts, and fixed deposits.",
+        "description": "Get all financial accounts with ledger balances, asset values, and net values. Includes cash, deposits, loans, investments, commodities, crypto, property, and custom assets.",
         "parameters": {
             "type": "object",
             "properties": {},
@@ -74,7 +74,7 @@ TOOLS = [
                 "account_types": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Account types to include: SAVINGS, LOAN, INVESTMENT, FIXED_DEPOSIT"
+                    "description": "Account type identifiers to include, such as SAVINGS, LOAN, INVESTMENT, FIXED_DEPOSIT, COMMODITY, CRYPTO, or REAL_ESTATE"
                 },
                 "days_back": {
                     "type": "integer",
@@ -86,7 +86,7 @@ TOOLS = [
     },
     {
         "name": "get_portfolio_summary",
-        "description": "Get investment portfolio summary including total value, profit/loss, and individual holdings.",
+        "description": "Get the asset portfolio summary including total value, profit/loss, and holdings such as equities, gold, crypto, or property.",
         "parameters": {
             "type": "object",
             "properties": {},

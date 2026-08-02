@@ -10,10 +10,10 @@ import AccountSummaryPanel from '../components/account/common/AccountSummaryPane
 import ErrorBanner from '../components/common/ErrorBanner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { RootState } from '../store';
-import { fetchAccounts } from '../store/slices/accountsSlice';
+import { fetchAccounts, fetchAccountTypes } from '../store/slices/accountsSlice';
 import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchSummary, setSummaryTimeRange } from '../store/slices/summarySlice';
-import { ACCOUNT_TYPES, TIME_RANGES } from '../constants';
+import { TIME_RANGES } from '../constants';
 import { useCreateFlow } from '../context/CreateFlowContext';
 
 const Accounts = () => {
@@ -28,14 +28,12 @@ const Accounts = () => {
 
     useEffect(() => {
         dispatch(fetchAccounts());
+        dispatch(fetchAccountTypes());
         dispatch(fetchCurrencies());
     }, [dispatch]);
 
     useEffect(() => {
-        dispatch(fetchSummary({
-            timeRange,
-            accountTypes: [...ACCOUNT_TYPES]
-        }));
+        dispatch(fetchSummary({ timeRange }));
     }, [dispatch, timeRange]);
 
     const filteredSummaryData = summaryData ? {
@@ -61,7 +59,7 @@ const Accounts = () => {
                     message={accountsError || summaryError || 'Failed to load accounts'}
                     onRetry={() => {
                         dispatch(fetchAccounts());
-                        dispatch(fetchSummary({ timeRange, accountTypes: [...ACCOUNT_TYPES] }));
+                        dispatch(fetchSummary({ timeRange }));
                     }}
                 />
             )}

@@ -10,7 +10,11 @@ import {
     Loader2,
     LayoutGrid,
     BarChart3,
-    Repeat
+    Repeat,
+    Gem,
+    Bitcoin,
+    Boxes,
+    Banknote,
 } from 'lucide-react';
 import { Card, CardTitle } from '../components/ui/Card';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -26,6 +30,7 @@ import type { RootState } from '../store';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '../components/ui/DataTable';
 import { Badge } from '../components/ui/Badge';
+import { formatAccountType, getAccountDisplayValue, getAccountHoldings } from '../lib/accounts';
 
 import { BalanceSectionView, type BalanceItem, type BalanceSection, type SubHolding } from '../components/portfolio/BalanceSheetView';
 
@@ -41,6 +46,8 @@ interface AggregatedHolding {
     profit: number;
     profitPercent: number;
     currency: string;
+    assetType: string;
+    unit: string;
 }
 
 export default function Portfolio() {
@@ -93,6 +100,11 @@ export default function Portfolio() {
             [ACCOUNT_TYPE.FIXED_DEPOSIT]: { total: 0, accounts: [], color: '#06b6d4', icon: <Building2 size={16} /> },
             [ACCOUNT_TYPE.RECURRING_DEPOSIT]: { total: 0, accounts: [], color: '#6366f1', icon: <Repeat size={16} /> },
             [ACCOUNT_TYPE.INVESTMENT]: { total: 0, accounts: [], color: '#3b82f6', icon: <TrendingUp size={16} /> },
+            [ACCOUNT_TYPE.CASH]: { total: 0, accounts: [], color: '#14b8a6', icon: <Banknote size={16} /> },
+            [ACCOUNT_TYPE.COMMODITY]: { total: 0, accounts: [], color: '#eab308', icon: <Gem size={16} /> },
+            [ACCOUNT_TYPE.CRYPTO]: { total: 0, accounts: [], color: '#f97316', icon: <Bitcoin size={16} /> },
+            [ACCOUNT_TYPE.REAL_ESTATE]: { total: 0, accounts: [], color: '#0891b2', icon: <Building2 size={16} /> },
+            [ACCOUNT_TYPE.OTHER_ASSET]: { total: 0, accounts: [], color: '#a855f7', icon: <Boxes size={16} /> },
         };
 
         const liabilityItems: Record<string, { total: number, accounts: Account[], color: string, icon: React.ReactNode }> = {
@@ -100,23 +112,25 @@ export default function Portfolio() {
         };
 
         accounts.filter(account => account.status !== 'Closed').forEach(account => {
-            let balance = 0;
-            if (account.account_type === ACCOUNT_TYPE.INVESTMENT && account.investment_holdings) {
-                balance = account.investment_holdings.reduce((sum, h) => sum + (Number(h.quantity) * (Number(h.current_price) || Number(h.average_price))), 0);
-            } else {
-                balance = Number(account.balance || 0);
-            }
-
+            const balance = getAccountDisplayValue(account);
             const convertedValue = convert(balance, account.currency);
+            const isLiability = account.account_nature === 'LIABILITY' || account.account_type === ACCOUNT_TYPE.LOAN;
 
-            if (account.account_type === ACCOUNT_TYPE.LOAN) {
+            if (isLiability) {
+                if (!liabilityItems[account.account_type]) {
+                    liabilityItems[account.account_type] = { total: 0, accounts: [], color: '#f43f5e', icon: <TrendingDown size={16} /> };
+                }
                 // Use absolute value for liabilities so they sum correctly as positive debt values
-                liabilityItems[ACCOUNT_TYPE.LOAN].total += Math.abs(convertedValue);
-                liabilityItems[ACCOUNT_TYPE.LOAN].accounts.push({
+                liabilityItems[account.account_type].total += Math.abs(convertedValue);
+                liabilityItems[account.account_type].accounts.push({
                     ...account,
-                    balance: Math.abs(Number(account.balance)) // Also make account balance positive for pie chart
+                    balance: Math.abs(Number(account.balance || 0)),
+                    net_value: Math.abs(Number(account.net_value ?? account.balance ?? 0)),
                 });
-            } else if (assetItems[account.account_type]) {
+            } else {
+                if (!assetItems[account.account_type]) {
+                    assetItems[account.account_type] = { total: 0, accounts: [], color: '#64748b', icon: <Boxes size={16} /> };
+                }
                 assetItems[account.account_type].total += convertedValue;
                 assetItems[account.account_type].accounts.push(account);
             }
@@ -127,13 +141,13 @@ export default function Portfolio() {
 
         const mapToBalanceItem = (name: string, item: { total: number, accounts: Account[], color: string, icon: React.ReactNode }, totalValue: number, type: string): BalanceItem => {
             const subAccounts = item.accounts.map(acc => {
-                let bal = 0;
+                const bal = getAccountDisplayValue(acc);
                 let hds: SubHolding[] = [];
+                const accountHoldings = getAccountHoldings(acc);
 
-                if (acc.account_type === ACCOUNT_TYPE.INVESTMENT && acc.investment_holdings) {
-                    bal = acc.investment_holdings.reduce((sum, h) => sum + (Number(h.quantity) * (Number(h.current_price) || Number(h.average_price))), 0);
+                if (accountHoldings.length > 0) {
                     const accountTotalVal = bal;
-                    hds = acc.investment_holdings.map(h => {
+                    hds = accountHoldings.map(h => {
                         const valOriginal = Number(h.quantity) * (Number(h.current_price) || Number(h.average_price));
                         const valLocal = convert(valOriginal, h.currency);
                         return {
@@ -144,8 +158,6 @@ export default function Portfolio() {
                             weight: accountTotalVal > 0 ? (valOriginal / accountTotalVal) * 100 : 0
                         };
                     }).sort((a, b) => b.value - a.value);
-                } else {
-                    bal = Number(acc.balance || 0);
                 }
 
                 const convertedAccountTotal = convert(bal, acc.currency);
@@ -160,7 +172,7 @@ export default function Portfolio() {
 
             return {
                 id: name,
-                name,
+                name: formatAccountType(name),
                 value: item.total,
                 weight: totalValue > 0 ? (item.total / totalValue) * 100 : 0,
                 color: item.color,
@@ -174,7 +186,7 @@ export default function Portfolio() {
             title: 'Assets',
             total: assetTotal,
             items: Object.entries(assetItems)
-                .filter(([_, item]) => item.total > 0)
+                .filter((entry) => entry[1].total > 0)
                 .map(([name, item]) => mapToBalanceItem(name, item, assetTotal, 'asset'))
                 .sort((a, b) => b.value - a.value)
         };
@@ -183,7 +195,7 @@ export default function Portfolio() {
             title: 'Liabilities',
             total: liabilityTotal,
             items: Object.entries(liabilityItems)
-                .filter(([_, item]) => item.total > 0)
+                .filter((entry) => entry[1].total > 0)
                 .map(([name, item]) => mapToBalanceItem(name, item, liabilityTotal, 'liability'))
                 .sort((a, b) => b.value - a.value)
         };
@@ -200,8 +212,9 @@ export default function Portfolio() {
         const holdingsMap = new Map<string, AggregatedHolding>();
 
         accounts.filter(account => account.status !== 'Closed').forEach(account => {
-            if (account.investment_holdings) {
-                account.investment_holdings.forEach(holding => {
+            const accountHoldings = getAccountHoldings(account);
+            if (accountHoldings.length > 0) {
+                accountHoldings.forEach(holding => {
                     const currentPrice = holding.current_price || holding.average_price;
                     const valueInOriginalCurrency = holding.quantity * currentPrice;
                     const costInOriginalCurrency = holding.quantity * holding.average_price;
@@ -209,7 +222,8 @@ export default function Portfolio() {
                     const valueInLocal = convert(valueInOriginalCurrency, holding.currency);
                     const costInLocal = convert(costInOriginalCurrency, holding.currency);
 
-                    const existing = holdingsMap.get(holding.symbol);
+                    const holdingKey = `${holding.asset_type}:${holding.symbol}:${holding.currency}:${holding.unit}`;
+                    const existing = holdingsMap.get(holdingKey);
                     if (existing) {
                         existing.totalQuantity += holding.quantity;
                         existing.totalValue += valueInLocal;
@@ -217,7 +231,7 @@ export default function Portfolio() {
                         existing.profit = existing.totalValue - existing.totalCost;
                         existing.profitPercent = (existing.profit / existing.totalCost) * 100;
                     } else {
-                        holdingsMap.set(holding.symbol, {
+                        holdingsMap.set(holdingKey, {
                             symbol: holding.symbol,
                             name: holding.name,
                             totalQuantity: holding.quantity,
@@ -227,7 +241,9 @@ export default function Portfolio() {
                             totalCost: costInLocal,
                             profit: valueInLocal - costInLocal,
                             profitPercent: costInLocal > 0 ? ((valueInLocal - costInLocal) / costInLocal) * 100 : 0,
-                            currency: holding.currency
+                            currency: holding.currency,
+                            assetType: holding.asset_type,
+                            unit: holding.unit,
                         });
                     }
                 });
@@ -259,13 +275,14 @@ export default function Portfolio() {
                 <div className="min-w-0">
                     <div className="font-semibold text-foreground">{row.original.symbol}</div>
                     <div className="max-w-44 truncate text-xs text-muted-foreground">{row.original.name}</div>
+                    <div className="mt-0.5 text-[10px] font-semibold uppercase text-primary">{formatAccountType(row.original.assetType)}</div>
                 </div>
             ),
         },
         {
             accessorKey: 'totalQuantity',
             header: 'Quantity',
-            cell: ({ getValue }) => <div className="amount text-right">{formatNumber(Number(getValue()), { currency: defaultCurrency, maxDecimals: 4 })}</div>,
+            cell: ({ row, getValue }) => <div className="amount text-right">{formatNumber(Number(getValue()), { currency: defaultCurrency, maxDecimals: 4 })} {row.original.unit}</div>,
         },
         {
             accessorKey: 'totalValue',

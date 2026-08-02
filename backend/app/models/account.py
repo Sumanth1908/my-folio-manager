@@ -14,6 +14,11 @@ class AccountType(str, Enum):
     LOAN = "LOAN"
     FIXED_DEPOSIT = "FIXED_DEPOSIT"
     RECURRING_DEPOSIT = "RECURRING_DEPOSIT"
+    CASH = "CASH"
+    COMMODITY = "COMMODITY"
+    CRYPTO = "CRYPTO"
+    REAL_ESTATE = "REAL_ESTATE"
+    OTHER_ASSET = "OTHER_ASSET"
 
 class Account(SQLModel, table=True):
     """Unified Account model for all account types."""
@@ -21,7 +26,9 @@ class Account(SQLModel, table=True):
 
     account_id: str | None = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True, max_length=36)
     user_id: str = Field(sa_column=Column(String(36), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True))
-    account_type: AccountType = Field(index=True)
+    # A string column deliberately replaces a database enum. New account types can
+    # now be introduced without an ALTER ENUM migration.
+    account_type: str = Field(sa_column=Column(String(40), nullable=False, index=True))
     account_name: str | None = Field(default=None, max_length=30)
     currency: str = Field(default="USD", max_length=10)
     status: str = Field(default="Active", max_length=20)

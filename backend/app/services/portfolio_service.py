@@ -1,10 +1,11 @@
 from decimal import Decimal, ROUND_HALF_UP
 from sqlmodel import Session, select
 
-from app.models.account import Account, AccountType
+from app.models.account import Account
 from app.models.investment_holding import InvestmentHolding
 from app.models.settings import Settings
 from app.schemas.portfolio import PortfolioSummaryResponse, AccountPortfolioSummary, HoldingSummary
+from app.services.account_types import get_account_type_definition
 
 
 def get_portfolio_summary(session: Session, user_id: str) -> PortfolioSummaryResponse:
@@ -15,13 +16,16 @@ def get_portfolio_summary(session: Session, user_id: str) -> PortfolioSummaryRes
     ).first()
     default_currency = settings.default_currency if settings else "USD"
     
-    # Get all investment accounts for user
+    # Holdings are supported by several account types (brokerage, commodities,
+    # crypto, real estate, and user-defined types with the capability enabled).
     accounts = session.exec(
-        select(Account).where(
-            Account.user_id == user_id,
-            Account.account_type == AccountType.INVESTMENT
-        )
+        select(Account).where(Account.user_id == user_id)
     ).all()
+    accounts = [
+        account
+        for account in accounts
+        if get_account_type_definition(account.account_type, account.metadata_).supports_holdings
+    ]
     
     account_summaries = []
     total_value = Decimal("0")
@@ -64,7 +68,9 @@ def get_portfolio_summary(session: Session, user_id: str) -> PortfolioSummaryRes
                 cost_basis=cost_basis.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
                 profit_loss=profit_loss.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
                 profit_loss_percent=profit_loss_percent.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
-                currency=holding.currency
+                currency=holding.currency,
+                asset_type=holding.asset_type,
+                unit=holding.unit,
             ))
         
         # Calculate account totals
@@ -76,8 +82,9 @@ def get_portfolio_summary(session: Session, user_id: str) -> PortfolioSummaryRes
         
         account_summaries.append(AccountPortfolioSummary(
             account_id=account.account_id,
-            account_name=account.account_name or "Investment Account",
+            account_name=account.account_name or "Asset Account",
             currency=account.currency,
+            account_type=account.account_type,
             total_value=account_value,
             total_cost=account_cost,
             total_profit_loss=account_profit_loss,

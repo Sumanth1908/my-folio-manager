@@ -54,14 +54,14 @@ const SellHoldingForm = ({ holding, currencySymbol, onSuccess, onCancel }: SellH
         } catch (err: unknown) {
             toast.error((err as Error)?.message ?? 'Failed to sell holding');
         }
-    }, [formData, holding.holding_id, dispatch, onSuccess]);
+    }, [formData, holding.holding_id, dispatch, onSuccess, transactionDate]);
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        Quantity to Sell
+                        Quantity to Sell ({holding.unit})
                     </label>
                     <input
                         type="number"
@@ -73,12 +73,12 @@ const SellHoldingForm = ({ holding, currencySymbol, onSuccess, onCancel }: SellH
                         className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-destructive outline-none transition"
                     />
                     <p className="text-[10px] text-muted-foreground mt-1 uppercase">
-                        Available: {holding.quantity}
+                        Available: {holding.quantity} {holding.unit}
                     </p>
                 </div>
                 <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        Sell Price ({currencySymbol})
+                        Sell Price / {holding.unit} ({currencySymbol})
                     </label>
                     <input
                         type="number"

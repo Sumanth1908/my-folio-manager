@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -5,9 +6,16 @@ from sqlmodel import Session
 
 from app.core.database import get_session
 from app.models.user import User
-from app.schemas.account import AccountCloseRequest, AccountCreate, AccountRead, AccountUpdate
+from app.schemas.account import (
+    AccountCloseRequest,
+    AccountCreate,
+    AccountRead,
+    AccountTypeRead,
+    AccountUpdate,
+)
 from app.schemas.common import PaginatedResponse
 from app.services import account_service
+from app.services.account_types import list_account_type_definitions
 from app.deps import get_current_user
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -38,8 +46,14 @@ def read_accounts(
     accounts, total = account_service.get_accounts(session, current_user.user_id, skip, limit)
 
     balances = account_service.get_balances_for_accounts(session, accounts)
+    asset_values = account_service.get_asset_values_for_accounts(session, accounts)
     items = [
-        account_service.enrich_account(session, account, balance=balances.get(account.account_id))
+        account_service.enrich_account(
+            session,
+            account,
+            balance=balances.get(account.account_id),
+            asset_value=asset_values.get(account.account_id, Decimal("0.00")),
+        )
         for account in accounts
     ]
 
@@ -49,6 +63,12 @@ def read_accounts(
         skip=skip,
         limit=limit
     )
+
+
+@router.get("/types", response_model=List[AccountTypeRead])
+def read_account_types():
+    """Return built-in account types and their capabilities for UI clients."""
+    return list_account_type_definitions()
 
 
 @router.get("/{account_id}", response_model=AccountRead)

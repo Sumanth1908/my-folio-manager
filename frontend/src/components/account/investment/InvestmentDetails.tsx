@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, TrendingDown, RefreshCw, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Account, InvestmentHolding } from '../../../types';
 import Modal from '../../common/Modal';
@@ -13,6 +13,8 @@ import { Button } from '../../ui/Button';
 import { cn, formatDate } from '../../../lib/utils';
 import { formatCurrency, formatNumber, type AmountFormatOptions } from '../../../lib/format';
 import { useCreateFlow } from '../../../context/CreateFlowContext';
+import { getAccountHoldings } from '../../../lib/accounts';
+import AssetValueForm from './AssetValueForm';
 
 interface InvestmentDetailsProps {
     account: Account;
@@ -25,8 +27,15 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
     const { loading: isHoldingsLoading } = useAppSelector((state: RootState) => state.holdings);
 
     const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
-    const [buyMoreHolding, setBuyMoreHolding] = useState<{ symbol: string, name: string } | null>(null);
+    const [buyMoreHolding, setBuyMoreHolding] = useState<{
+        symbol: string;
+        name: string;
+        assetType: string;
+        unit: string;
+        priceSource: 'MANUAL' | 'MARKET';
+    } | null>(null);
     const [sellingHolding, setSellingHolding] = useState<InvestmentHolding | null>(null);
+    const [editingHolding, setEditingHolding] = useState<InvestmentHolding | null>(null);
     const [confirmDeleteHolding, setConfirmDeleteHolding] = useState<InvestmentHolding | null>(null);
 
     const money = (value: number, options: AmountFormatOptions = {}) =>
@@ -35,14 +44,20 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
     // and carry the exact amount in a tooltip; per-holding rows stay exact.
     const summaryMoney = (value: number) => money(value, { compact: true });
 
-    const holdings = account.investment_holdings || [];
+    const holdings = getAccountHoldings(account);
     const totalValue = holdings.reduce((sum, h) => sum + (Number(h.quantity || 0) * (Number(h.current_price || 0) || Number(h.average_price || 0))), 0);
     const totalCost = holdings.reduce((sum, h) => sum + (Number(h.quantity || 0) * Number(h.average_price || 0)), 0);
     const totalProfit = totalValue - totalCost;
     const profitPercentage = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
 
     const handleBuyMore = (holding: InvestmentHolding) => {
-        setBuyMoreHolding({ symbol: holding.symbol, name: holding.name });
+        setBuyMoreHolding({
+            symbol: holding.symbol,
+            name: holding.name,
+            assetType: holding.asset_type,
+            unit: holding.unit,
+            priceSource: holding.price_source,
+        });
         setIsBuyModalOpen(true);
     };
 
@@ -56,8 +71,8 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                 await dispatch(deleteHolding(confirmDeleteHolding.holding_id)).unwrap();
                 toast.success('Holding deleted');
                 setConfirmDeleteHolding(null);
-            } catch (err: any) {
-                toast.error(err.message || 'Failed to delete holding');
+            } catch (error: unknown) {
+                toast.error(typeof error === 'string' ? error : 'Failed to delete holding');
             }
         }
     };
@@ -70,8 +85,8 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
         try {
             await dispatch(refreshStockPrices(account.account_id)).unwrap();
             toast.success('Prices updated successfully');
-        } catch (err: any) {
-            toast.error(err.message || 'Failed to refresh prices');
+        } catch (error: unknown) {
+            toast.error(typeof error === 'string' ? error : 'Failed to refresh prices');
         }
     };
 
@@ -83,10 +98,11 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
         }
         return latest;
     }, null as Date | null);
+    const hasMarketHoldings = holdings.some((holding) => holding.price_source === 'MARKET');
 
     return (
         <div className="space-y-3">
-            {/* Investment Summary Cards */}
+            {/* Asset Summary Cards */}
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                 <div className="bg-card p-3 rounded-xl border border-border">
                     <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">Cash Ledger Balance</div>
@@ -98,19 +114,19 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                     </div>
                 </div>
                 <div className="bg-card p-3 rounded-xl border border-border">
-                    <div className="text-sm text-muted-foreground mb-1">Total Market Value</div>
+                    <div className="text-sm text-muted-foreground mb-1">Current Asset Value</div>
                     <div className="text-2xl font-bold text-foreground" title={money(totalValue)}>
                         {summaryMoney(totalValue)}
                     </div>
                 </div>
                 <div className="bg-card p-3 rounded-xl border border-border">
-                    <div className="text-sm text-muted-foreground mb-1">Total Cost</div>
+                    <div className="text-sm text-muted-foreground mb-1">Acquisition Cost</div>
                     <div className="text-2xl font-bold text-foreground" title={money(totalCost)}>
                         {summaryMoney(totalCost)}
                     </div>
                 </div>
                 <div className="bg-card p-3 rounded-xl border border-border">
-                    <div className="text-sm text-muted-foreground mb-1">Total Logic Gain/Loss</div>
+                    <div className="text-sm text-muted-foreground mb-1">Valuation Gain/Loss</div>
                     <div className={cn(
                         'text-2xl font-bold flex items-center gap-2',
                         totalProfit >= 0 ? 'text-emerald-500' : 'text-destructive'
@@ -134,15 +150,17 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                         )}
                     </div>
                     <div className="flex gap-2">
-                        <Button
-                            variant="secondary"
-                            onClick={handleRefreshPrices}
-                            disabled={isHoldingsLoading}
-                            title="Refresh stock prices"
-                        >
-                            <RefreshCw size={16} className={isHoldingsLoading ? 'animate-spin' : ''} />
-                            {isHoldingsLoading ? 'Refreshing...' : 'Refresh Prices'}
-                        </Button>
+                        {hasMarketHoldings && (
+                            <Button
+                                variant="secondary"
+                                onClick={handleRefreshPrices}
+                                disabled={isHoldingsLoading}
+                                title="Refresh market prices"
+                            >
+                                <RefreshCw size={16} className={isHoldingsLoading ? 'animate-spin' : ''} />
+                                {isHoldingsLoading ? 'Refreshing...' : 'Refresh Market Prices'}
+                            </Button>
+                        )}
                         <Button
                             onClick={handleAddNewHolding}
                             size="icon"
@@ -182,8 +200,9 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-foreground">{holding.symbol}</div>
                                             <div className="text-xs text-muted-foreground">{holding.name}</div>
+                                            <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-primary">{holding.asset_type.replaceAll('_', ' ')}</div>
                                         </td>
-                                        <td className="px-6 py-4 text-right font-medium text-foreground">{formatNumber(q, { currency: account.currency, maxDecimals: 4 })}</td>
+                                        <td className="px-6 py-4 text-right font-medium text-foreground">{formatNumber(q, { currency: account.currency, maxDecimals: 4 })} {holding.unit}</td>
                                         <td className="px-6 py-4 text-right text-muted-foreground">{money(ap)}</td>
                                         <td className="px-6 py-4 text-right font-medium text-foreground">{money(cp)}</td>
                                         <td className="px-6 py-4 text-right font-bold text-foreground">{money(marketValue)}</td>
@@ -196,6 +215,15 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex justify-center gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => setEditingHolding(holding)}
+                                                    title="Update Valuation"
+                                                    className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                >
+                                                    <Pencil size={18} />
+                                                </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
@@ -231,7 +259,7 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                             {holdings.length === 0 && (
                                 <tr>
                                     <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground font-medium">
-                                        No holdings found. Add your first investment to start tracking!
+                                        No holdings found. Add your first asset to start tracking.
                                     </td>
                                 </tr>
                             )}
@@ -243,16 +271,32 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
             <Modal
                 isOpen={isBuyModalOpen}
                 onClose={() => setIsBuyModalOpen(false)}
-                title={buyMoreHolding ? `Buy More ${buyMoreHolding.symbol}` : "Buy New Holding"}
+                title={buyMoreHolding ? `Add More ${buyMoreHolding.symbol}` : "Add New Asset"}
             >
                 <HoldingForm
                     accountId={account.account_id}
+                    accountType={account.account_type}
                     currencySymbol={symbol}
                     currencyCode={account.currency}
                     prefill={buyMoreHolding || undefined}
                     onSuccess={() => setIsBuyModalOpen(false)}
                     onCancel={() => setIsBuyModalOpen(false)}
                 />
+            </Modal>
+
+            <Modal
+                isOpen={Boolean(editingHolding)}
+                onClose={() => setEditingHolding(null)}
+                title={`Update ${editingHolding?.symbol || 'Asset'}`}
+                description="Change the current manual value or asset details."
+            >
+                {editingHolding && (
+                    <AssetValueForm
+                        holding={editingHolding}
+                        onSuccess={() => setEditingHolding(null)}
+                        onCancel={() => setEditingHolding(null)}
+                    />
+                )}
             </Modal>
 
             {/* Sell Modal */}

@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select';
 import { cn } from '../lib/utils';
-import { ACCOUNT_TYPE } from '../constants';
+import { accountSupportsHoldings } from '../lib/accounts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { RootState } from '../store';
 import { fetchAccounts } from '../store/slices/accountsSlice';
@@ -47,7 +47,7 @@ const choices: Choice[] = [
     { id: 'account', title: 'Account', description: 'Add a bank, deposit, loan, or investment account.', icon: Landmark, tone: 'bg-income/10 text-income' },
     { id: 'automation', title: 'Automation', description: 'Schedule transfers, calculations, or categorization.', icon: Bot, tone: 'bg-chart-4/15 text-chart-4' },
     { id: 'budget', title: 'Budget', description: 'Set a monthly category spending limit.', icon: PieChart, tone: 'bg-chart-2/15 text-chart-2' },
-    { id: 'holding', title: 'Investment holding', description: 'Add a purchase to an investment account.', icon: TrendingUp, tone: 'bg-chart-3/15 text-chart-3' },
+    { id: 'holding', title: 'Asset holding', description: 'Add stocks, gold, crypto, property, or another asset.', icon: TrendingUp, tone: 'bg-chart-3/15 text-chart-3' },
     { id: 'category', title: 'Category', description: 'Create a label for transactions and budgets.', icon: Tag, tone: 'bg-muted text-muted-foreground' },
 ];
 
@@ -57,7 +57,7 @@ const flowMeta: Record<CreateFlow, { title: string; description: string; width: 
     automation: { title: 'New automation', description: 'Choose what should happen and when it should run.', width: 'max-w-2xl' },
     budget: { title: 'Add budget', description: 'Set a monthly spending limit for a category.', width: 'max-w-sm' },
     category: { title: 'New category', description: 'Create a reusable label for financial activity.', width: 'max-w-md' },
-    holding: { title: 'Add investment holding', description: 'Choose an investment account and record a purchase.', width: 'max-w-lg' },
+    holding: { title: 'Add asset holding', description: 'Choose an asset account and record its quantity and valuation.', width: 'max-w-lg' },
 };
 
 export function CreateFlowProvider({ children }: { children: ReactNode }) {
@@ -72,8 +72,8 @@ export function CreateFlowProvider({ children }: { children: ReactNode }) {
     const [options, setOptions] = useState<CreateOptions>({});
     const [holdingAccountId, setHoldingAccountId] = useState('');
 
-    const investmentAccounts = useMemo(
-        () => accounts.filter((account) => account.account_type === ACCOUNT_TYPE.INVESTMENT && account.status !== 'Closed'),
+    const holdingAccounts = useMemo(
+        () => accounts.filter((account) => accountSupportsHoldings(account) && account.status !== 'Closed'),
         [accounts],
     );
 
@@ -100,13 +100,11 @@ export function CreateFlowProvider({ children }: { children: ReactNode }) {
         if (flow === 'budget') dispatch(fetchBudgets(selectedMonth));
     }, [isOpen, flow, accounts.length, categories.length, currencies.length, settings, selectedMonth, dispatch]);
 
-    useEffect(() => {
-        if (flow !== 'holding' || holdingAccountId) return;
-        const requested = investmentAccounts.find((account) => account.account_id === options.accountId);
-        setHoldingAccountId(requested?.account_id || investmentAccounts[0]?.account_id || '');
-    }, [flow, holdingAccountId, investmentAccounts, options.accountId]);
-
-    const selectedInvestmentAccount = investmentAccounts.find((account) => account.account_id === holdingAccountId);
+    const resolvedHoldingAccountId = holdingAccountId
+        || holdingAccounts.find((account) => account.account_id === options.accountId)?.account_id
+        || holdingAccounts[0]?.account_id
+        || '';
+    const selectedHoldingAccount = holdingAccounts.find((account) => account.account_id === resolvedHoldingAccountId);
     const defaultCurrency = settings?.default_currency || 'USD';
     const budgetSymbol = currencies.find((currency) => currency.code === defaultCurrency)?.symbol || defaultCurrency;
     const meta = flow ? flowMeta[flow] : null;
@@ -163,34 +161,35 @@ export function CreateFlowProvider({ children }: { children: ReactNode }) {
                 {flow === 'category' && <CategoryForm onSuccess={success} onCancel={cancel} />}
                 {flow === 'holding' && (
                     <div className="space-y-5">
-                        {investmentAccounts.length === 0 ? (
+                        {holdingAccounts.length === 0 ? (
                             <EmptyState
                                 icon={<TrendingUp className="h-5 w-5" />}
-                                title="No investment account"
-                                description="Create an investment account before adding a holding."
+                                title="No asset account"
+                                description="Create an investment, commodity, crypto, property, or other asset account before adding a holding."
                                 action={<Button onClick={() => setFlow('account')}><Plus /> Create account</Button>}
                             />
                         ) : (
                             <>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-semibold text-muted-foreground" htmlFor="holding-account">Investment account</label>
-                                    <Select value={holdingAccountId} onValueChange={setHoldingAccountId}>
+                                    <label className="text-xs font-semibold text-muted-foreground" htmlFor="holding-account">Asset account</label>
+                                    <Select value={resolvedHoldingAccountId} onValueChange={setHoldingAccountId}>
                                         <SelectTrigger id="holding-account" className="w-full">
                                             <SelectValue placeholder="Choose an account" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {investmentAccounts.map((account) => (
-                                                <SelectItem key={account.account_id} value={account.account_id}>{account.account_name}</SelectItem>
+                                            {holdingAccounts.map((account) => (
+                                                <SelectItem key={account.account_id} value={account.account_id}>{account.account_name} · {account.account_type.replaceAll('_', ' ')}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                {selectedInvestmentAccount && (
+                                {selectedHoldingAccount && (
                                     <HoldingForm
-                                        key={selectedInvestmentAccount.account_id}
-                                        accountId={selectedInvestmentAccount.account_id}
-                                        currencyCode={selectedInvestmentAccount.currency}
-                                        currencySymbol={currencies.find((currency) => currency.code === selectedInvestmentAccount.currency)?.symbol || selectedInvestmentAccount.currency}
+                                        key={selectedHoldingAccount.account_id}
+                                        accountId={selectedHoldingAccount.account_id}
+                                        accountType={selectedHoldingAccount.account_type}
+                                        currencyCode={selectedHoldingAccount.currency}
+                                        currencySymbol={currencies.find((currency) => currency.code === selectedHoldingAccount.currency)?.symbol || selectedHoldingAccount.currency}
                                         onSuccess={success}
                                         onCancel={cancel}
                                     />

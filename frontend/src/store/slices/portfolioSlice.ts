@@ -11,12 +11,15 @@ interface HoldingSummary {
     profit_loss: number;
     profit_loss_percent: number;
     currency: string;
+    asset_type: string;
+    unit: string;
 }
 
 interface AccountPortfolioSummary {
     account_id: string;
     account_name: string;
     currency: string;
+    account_type: string;
     total_value: number;
     total_cost: number;
     total_profit_loss: number;
@@ -51,7 +54,7 @@ export const fetchPortfolioSummary = createAsyncThunk(
         try {
             const res = await api.get('/portfolio/summary');
             return res.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             return rejectWithValue(handleApiError(error, 'Failed to fetch portfolio summary'));
         }
     }

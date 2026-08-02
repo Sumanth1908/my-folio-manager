@@ -14,6 +14,8 @@ class HoldingSummary(BaseModel):
     profit_loss: Decimal
     profit_loss_percent: Decimal
     currency: str
+    asset_type: str = "EQUITY"
+    unit: str = "unit"
 
 
 class AccountPortfolioSummary(BaseModel):
@@ -21,6 +23,7 @@ class AccountPortfolioSummary(BaseModel):
     account_id: str
     account_name: str
     currency: str
+    account_type: str = "INVESTMENT"
     total_value: Decimal
     total_cost: Decimal
     total_profit_loss: Decimal

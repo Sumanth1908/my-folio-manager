@@ -8,6 +8,7 @@ import type { RootState } from '../../../store';
 import { useExchangeRate } from '../../../hooks/useExchangeRate';
 import { formatCurrency } from '../../../lib/format';
 import AccountBadges from './AccountBadges';
+import { accountSupportsHoldings } from '../../../lib/accounts';
 
 interface AccountInfoCardProps {
     account: Account;
@@ -39,7 +40,7 @@ export default function AccountInfoCard({ account, balance, currencies, onDelete
                 <div className="flex w-full items-center justify-between gap-3 md:w-auto md:justify-end">
                     <div className="text-left md:text-right">
                         <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
-                            {account.account_type === 'INVESTMENT' ? 'Portfolio Value' : 'Current Balance'}
+                            {accountSupportsHoldings(account) ? 'Current Asset Value' : account.account_nature === 'LIABILITY' ? 'Outstanding Value' : 'Current Balance'}
                         </p>
                         <div className={cn(
                             "text-2xl font-black tabular-nums tracking-tight",

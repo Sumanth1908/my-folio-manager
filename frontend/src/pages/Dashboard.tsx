@@ -15,8 +15,8 @@ import { fetchCurrencies } from '../store/slices/currenciesSlice';
 import { fetchSettings } from '../store/slices/settingsSlice';
 import { fetchRates } from '../store/slices/converterSlice';
 import type { RootState } from '../store';
-import type { Account, AccountSummary } from '../types';
-import { ACCOUNT_TYPES, TIME_RANGES, TRANSACTION_TYPE } from '../constants';
+import type { Account, AccountSummary, CategorySummary } from '../types';
+import { TIME_RANGES, TRANSACTION_TYPE } from '../constants';
 import { fetchAccounts } from '../store/slices/accountsSlice';
 import {
     Select,
@@ -46,7 +46,7 @@ export default function Dashboard() {
 
     const timeRange = summaryFilters.timeRange;
     const defaultCurrency = settings?.default_currency || 'USD';
-    const currencySymbol = currencies?.find((c: any) => c.code === defaultCurrency)?.symbol || defaultCurrency;
+    const currencySymbol = currencies?.find((currency) => currency.code === defaultCurrency)?.symbol || defaultCurrency;
 
     useEffect(() => {
         dispatch(fetchAccounts());
@@ -55,7 +55,7 @@ export default function Dashboard() {
     }, [dispatch]);
 
     useEffect(() => {
-        dispatch(fetchSummary({ timeRange, accountTypes: [...ACCOUNT_TYPES] }));
+        dispatch(fetchSummary({ timeRange }));
     }, [dispatch, timeRange]);
 
     useEffect(() => {
@@ -82,12 +82,7 @@ export default function Dashboard() {
             summaryData.accounts
                 .filter((account: AccountSummary) => selectedAccountId === 'all' || account.account_id === selectedAccountId)
                 .forEach((account: AccountSummary) => {
-                    const isSelectedSpecific = selectedAccountId !== 'all';
-                    
-                    account.categories.forEach((cat: any) => {
-                        // Exclude transfers in global view to prevent internal flows from cluttering the net cashflow
-                        if (!isSelectedSpecific && cat.transaction_type === TRANSACTION_TYPE.TRANSFER) return;
-                        
+                    account.categories.forEach((cat: CategorySummary) => {
                         const convertedAmount = convert(cat.total_amount, account.currency);
                         const isCredit = cat.transaction_type === TRANSACTION_TYPE.CREDIT;
 
@@ -118,7 +113,7 @@ export default function Dashboard() {
             savingsInflows: sInflows,
             savingsOutflows: sOutflows
         };
-    }, [summaryData, rates, convert, selectedAccountId]);
+    }, [summaryData, convert, selectedAccountId]);
 
     return (
         <div className="page-shell">
@@ -159,7 +154,7 @@ export default function Dashboard() {
             {summaryError && (
                 <ErrorBanner
                     message={summaryError}
-                    onRetry={() => dispatch(fetchSummary({ timeRange, accountTypes: [...ACCOUNT_TYPES] }))}
+                    onRetry={() => dispatch(fetchSummary({ timeRange }))}
                 />
             )}
 
