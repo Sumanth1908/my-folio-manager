@@ -9,6 +9,7 @@ import ConfirmModal from '../components/common/ConfirmModal';
 import AccountInfoCard from '../components/account/common/AccountInfoCard';
 import AccountActivityPanel from '../components/account/common/AccountActivityPanel';
 import AccountTypeDetails from '../components/account/common/AccountTypeDetails';
+import InterestPolicySummary from '../components/account/common/InterestPolicySummary';
 import AccountEditForm from '../components/account/common/AccountEditForm';
 import CloseLoanForm from '../components/account/loan/CloseLoanForm';
 import { Button } from '../components/ui/Button';
@@ -203,7 +204,7 @@ const AccountDetails = () => {
                     onClick={() => navigate('/accounts')}
                     className="gap-2"
                 >
-                    <ArrowLeft size={16} /> Return to Accounts
+                    <ArrowLeft size={16} /> Return to Manage Accounts
                 </Button>
             </div>
         );
@@ -222,7 +223,7 @@ const AccountDetails = () => {
                         className="h-9 gap-1.5 px-2 text-muted-foreground hover:text-foreground"
                     >
                         <ArrowLeft size={16} />
-                        <span className="text-xs font-semibold">Accounts</span>
+                        <span className="text-xs font-semibold">Manage Accounts</span>
                     </Button>
                     <Tabs.List className="inline-flex rounded-md border border-border bg-card p-1" aria-label="Account views">
                         <Tabs.Tab value="overview" className="inline-flex h-8 items-center gap-1.5 rounded-sm px-3 text-xs font-semibold text-muted-foreground data-[active]:bg-primary data-[active]:text-primary-foreground">
@@ -243,6 +244,7 @@ const AccountDetails = () => {
                         onEdit={() => dispatch(openModal('accountAction'))}
                         onClose={account?.account_type === ACCOUNT_TYPE.LOAN && account.status !== 'Closed' ? handleCloseAccountConfirm : undefined}
                     />
+                    <InterestPolicySummary account={account!} />
                     <AccountTypeDetails account={account!} symbol={symbol} />
                     <AccountActivityPanel
                         view="transactions"

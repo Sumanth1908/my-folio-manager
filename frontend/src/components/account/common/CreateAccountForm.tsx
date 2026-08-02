@@ -3,7 +3,8 @@ import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import type { RootState } from '../../../store';
 import { createAccount, fetchAccounts, fetchAccountTypes } from '../../../store/slices/accountsSlice';
 import { fetchSummary } from '../../../store/slices/summarySlice';
-import { handleApiError } from '../../../api';
+import api, { handleApiError } from '../../../api';
+import type { InterestPreview } from '../../../types';
 import { Button } from '../../ui/Button';
 import { Switch } from '../../ui/Switch';
 import {
@@ -15,15 +16,24 @@ import {
     SelectTrigger,
     SelectValue,
 } from '../../ui/Select';
-import { cn } from '../../../lib/utils';
+import { cn, formatDate } from '../../../lib/utils';
 import { formatNumber } from '../../../lib/format';
-import { DEFAULT_CURRENCY, DEFAULT_ACCRUAL_DAY, ACCOUNT_TYPE, HOLDING_ACCOUNT_TYPES } from '../../../constants';
+import { DEFAULT_CURRENCY, ACCOUNT_TYPE, HOLDING_ACCOUNT_TYPES, INTEREST_TREATMENT } from '../../../constants';
 import { toast } from 'sonner';
 import { PiggyBank, TrendingUp, Landmark, ShieldCheck, Repeat, WalletCards, Gem, Bitcoin, Building2, Boxes } from 'lucide-react';
 
-import SavingsEditFields from '../savings/SavingsEditFields';
 import LoanEditFields from '../loan/LoanEditFields';
-import FDEditFields from '../fixed-deposit/FDEditFields';
+import InterestPolicyFields, {
+    SELF_PAYOUT_ACCOUNT,
+    type InterestPolicyFormState,
+} from './InterestPolicyFields';
+import {
+    addMonthsClamped,
+    calculateLoanEmi,
+    calculateLoanProjection,
+    calculateLoanTenure,
+    type LoanCalculationSource,
+} from '../../../lib/loans';
 
 interface CreateAccountFormProps {
     onSuccess: () => void;
@@ -103,10 +113,24 @@ const ACCOUNT_TYPE_CONFIG = [
     }
 ];
 
+const deriveMaturityDate = (startDate: string, tenureMonths: string): string => {
+    const months = Number.parseInt(tenureMonths, 10);
+    const [year, month, day] = startDate.split('-').map(Number);
+    if (!year || !month || !day || !Number.isFinite(months) || months <= 0) return '';
+
+    const targetMonthIndex = month - 1 + months;
+    const targetYear = year + Math.floor(targetMonthIndex / 12);
+    const targetMonth = targetMonthIndex % 12;
+    const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+    const targetDay = Math.min(day, lastDay);
+    return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
+};
+
 const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
     const dispatch = useAppDispatch();
     const { items: currencies } = useAppSelector((state: RootState) => state.currencies);
     const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
+    const { items: categories } = useAppSelector((state: RootState) => state.categories);
     const { accountTypes: accountTypeDefinitions } = useAppSelector((state: RootState) => state.accounts);
     const { filters: summaryFilters } = useAppSelector((state: RootState) => state.summary);
 
@@ -120,29 +144,28 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
     // Savings Specific State
     const [savingsInterestRate, setSavingsInterestRate] = useState('');
     const [savingsMinBalance, setSavingsMinBalance] = useState('');
-    const [savingsInterestFrequency, setSavingsInterestFrequency] = useState('MONTHLY');
 
     // Loan Specific State
     const [loanAmount, setLoanAmount] = useState('');
     const [loanInterestRate, setLoanInterestRate] = useState('');
     const [loanTenure, setLoanTenure] = useState('');
     const [loanEMI, setLoanEMI] = useState('');
-    const [loanAccrualDay, setLoanAccrualDay] = useState(DEFAULT_ACCRUAL_DAY);
-    const [loanStartDate, setLoanStartDate] = useState(new Date().toISOString().split('T')[0]);
-    const [loanEMIStartDate, setLoanEMIStartDate] = useState('');
+    const initialLoanStartDate = new Date().toISOString().split('T')[0];
+    const [loanStartDate, setLoanStartDate] = useState(initialLoanStartDate);
+    const [loanEMIStartDate, setLoanEMIStartDate] = useState(addMonthsClamped(initialLoanStartDate, 1));
     const [loanIsAutoDebit, setLoanIsAutoDebit] = useState(false);
     const [loanLinkedAccountId, setLoanLinkedAccountId] = useState('');
+    const [loanCalculationSource, setLoanCalculationSource] = useState<LoanCalculationSource>('TENURE');
 
         // Recurring Deposit Specific State
     const [rdDepositAmount, setRdDepositAmount] = useState('');
     const [rdInterestRate, setRdInterestRate] = useState('');
     const [rdTenure, setRdTenure] = useState('');
     const [rdStartDate, setRdStartDate] = useState('');
-    const [rdMaturityDate, setRdMaturityDate] = useState('');
     const [rdMaturityAmount, setRdMaturityAmount] = useState('');
+    const [rdEstimatedInterest, setRdEstimatedInterest] = useState('');
     const [rdIsAutoDeposit, setRdIsAutoDeposit] = useState(false);
     const [rdLinkedAccountId, setRdLinkedAccountId] = useState('');
-    const [rdDepositDay, setRdDepositDay] = useState(DEFAULT_ACCRUAL_DAY);
 
     // Fixed Deposit Specific State
     const [fdPrincipal, setFdPrincipal] = useState('');
@@ -150,8 +173,26 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
     const [fdStartDate, setFdStartDate] = useState('');
     const [fdMaturityDate, setFdMaturityDate] = useState('');
     const [fdMaturityAmount, setFdMaturityAmount] = useState('');
+    const [fdEstimatedInterest, setFdEstimatedInterest] = useState('');
     const [fdFundFromAccount, setFdFundFromAccount] = useState(false);
     const [fdLinkedAccount, setFdLinkedAccount] = useState('');
+    const [interestTreatment, setInterestTreatment] = useState<InterestPolicyFormState['treatment']>('CAPITALIZE');
+    const [interestSettlementFrequency, setInterestSettlementFrequency] = useState('MONTHLY');
+    const [interestDayCount, setInterestDayCount] = useState<InterestPolicyFormState['dayCount']>('ACTUAL_365');
+    const [interestPayoutAccountId, setInterestPayoutAccountId] = useState('');
+    const [interestCategoryId, setInterestCategoryId] = useState('');
+    const rdMaturityDate = useMemo(
+        () => deriveMaturityDate(rdStartDate, rdTenure),
+        [rdStartDate, rdTenure],
+    );
+    const loanPayoffDate = useMemo(
+        () => addMonthsClamped(loanEMIStartDate, Math.max(0, Number.parseInt(loanTenure, 10) - 1)),
+        [loanEMIStartDate, loanTenure],
+    );
+    const loanProjection = useMemo(
+        () => calculateLoanProjection(loanAmount, loanInterestRate, loanEMI, loanTenure),
+        [loanAmount, loanInterestRate, loanEMI, loanTenure],
+    );
 
     useEffect(() => {
         if (accountTypeDefinitions.length === 0) {
@@ -176,80 +217,148 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
     }, [accountTypeDefinitions]);
 
     useEffect(() => {
-        if (accountType === ACCOUNT_TYPE.SAVINGS || accountType === ACCOUNT_TYPE.LOAN) {
+        if (accountType === ACCOUNT_TYPE.SAVINGS) {
             setIsInterestEnabled(false);
-        } else if (accountType === ACCOUNT_TYPE.FIXED_DEPOSIT || accountType === ACCOUNT_TYPE.RECURRING_DEPOSIT) {
+        } else if ([ACCOUNT_TYPE.LOAN, ACCOUNT_TYPE.FIXED_DEPOSIT, ACCOUNT_TYPE.RECURRING_DEPOSIT].includes(accountType as never)) {
             setIsInterestEnabled(true);
         } else {
             setIsInterestEnabled(false);
         }
+        setInterestTreatment('CAPITALIZE');
+        setInterestDayCount('ACTUAL_365');
+        setInterestSettlementFrequency(
+            accountType === ACCOUNT_TYPE.FIXED_DEPOSIT || accountType === ACCOUNT_TYPE.RECURRING_DEPOSIT
+                ? 'QUARTERLY'
+                : 'MONTHLY'
+        );
+        setInterestPayoutAccountId(
+            accountType === ACCOUNT_TYPE.FIXED_DEPOSIT ? SELF_PAYOUT_ACCOUNT : ''
+        );
+        setInterestCategoryId('');
     }, [accountType]);
+
+    const selectedInterestRate = accountType === ACCOUNT_TYPE.LOAN
+        ? loanInterestRate
+        : accountType === ACCOUNT_TYPE.FIXED_DEPOSIT
+            ? fdInterestRate
+            : accountType === ACCOUNT_TYPE.RECURRING_DEPOSIT
+                ? rdInterestRate
+                : savingsInterestRate;
+
+    const handleInterestPolicyChange = (next: InterestPolicyFormState) => {
+        setIsInterestEnabled(next.enabled);
+        setInterestTreatment(next.treatment);
+        setInterestSettlementFrequency(next.settlementFrequency);
+        setInterestDayCount(next.dayCount);
+        setInterestPayoutAccountId(next.payoutAccountId);
+        setInterestCategoryId(next.categoryId);
+        if (accountType === ACCOUNT_TYPE.FIXED_DEPOSIT) setFdInterestRate(next.rate);
+        else if (accountType === ACCOUNT_TYPE.RECURRING_DEPOSIT) setRdInterestRate(next.rate);
+        else setSavingsInterestRate(next.rate);
+    };
 
     useEffect(() => {
         if (accountType !== ACCOUNT_TYPE.LOAN) return;
 
-        const P = parseFloat(loanAmount);
-        const R_annual = parseFloat(loanInterestRate);
-        const T_months = parseFloat(loanTenure);
-
-        if (P && R_annual && T_months) {
-            const R = R_annual / 12 / 100;
-            const emi = (P * R * Math.pow(1 + R, T_months)) / (Math.pow(1 + R, T_months) - 1);
-            if (!document.activeElement?.getAttribute('placeholder')?.includes('calculated')) {
-                setLoanEMI(emi.toFixed(2));
-            }
+        if (loanCalculationSource === 'TENURE') {
+            const emi = calculateLoanEmi(loanAmount, loanInterestRate, loanTenure);
+            if (emi != null) setLoanEMI(emi.toFixed(2));
+        } else {
+            const tenure = calculateLoanTenure(loanAmount, loanInterestRate, loanEMI);
+            if (tenure != null) setLoanTenure(String(tenure));
         }
-    }, [loanAmount, loanInterestRate, loanTenure, accountType]);
+    }, [loanAmount, loanInterestRate, loanTenure, loanEMI, loanCalculationSource, accountType]);
 
     useEffect(() => {
-        if (accountType !== ACCOUNT_TYPE.FIXED_DEPOSIT) return;
+        const isFd = accountType === ACCOUNT_TYPE.FIXED_DEPOSIT;
+        const isRd = accountType === ACCOUNT_TYPE.RECURRING_DEPOSIT;
+        if (!isFd && !isRd) return;
 
-        const P = parseFloat(fdPrincipal);
-        const R = parseFloat(fdInterestRate);
+        const startDate = isFd ? fdStartDate : rdStartDate;
+        const maturityDate = isFd ? fdMaturityDate : rdMaturityDate;
+        const amount = isFd ? fdPrincipal : rdDepositAmount;
+        const clearProjection = () => {
+            if (isFd) {
+                setFdMaturityAmount('');
+                setFdEstimatedInterest('');
+            } else {
+                setRdMaturityAmount('');
+                setRdEstimatedInterest('');
+            }
+        };
+        if (
+            !isInterestEnabled
+            || !selectedInterestRate
+            || !startDate
+            || !maturityDate
+            || !amount
+            || maturityDate <= startDate
+        ) {
+            clearProjection();
+            return;
+        }
 
-        if (P && R && fdStartDate && fdMaturityDate) {
-            const start = new Date(fdStartDate);
-            const end = new Date(fdMaturityDate);
-            const diffTime = Math.abs(end.getTime() - start.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            const diffYears = diffDays / 365;
+        clearProjection();
 
-            if (diffDays > 0) {
-                // Quarterly compounding for FD
-                const quarters = diffYears * 4;
-                const maturity = P * Math.pow(1 + (R / 100) / 4, quarters);
-                if (!document.activeElement?.getAttribute('placeholder')?.includes('0.00')) {
-                    setFdMaturityAmount(maturity.toFixed(2));
+        const timeout = window.setTimeout(async () => {
+            try {
+                const response = await api.post<InterestPreview>('/accounts/interest-preview', {
+                    account_type: accountType,
+                    currency,
+                    metadata_: isFd
+                        ? { principal_amount: parseFloat(fdPrincipal) }
+                        : { deposit_amount: parseFloat(rdDepositAmount) },
+                    policy: {
+                        enabled: true,
+                        direction: 'EARNED',
+                        annual_rate: parseFloat(selectedInterestRate),
+                        balance_basis: isFd && interestTreatment === INTEREST_TREATMENT.PAYOUT
+                            ? 'FIXED_PRINCIPAL'
+                            : 'LEDGER_BALANCE',
+                        day_count: interestDayCount,
+                        treatment: interestTreatment,
+                        settlement_frequency: interestSettlementFrequency,
+                        payout_account_id: interestTreatment === INTEREST_TREATMENT.PAYOUT
+                            && interestPayoutAccountId !== SELF_PAYOUT_ACCOUNT
+                            ? interestPayoutAccountId || null
+                            : null,
+                        effective_from: new Date(`${startDate}T00:00:00Z`).toISOString(),
+                        end_date: new Date(`${maturityDate}T00:00:00Z`).toISOString(),
+                    },
+                });
+                const projected = Number(response.data.projected_maturity_amount);
+                const estimatedInterest = Number(response.data.estimated_interest);
+                if (Number.isFinite(projected)) {
+                    if (isFd) setFdMaturityAmount(projected.toFixed(2));
+                    else setRdMaturityAmount(projected.toFixed(2));
                 }
+                if (isFd && Number.isFinite(estimatedInterest)) {
+                    setFdEstimatedInterest(estimatedInterest.toFixed(2));
+                } else if (isRd && Number.isFinite(estimatedInterest)) {
+                    setRdEstimatedInterest(estimatedInterest.toFixed(2));
+                }
+            } catch {
+                // Creation remains possible if preview is temporarily unavailable;
+                // the backend validates the policy again on submit.
             }
-        }
-    }, [fdPrincipal, fdInterestRate, fdStartDate, fdMaturityDate, accountType]);
-
-
-    useEffect(() => {
-        if (accountType !== ACCOUNT_TYPE.RECURRING_DEPOSIT) return;
-        if (rdStartDate && rdTenure) {
-            const start = new Date(rdStartDate);
-            start.setMonth(start.getMonth() + parseInt(rdTenure));
-            if (!document.activeElement?.getAttribute('placeholder')?.includes('date')) {
-                setRdMaturityDate(start.toISOString().split('T')[0]);
-            }
-        }
-        
-        const P = parseFloat(rdDepositAmount);
-        const R = parseFloat(rdInterestRate) / 100;
-        const n = parseInt(rdTenure);
-        
-        if (P && R && n) {
-            // simple estimation of RD maturity: P * n + P * n * (n+1) / 24 * R
-            const principal = P * n;
-            const interest = P * n * (n + 1) / 24 * R;
-            const maturity = principal + interest;
-            if (!document.activeElement?.getAttribute('placeholder')?.includes('0.00')) {
-                setRdMaturityAmount(maturity.toFixed(2));
-            }
-        }
-    }, [rdDepositAmount, rdInterestRate, rdTenure, rdStartDate, accountType]);
+        }, 350);
+        return () => window.clearTimeout(timeout);
+    }, [
+        accountType,
+        currency,
+        fdMaturityDate,
+        fdPrincipal,
+        fdStartDate,
+        interestDayCount,
+        interestPayoutAccountId,
+        interestSettlementFrequency,
+        interestTreatment,
+        isInterestEnabled,
+        rdDepositAmount,
+        rdMaturityDate,
+        rdStartDate,
+        selectedInterestRate,
+    ]);
 
     const handleCreateAccount = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -259,40 +368,34 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
             const metadata: Record<string, unknown> = {};
             
             if (accountType === ACCOUNT_TYPE.SAVINGS) {
-                metadata.interest_rate = savingsInterestRate ? parseFloat(savingsInterestRate) : null;
                 metadata.min_balance = savingsMinBalance ? parseFloat(savingsMinBalance) : 0;
-                metadata.interest_accrual_day = 1;
-                metadata.interest_frequency = savingsInterestFrequency;
             } else if (accountType === ACCOUNT_TYPE.LOAN) {
                 metadata.loan_amount = parseFloat(loanAmount);
-                metadata.outstanding_amount = parseFloat(loanAmount);
                 metadata.interest_rate = parseFloat(loanInterestRate);
                 metadata.tenure_months = parseInt(loanTenure);
                 metadata.emi_amount = parseFloat(loanEMI);
                 metadata.start_date = loanStartDate;
                 metadata.emi_start_date = loanEMIStartDate || null;
-                metadata.interest_accrual_day = parseInt(loanAccrualDay);
                 metadata.is_auto_debit = loanIsAutoDebit;
                 metadata.linked_account_id = loanLinkedAccountId || null;
             } else if (accountType === ACCOUNT_TYPE.FIXED_DEPOSIT) {
                 metadata.principal_amount = parseFloat(fdPrincipal);
-                metadata.interest_rate = parseFloat(fdInterestRate);
                 metadata.start_date = fdStartDate;
                 metadata.maturity_date = fdMaturityDate;
-                metadata.maturity_amount = parseFloat(fdMaturityAmount);
+                if (fdMaturityAmount) {
+                    metadata.maturity_amount = parseFloat(fdMaturityAmount);
+                }
                 if (fdFundFromAccount && fdLinkedAccount) {
                     metadata.linked_account_id = fdLinkedAccount;
                     metadata.fund_principal = true;
                 }
-                metadata.interest_accrual_day = fdStartDate ? parseInt(fdStartDate.split('-')[2], 10) : 1;
             } else if (accountType === ACCOUNT_TYPE.RECURRING_DEPOSIT) {
                 metadata.deposit_amount = parseFloat(rdDepositAmount);
-                metadata.interest_rate = parseFloat(rdInterestRate);
-                metadata.tenure_months = parseInt(rdTenure);
                 metadata.start_date = rdStartDate;
                 metadata.maturity_date = rdMaturityDate;
-                metadata.maturity_amount = parseFloat(rdMaturityAmount);
-                metadata.deposit_day = parseInt(rdDepositDay);
+                if (rdMaturityAmount) {
+                    metadata.maturity_amount = parseFloat(rdMaturityAmount);
+                }
                 metadata.is_auto_deposit = rdIsAutoDeposit;
                 metadata.linked_account_id = rdLinkedAccountId || null;
             }
@@ -302,8 +405,34 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                 account_type: accountType,
                 currency: currency,
                 status: 'Active',
-                is_interest_enabled: isInterestEnabled,
-                metadata_: metadata
+                is_interest_enabled: accountType === ACCOUNT_TYPE.LOAN ? true : isInterestEnabled,
+                metadata_: metadata,
+                ...(accountType !== ACCOUNT_TYPE.LOAN && isInterestEnabled && selectedInterestRate ? {
+                    interest_policy: {
+                        enabled: true,
+                        direction: 'EARNED',
+                        annual_rate: parseFloat(selectedInterestRate),
+                        balance_basis: accountType === ACCOUNT_TYPE.FIXED_DEPOSIT && interestTreatment === INTEREST_TREATMENT.PAYOUT
+                            ? 'FIXED_PRINCIPAL'
+                            : 'LEDGER_BALANCE',
+                        day_count: interestDayCount,
+                        treatment: interestTreatment,
+                        settlement_frequency: interestSettlementFrequency,
+                        payout_account_id: interestTreatment === INTEREST_TREATMENT.PAYOUT
+                            && interestPayoutAccountId !== SELF_PAYOUT_ACCOUNT
+                            ? interestPayoutAccountId || null
+                            : null,
+                        category_id: interestCategoryId ? parseInt(interestCategoryId, 10) : null,
+                        effective_from: new Date(
+                            `${accountType === ACCOUNT_TYPE.FIXED_DEPOSIT ? fdStartDate : accountType === ACCOUNT_TYPE.RECURRING_DEPOSIT ? rdStartDate : new Date().toISOString().split('T')[0]}T00:00:00Z`
+                        ).toISOString(),
+                        end_date: accountType === ACCOUNT_TYPE.FIXED_DEPOSIT && fdMaturityDate
+                            ? new Date(`${fdMaturityDate}T00:00:00Z`).toISOString()
+                            : accountType === ACCOUNT_TYPE.RECURRING_DEPOSIT && rdMaturityDate
+                                ? new Date(`${rdMaturityDate}T00:00:00Z`).toISOString()
+                                : null,
+                    }
+                } : {})
             };
 
             try {
@@ -325,10 +454,14 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
     const selectedTypeDefinition = accountTypeDefinitions.find((definition) => definition.key === accountType);
     const supportsHoldings = selectedTypeDefinition?.supports_holdings
         ?? HOLDING_ACCOUNT_TYPES.some((type) => type === accountType);
+    const supportsInterest = selectedTypeDefinition?.supports_interest
+        ?? [ACCOUNT_TYPE.SAVINGS, ACCOUNT_TYPE.LOAN, ACCOUNT_TYPE.FIXED_DEPOSIT, ACCOUNT_TYPE.RECURRING_DEPOSIT].includes(accountType as never);
+    const hasInvalidFdDates = accountType === ACCOUNT_TYPE.FIXED_DEPOSIT
+        && Boolean(fdStartDate && fdMaturityDate && fdMaturityDate <= fdStartDate);
 
     return (
         <form onSubmit={handleCreateAccount} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(220px,0.7fr)_minmax(0,1.5fr)]">
                 {/* Basic Details Column */}
                 <div className="space-y-6">
                     <div className="space-y-4">
@@ -430,21 +563,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                         <h4 className="text-sm font-bold text-foreground">Savings Details</h4>
                                     </div>
 
-                                    <div className="flex items-center justify-between p-3 bg-background rounded-xl border border-border/50">
-                                        <span className="text-sm font-medium text-foreground">Enable Interest Calculation</span>
-                                        <Switch
-                                            checked={isInterestEnabled}
-                                            onCheckedChange={setIsInterestEnabled}
-                                        />
-                                    </div>
-
-                                    <div className={cn("space-y-5 transition-all duration-300", !isInterestEnabled && "opacity-40 pointer-events-none grayscale")}>
-                                        <SavingsEditFields
-                                            interestRate={savingsInterestRate}
-                                            setInterestRate={setSavingsInterestRate}
-                                            interestFrequency={savingsInterestFrequency}
-                                            setInterestFrequency={setSavingsInterestFrequency}
-                                        />
+                                    <div className="space-y-5">
                                         <div>
                                             <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Min Balance Required</label>
                                             <div className="relative">
@@ -472,14 +591,6 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                         <h4 className="text-sm font-bold text-foreground">Loan Details</h4>
                                     </div>
 
-                                    <div className="flex items-center justify-between p-3 bg-background rounded-xl border border-border/50">
-                                        <span className="text-sm font-medium text-foreground">Enable Interest Calculation</span>
-                                        <Switch
-                                            checked={isInterestEnabled}
-                                            onCheckedChange={setIsInterestEnabled}
-                                        />
-                                    </div>
-
                                     <div>
                                         <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Total Loan Amount</label>
                                         <div className="relative">
@@ -494,21 +605,53 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                         </div>
                                     </div>
 
-                                    <div className={cn("space-y-5 transition-all duration-300", !isInterestEnabled && "opacity-40 pointer-events-none grayscale")}>
+                                    <div className="space-y-5">
                                         <LoanEditFields
                                             interestRate={loanInterestRate}
                                             setInterestRate={setLoanInterestRate}
-                                            accrualDay={loanAccrualDay}
-                                            setAccrualDay={setLoanAccrualDay}
                                             emiAmount={loanEMI}
-                                            setEmiAmount={setLoanEMI}
+                                            setEmiAmount={value => {
+                                                setLoanCalculationSource('EMI');
+                                                setLoanEMI(value);
+                                            }}
                                             tenure={loanTenure}
-                                            setTenure={setLoanTenure}
+                                            setTenure={value => {
+                                                setLoanCalculationSource('TENURE');
+                                                setLoanTenure(value);
+                                            }}
                                             startDate={loanStartDate}
-                                            setStartDate={setLoanStartDate}
+                                            setStartDate={value => {
+                                                const previousDefault = addMonthsClamped(loanStartDate, 1);
+                                                setLoanStartDate(value);
+                                                if (!loanEMIStartDate || loanEMIStartDate === previousDefault) {
+                                                    setLoanEMIStartDate(addMonthsClamped(value, 1));
+                                                }
+                                            }}
                                             emiStartDate={loanEMIStartDate}
                                             setEmiStartDate={setLoanEMIStartDate}
+                                            calculatedField={loanCalculationSource === 'TENURE' ? 'EMI' : 'TENURE'}
                                         />
+
+                                        {loanProjection && (
+                                            <div className="grid grid-cols-2 gap-3 rounded-xl border border-primary/15 bg-primary/[0.03] p-4 text-sm">
+                                                <div>
+                                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total interest</p>
+                                                    <p className="mt-1 font-bold tabular-nums">{currency} {formatNumber(loanProjection.totalInterest, { currency, decimals: 2 })}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total payable</p>
+                                                    <p className="mt-1 font-bold tabular-nums">{currency} {formatNumber(loanProjection.totalPayable, { currency, decimals: 2 })}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Final EMI</p>
+                                                    <p className="mt-1 font-bold tabular-nums">{currency} {formatNumber(loanProjection.finalPayment, { currency, decimals: 2 })}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Expected payoff</p>
+                                                    <p className="mt-1 font-bold">{loanPayoffDate ? formatDate(loanPayoffDate) : '—'}</p>
+                                                </div>
+                                            </div>
+                                        )}
                                         
                                         <div className="pt-4 border-t border-border/50">
                                             <div className="flex items-center justify-between p-3 bg-background rounded-xl border border-border/50 mb-4">
@@ -559,14 +702,22 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                         </div>
                                         <h4 className="text-sm font-bold text-foreground">Recurring Deposit Details</h4>
                                     </div>
-                                    
-                                    <div className="grid grid-cols-2 gap-4">
+
+                                    <div className="border-t border-border/50 pt-2">
+                                        <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                            1. Deposit plan
+                                        </h5>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                         <div>
                                             <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Monthly Deposit</label>
                                             <div className="relative">
                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">{currency}</span>
                                                 <input
                                                     type="number"
+                                                    min="0.01"
+                                                    step="0.01"
                                                     placeholder="0.00"
                                                     value={rdDepositAmount}
                                                     onChange={(e) => setRdDepositAmount(e.target.value)}
@@ -578,6 +729,8 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                             <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Tenure (Months)</label>
                                             <input
                                                 type="number"
+                                                min="1"
+                                                step="1"
                                                 placeholder="e.g. 12"
                                                 value={rdTenure}
                                                 onChange={(e) => setRdTenure(e.target.value)}
@@ -586,32 +739,7 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Interest Rate (%)</label>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                placeholder="e.g. 6.5"
-                                                value={rdInterestRate}
-                                                onChange={(e) => setRdInterestRate(e.target.value)}
-                                                className="date-time-field"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Deposit Day</label>
-                                            <input
-                                                type="number"
-                                                min="1" max="31"
-                                                placeholder="e.g. 5"
-                                                value={rdDepositDay}
-                                                onChange={(e) => setRdDepositDay(e.target.value)}
-                                                className="date-time-field"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid gap-4">
+                                    <div>
                                         <div>
                                             <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Start Date</label>
                                             <input
@@ -621,35 +749,75 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                                 className="date-time-field"
                                             />
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Maturity Date</label>
-                                            <input
-                                                type="date"
-                                                value={rdMaturityDate}
-                                                onChange={(e) => setRdMaturityDate(e.target.value)}
-                                                className="date-time-field"
-                                            />
-                                        </div>
                                     </div>
-                                    
-                                    <div>
-                                        <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Maturity Amount (Estimated)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">{currency}</span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                placeholder="0.00"
-                                                value={rdMaturityAmount}
-                                                onChange={(e) => setRdMaturityAmount(e.target.value)}
-                                                className="w-full pl-12 pr-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
-                                            />
+
+                                    <div className="flex items-center justify-between gap-4 rounded-xl border border-border/60 bg-background/60 p-4">
+                                        <div>
+                                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Calculated maturity date</p>
+                                            <p className="mt-1 text-[11px] text-muted-foreground">Derived from the start date and tenure.</p>
                                         </div>
+                                        <p className="text-sm font-bold text-foreground">
+                                            {rdMaturityDate ? formatDate(rdMaturityDate) : '—'}
+                                        </p>
+                                    </div>
+
+                                    <InterestPolicyFields
+                                        title="2. Interest terms"
+                                        value={{
+                                            enabled: isInterestEnabled,
+                                            rate: selectedInterestRate,
+                                            treatment: interestTreatment,
+                                            settlementFrequency: interestSettlementFrequency,
+                                            dayCount: interestDayCount,
+                                            payoutAccountId: interestPayoutAccountId,
+                                            categoryId: interestCategoryId,
+                                        }}
+                                        onChange={handleInterestPolicyChange}
+                                        accounts={accounts}
+                                        categories={categories}
+                                        currency={currency}
+                                        allowsMaturitySettlement
+                                        canDisable={false}
+                                        advancedTerms
+                                    />
+
+                                    <div className={cn(
+                                        'grid grid-cols-1 gap-4 rounded-xl border border-primary/15 bg-primary/[0.03] p-4',
+                                        interestTreatment === INTEREST_TREATMENT.PAYOUT && 'sm:grid-cols-2',
+                                    )}>
+                                        <div>
+                                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                                {interestTreatment === INTEREST_TREATMENT.PAYOUT
+                                                    ? 'Deposits at maturity'
+                                                    : 'Projected maturity balance'}
+                                            </p>
+                                            <p className="mt-1 text-[11px] text-muted-foreground">Calculated by the backend interest engine.</p>
+                                            <p className="mt-2 text-lg font-bold tabular-nums text-primary">
+                                                {rdMaturityAmount
+                                                    ? `${currency} ${formatNumber(Number(rdMaturityAmount), { currency, decimals: 2 })}`
+                                                    : '—'}
+                                            </p>
+                                        </div>
+                                        {interestTreatment === INTEREST_TREATMENT.PAYOUT && (
+                                            <div className="border-t border-border/60 pt-4 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+                                                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Projected interest payouts</p>
+                                                <p className="mt-1 text-[11px] text-muted-foreground">Total interest paid separately over the term.</p>
+                                                <p className="mt-2 text-lg font-bold tabular-nums text-income">
+                                                    {rdEstimatedInterest
+                                                        ? `${currency} ${formatNumber(Number(rdEstimatedInterest), { currency, decimals: 2 })}`
+                                                        : '—'}
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="space-y-4 pt-4 border-t border-border/50">
+                                        <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">3. Funding</h5>
                                         <div className="flex items-center justify-between p-3 bg-background rounded-xl border border-border/50">
-                                            <span className="text-sm font-medium text-foreground">Enable Auto Deposit</span>
+                                            <div>
+                                                <span className="text-sm font-medium text-foreground">Enable auto deposit</span>
+                                                <p className="text-[11px] text-muted-foreground">Transfer each monthly installment from a savings account.</p>
+                                            </div>
                                             <Switch
                                                 checked={rdIsAutoDeposit}
                                                 onCheckedChange={setRdIsAutoDeposit}
@@ -691,26 +859,50 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                         <h4 className="text-sm font-bold text-foreground">Fixed Deposit Details</h4>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Principal Amount</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">{currency}</span>
-                                            <input
-                                                type="number"
-                                                placeholder="0.00"
-                                                value={fdPrincipal}
-                                                onChange={(e) => setFdPrincipal(e.target.value)}
-                                                className="w-full pl-12 pr-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/30 font-semibold"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <FDEditFields
-                                        interestRate={fdInterestRate}
-                                        setInterestRate={setFdInterestRate}
+                                    <InterestPolicyFields
+                                        title="1. Interest handling"
+                                        value={{
+                                            enabled: isInterestEnabled,
+                                            rate: selectedInterestRate,
+                                            treatment: interestTreatment,
+                                            settlementFrequency: interestSettlementFrequency,
+                                            dayCount: interestDayCount,
+                                            payoutAccountId: interestPayoutAccountId,
+                                            categoryId: interestCategoryId,
+                                        }}
+                                        onChange={handleInterestPolicyChange}
+                                        accounts={accounts}
+                                        categories={categories}
+                                        currency={currency}
+                                        allowsMaturitySettlement
+                                        allowSelfPayout
+                                        selfPayoutLabel="This fixed deposit account (default)"
+                                        canDisable={false}
+                                        showDayCount={false}
                                     />
 
-                                    <div className="grid gap-4">
+                                    <div className="border-t border-border/50 pt-2">
+                                        <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                            2. Deposit terms
+                                        </h5>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Principal Amount</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">{currency}</span>
+                                                <input
+                                                    type="number"
+                                                    min="0.01"
+                                                    step="0.01"
+                                                    placeholder="0.00"
+                                                    value={fdPrincipal}
+                                                    onChange={(e) => setFdPrincipal(e.target.value)}
+                                                    className="w-full pl-12 pr-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/30 font-semibold"
+                                                />
+                                            </div>
+                                        </div>
                                         <div>
                                             <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Start Date</label>
                                             <input
@@ -730,22 +922,52 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                             />
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Maturity Amount (Estimated)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">{currency}</span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                placeholder="0.00"
-                                                value={fdMaturityAmount}
-                                                onChange={(e) => setFdMaturityAmount(e.target.value)}
-                                                className="w-full pl-12 pr-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
-                                            />
+
+                                    {hasInvalidFdDates && (
+                                        <p className="text-xs font-medium text-destructive">
+                                            Maturity date must be after the start date.
+                                        </p>
+                                    )}
+
+                                    <div className="grid grid-cols-1 gap-4 rounded-xl border border-primary/15 bg-primary/[0.03] p-4 sm:grid-cols-2">
+                                        <div>
+                                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                                {interestTreatment === INTEREST_TREATMENT.PAYOUT
+                                                    ? 'Principal at maturity'
+                                                    : 'Projected maturity balance'}
+                                            </p>
+                                            <p className="mt-1 text-[11px] text-muted-foreground">
+                                                {fdMaturityAmount
+                                                    ? 'Calculated by the backend interest engine.'
+                                                    : 'Enter the principal, rate, and dates to calculate.'}
+                                            </p>
+                                            <p className="mt-2 text-lg font-bold tabular-nums text-primary">
+                                                {fdMaturityAmount
+                                                    ? `${currency} ${formatNumber(Number(fdMaturityAmount), { currency, decimals: 2 })}`
+                                                    : '—'}
+                                            </p>
                                         </div>
+                                        {interestTreatment === INTEREST_TREATMENT.PAYOUT && (
+                                            <div className="border-t border-border/60 pt-4 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+                                                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                                    Projected interest payouts
+                                                </p>
+                                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                                    Total interest paid separately over the full term.
+                                                </p>
+                                                <p className="mt-2 text-lg font-bold tabular-nums text-income">
+                                                    {fdEstimatedInterest
+                                                        ? `${currency} ${formatNumber(Number(fdEstimatedInterest), { currency, decimals: 2 })}`
+                                                        : '—'}
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                     
                                     <div className="pt-4 border-t border-border/50">
+                                        <h5 className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                            3. Funding
+                                        </h5>
                                         <div className="flex items-center justify-between mb-4">
                                             <div>
                                                 <label className="text-sm font-bold text-foreground">Fund from Savings</label>
@@ -799,6 +1021,31 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                                     </p>
                                 </div>
                             )}
+
+                            {supportsInterest
+                                && accountType !== ACCOUNT_TYPE.LOAN
+                                && accountType !== ACCOUNT_TYPE.FIXED_DEPOSIT
+                                && accountType !== ACCOUNT_TYPE.RECURRING_DEPOSIT
+                                && (
+                                <div className="mt-6">
+                                    <InterestPolicyFields
+                                        value={{
+                                            enabled: isInterestEnabled,
+                                            rate: selectedInterestRate,
+                                            treatment: interestTreatment,
+                                            settlementFrequency: interestSettlementFrequency,
+                                            dayCount: interestDayCount,
+                                            payoutAccountId: interestPayoutAccountId,
+                                            categoryId: interestCategoryId,
+                                        }}
+                                        onChange={handleInterestPolicyChange}
+                                        accounts={accounts}
+                                        categories={categories}
+                                        currency={currency}
+                                        allowsMaturitySettlement={accountType === ACCOUNT_TYPE.FIXED_DEPOSIT || accountType === ACCOUNT_TYPE.RECURRING_DEPOSIT}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -819,8 +1066,29 @@ const CreateAccountForm = ({ onSuccess, onCancel }: CreateAccountFormProps) => {
                     disabled={
                         isSubmitting ||
                         !newAccountName ||
-                        (accountType === ACCOUNT_TYPE.LOAN && (!loanAmount || (isInterestEnabled && !loanInterestRate))) ||
-                        (accountType === ACCOUNT_TYPE.FIXED_DEPOSIT && (!fdPrincipal || !fdInterestRate || !fdStartDate || !fdMaturityDate || !fdMaturityAmount)) ||
+                        (supportsInterest && isInterestEnabled && (
+                            !selectedInterestRate
+                            || (interestTreatment === INTEREST_TREATMENT.PAYOUT
+                                && accountType !== ACCOUNT_TYPE.FIXED_DEPOSIT
+                                && !interestPayoutAccountId)
+                        )) ||
+                        (accountType === ACCOUNT_TYPE.LOAN && (
+                            !loanAmount
+                            || !loanInterestRate
+                            || !loanTenure
+                            || !loanEMI
+                            || !loanStartDate
+                            || !loanEMIStartDate
+                            || (loanIsAutoDebit && !loanLinkedAccountId)
+                        )) ||
+                        (accountType === ACCOUNT_TYPE.FIXED_DEPOSIT && (
+                            !fdPrincipal
+                            || !fdInterestRate
+                            || !fdStartDate
+                            || !fdMaturityDate
+                            || hasInvalidFdDates
+                            || (fdFundFromAccount && !fdLinkedAccount)
+                        )) ||
                         (accountType === ACCOUNT_TYPE.RECURRING_DEPOSIT && (!rdDepositAmount || !rdInterestRate || !rdTenure || !rdStartDate || (rdIsAutoDeposit && !rdLinkedAccountId)))
                     }
                 >

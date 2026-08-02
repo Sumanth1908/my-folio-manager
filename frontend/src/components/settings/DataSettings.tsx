@@ -154,12 +154,11 @@ function CsvImportSection() {
 interface ImportSummary {
     categories: number;
     accounts: number;
-    savings_accounts: number;
-    loan_accounts: number;
-    fixed_deposit_accounts: number;
     investment_holdings: number;
     transactions: number;
     rules: number;
+    interest_policies: number;
+    interest_rate_periods: number;
 }
 
 export function DataSettings() {
@@ -223,7 +222,7 @@ export function DataSettings() {
             const formData = new FormData();
             formData.append('file', selectedFile);
 
-            const response = await api.post(`/data/import?clear_existing=${clearExisting}`, formData, {
+            const response = await api.post<{ summary: ImportSummary }>(`/data/import?clear_existing=${clearExisting}`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },

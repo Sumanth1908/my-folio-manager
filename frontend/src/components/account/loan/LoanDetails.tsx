@@ -10,7 +10,10 @@ interface LoanDetailsProps {
 const LoanDetails = ({ account, symbol }: LoanDetailsProps) => {
     if (!account.metadata_) return null;
 
-    const md = account.metadata_ as any;
+    const md = account.metadata_;
+    const emiDay = typeof md.emi_start_date === 'string'
+        ? Number.parseInt(md.emi_start_date.substring(8, 10), 10)
+        : null;
     const money = (value: number | undefined) =>
         formatCurrency(value, { currency: account.currency, symbol, decimals: 2 });
 
@@ -27,13 +30,13 @@ const LoanDetails = ({ account, symbol }: LoanDetailsProps) => {
                 <div className="rounded-xl border border-border bg-card p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Outstanding</p>
                     <p className="text-lg font-black text-destructive tabular-nums">
-                        {money((account as any).balance ? Math.abs((account as any).balance) : md.outstanding_amount)}
+                        {money(account.balance != null ? Math.abs(account.balance) : md.outstanding_amount)}
                     </p>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Interest Rate</p>
                     <p className="text-lg font-black text-foreground tabular-nums">
-                        {md.interest_rate}%
+                        {account.interest_policy?.annual_rate ?? md.interest_rate}%
                     </p>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-3">
@@ -61,9 +64,9 @@ const LoanDetails = ({ account, symbol }: LoanDetailsProps) => {
                     </p>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">EMI Day</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Payment Schedule</p>
                     <p className="text-lg font-black text-foreground">
-                        Day {md.interest_accrual_day || 1}
+                        {emiDay ? `Day ${emiDay} of each month` : '-'}
                     </p>
                 </div>
             </div>

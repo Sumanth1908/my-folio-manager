@@ -1,5 +1,6 @@
 import { useState, memo } from 'react';
 import { ChevronDown, ChevronRight, CircleSlash, ArrowUpRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { formatCurrency } from '../../lib/format';
 import { useCurrencyFormat } from '../../hooks/useCurrencyFormat';
@@ -88,7 +89,16 @@ const AccountRow = memo(({ acc }: { acc: SubAccount }) => {
                     )}
                 </div>
                 <div className="col-span-5 md:col-span-6 flex items-center gap-2">
-                    <span className="text-xs font-medium text-muted-foreground group-hover/acc:text-foreground transition-colors">{acc.name}</span>
+                    <Link
+                        to={`/accounts/${acc.id}`}
+                        onClick={(event) => event.stopPropagation()}
+                        className="group/link inline-flex min-w-0 items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        title={`Open ${acc.name}`}
+                        aria-label={`Open account ${acc.name}`}
+                    >
+                        <span className="truncate group-hover/link:underline">{acc.name}</span>
+                        <ArrowUpRight size={12} className="shrink-0 opacity-50 transition-opacity group-hover/link:opacity-100" />
+                    </Link>
                 </div>
                 <div className="col-span-6 md:col-span-5 text-right">
                     <span className="text-xs font-medium text-muted-foreground/80 tabular-nums" title={number(acc.value, { decimals: 2 })}>

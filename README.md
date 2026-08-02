@@ -10,7 +10,7 @@ A comprehensive personal finance and portfolio management application designed t
     -   Interactive **Cashflow Sankey Charts** to visualize money movement.
     -   Category-wise spending breakdowns.
 -   **Transaction Tracking**: Full history with categorization and currency support.
--   **Automated Interest Accruals**: Background jobs handled by Celery to automatically calculate and apply interest to Savings and Loan accounts.
+-   **Managed Interest Engine**: Rule-triggered policies calculate savings, deposit, recurring-deposit, and loan interest with cumulative capitalization, regular payout, catch-up, previews, and period-level audit.
 -   **Multi-Currency**: Support for multiple currencies with real-time conversion capabilities.
 -   **Secure Authentication**: JWT-based login and registration.
 
@@ -18,6 +18,7 @@ A comprehensive personal finance and portfolio management application designed t
 -   **Unified Account Model**: Extensible `metadata_` JSON field replaces rigid subclassing.
 -   **Capability-based Account Types**: Account identifiers are stored as strings, while a backend registry describes built-in behavior. Custom types safely default to ledger accounts and can opt into holdings through metadata.
 -   **Generalized Holdings**: A holding records its asset class, unit, price source, and optional metadata. This supports both market-priced securities and manually valued assets such as grams of gold or a property.
+-   **Interest Policies + Rules**: Policies hold financial terms while `INTEREST` rules control scheduling. Formula automations remain available for custom calculations without becoming the source of truth for standard products.
 -   **Pure Ledger**: Balances are calculated strictly on-the-fly via `SUM(amount)` using signed transactions (+ for credits, - for debits), guaranteeing data consistency.
 -   **Rule Normalization**: Automation rules utilize JSON configuration blocks instead of sparse "God Table" columns, making them endlessly extensible.
 

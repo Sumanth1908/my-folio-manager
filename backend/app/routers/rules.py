@@ -5,7 +5,17 @@ from sqlmodel import Session
 
 from app.core.database import get_session
 from app.models.user import User
-from app.schemas.rule import RuleCreate, RuleExecutionRead, RulePreview, RuleRead, RuleUpdate
+from app.schemas.rule import (
+    InterestRuleReplayRequest,
+    InterestRuleReplayResult,
+    InterestRuleScheduleRead,
+    InterestRuleScheduleUpdate,
+    RuleCreate,
+    RuleExecutionRead,
+    RulePreview,
+    RuleRead,
+    RuleUpdate,
+)
 from app.services import rules_service
 from app.deps import get_current_user
 
@@ -38,6 +48,51 @@ def read_rules(
     """Get all rules, optionally filtered by account."""
     rules = rules_service.get_rules(session, current_user.user_id, account_id)
     return [rules_service.enrich_rule(session, r) for r in rules]
+
+
+@router.get("/{rule_id}/interest-schedule", response_model=InterestRuleScheduleRead)
+def read_interest_rule_schedule(
+    rule_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return rules_service.get_interest_rule_schedule(session, rule_id, current_user.user_id)
+    except ValueError as e:
+        status_code = 404 if "not found" in str(e).lower() else 422
+        raise HTTPException(status_code=status_code, detail=str(e))
+
+
+@router.patch("/{rule_id}/interest-schedule", response_model=InterestRuleScheduleRead)
+def update_interest_rule_schedule(
+    rule_id: int,
+    schedule_update: InterestRuleScheduleUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return rules_service.update_interest_rule_schedule(
+            session, rule_id, schedule_update, current_user.user_id
+        )
+    except ValueError as e:
+        status_code = 404 if "not found" in str(e).lower() else 422
+        raise HTTPException(status_code=status_code, detail=str(e))
+
+
+@router.post("/{rule_id}/interest-replay", response_model=InterestRuleReplayResult)
+def replay_interest_rule(
+    rule_id: int,
+    replay_request: InterestRuleReplayRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return rules_service.replay_interest_rule_from(
+            session, rule_id, replay_request.replay_from, current_user.user_id
+        )
+    except ValueError as e:
+        status_code = 404 if "not found" in str(e).lower() else 422
+        raise HTTPException(status_code=status_code, detail=str(e))
 
 
 @router.put("/{rule_id}", response_model=RuleRead)

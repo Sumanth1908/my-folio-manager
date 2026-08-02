@@ -1,8 +1,6 @@
 interface LoanEditFieldsProps {
     interestRate: string;
     setInterestRate: (value: string) => void;
-    accrualDay: string;
-    setAccrualDay: (value: string) => void;
     emiAmount: string;
     setEmiAmount: (value: string) => void;
     tenure: string;
@@ -11,13 +9,13 @@ interface LoanEditFieldsProps {
     setStartDate?: (value: string) => void;
     emiStartDate?: string;
     setEmiStartDate?: (value: string) => void;
+    showInterestRate?: boolean;
+    calculatedField?: 'EMI' | 'TENURE';
 }
 
 const LoanEditFields = ({
     interestRate,
     setInterestRate,
-    accrualDay,
-    setAccrualDay,
     emiAmount,
     setEmiAmount,
     tenure,
@@ -25,12 +23,14 @@ const LoanEditFields = ({
     startDate,
     setStartDate,
     emiStartDate,
-    setEmiStartDate
+    setEmiStartDate,
+    showInterestRate = true,
+    calculatedField,
 }: LoanEditFieldsProps) => {
     return (
         <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-4">
-                <div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {showInterestRate && <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
                         Interest Rate (%)
                     </label>
@@ -46,25 +46,10 @@ const LoanEditFields = ({
                             required
                         />
                     </div>
-                </div>
-                <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        EMI Day
-                    </label>
-                    <input
-                        type="number"
-                        min="1"
-                        max="31"
-                        placeholder="1-31"
-                        value={accrualDay}
-                        onChange={e => setAccrualDay(e.target.value)}
-                        className="w-full px-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
-                        required
-                    />
-                </div>
+                </div>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
                         EMI Amount
@@ -78,6 +63,9 @@ const LoanEditFields = ({
                         className="w-full px-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
                         required
                     />
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                        {calculatedField === 'EMI' ? 'Calculated from tenure; you can overwrite it.' : 'Enter EMI to calculate tenure.'}
+                    </p>
                 </div>
                 <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
@@ -91,6 +79,9 @@ const LoanEditFields = ({
                         className="w-full px-4 py-3 bg-background border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
                         required
                     />
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                        {calculatedField === 'TENURE' ? 'Calculated from EMI and rounded up to full months.' : 'Enter tenure to calculate EMI.'}
+                    </p>
                 </div>
             </div>
 

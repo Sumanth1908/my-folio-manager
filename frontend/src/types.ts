@@ -32,42 +32,6 @@ export interface UserSettings {
 }
 
 
-// Savings Account Data
-export interface SavingsAccount {
-    account_id: string;
-    balance: number;
-    interest_rate?: number;
-    min_balance?: number;
-    interest_accrual_day?: number;
-}
-
-// Loan Account Data
-export interface LoanAccount {
-    account_id: string;
-    loan_amount: number;
-    principal_balance: number;
-    interest_balance: number;
-    outstanding_amount: number;
-    interest_rate: number;
-    tenure_months: number;
-    emi_amount: number;
-    start_date: string;
-    emi_start_date?: string;
-    interest_accrual_day?: number;
-}
-
-// Fixed Deposit Account Data
-export interface FixedDepositAccount {
-    account_id: string;
-    balance: number;
-    principal_amount: number;
-    interest_rate: number;
-    start_date: string;
-    maturity_date: string;
-    maturity_amount: number;
-    interest_accrual_day?: number;
-}
-
 // Investment Holding Data
 export interface InvestmentHolding {
     holding_id: number;
@@ -105,12 +69,36 @@ export interface Account {
     net_value?: number;
     account_nature?: 'ASSET' | 'LIABILITY';
     metadata_?: Record<string, any>;
-    // Nested account details (legacy)
-    savings_account?: SavingsAccount;
-    loan_account?: LoanAccount;
-    fixed_deposit_account?: FixedDepositAccount;
     investment_holdings?: InvestmentHolding[];
     asset_holdings?: InvestmentHolding[];
+    interest_policy?: InterestPolicy;
+}
+
+export interface InterestPolicy {
+    policy_id?: number;
+    account_id?: string;
+    enabled: boolean;
+    direction: 'EARNED' | 'CHARGED';
+    annual_rate: number;
+    balance_basis: 'LEDGER_BALANCE' | 'FIXED_PRINCIPAL' | 'PRINCIPAL_OUTSTANDING';
+    day_count: 'ACTUAL_365' | 'ACTUAL_ACTUAL' | 'THIRTY_360';
+    treatment: 'CAPITALIZE' | 'PAYOUT' | 'INTEREST_DUE';
+    settlement_frequency: Frequency;
+    payout_account_id?: string | null;
+    category_id?: number | null;
+    effective_from: string;
+    end_date?: string | null;
+    calculation_version?: number;
+}
+
+export interface InterestPreview {
+    period_start: string;
+    period_end: string;
+    days: number;
+    eligible_balance: number | string;
+    estimated_interest: number | string;
+    projected_maturity_amount?: number | string | null;
+    calculation_version: number;
 }
 
 export interface AccountTypeDefinition {
@@ -134,6 +122,7 @@ export interface Transaction {
     category?: Category;
     transaction_date: string;
     currency: string;
+    transaction_kind?: string;
 }
 
 export type CreateAccountDTO = Omit<Account, 'account_id' | 'created_at'>;
@@ -159,6 +148,17 @@ export interface Rule {
     };
     category_name?: string;
     next_run_at?: string;
+    execution_order: number;
+}
+
+export interface InterestRuleSchedule {
+    rule_id: number;
+    effective_from: string;
+    end_date?: string | null;
+    next_run_date?: string | null;
+    execution_order: number;
+    settlement_time_utc: string;
+    replay_from_dates: string[];
 }
 
 export interface CreateRuleDTO {

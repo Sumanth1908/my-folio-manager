@@ -10,7 +10,7 @@ interface FDDetailsProps {
 const FDDetails = ({ account, symbol }: FDDetailsProps) => {
     if (!account.metadata_) return null;
 
-    const md = account.metadata_ as any;
+    const md = account.metadata_;
     const money = (value: number | undefined) =>
         formatCurrency(value, { currency: account.currency, symbol, decimals: 2 });
 
@@ -21,7 +21,7 @@ const FDDetails = ({ account, symbol }: FDDetailsProps) => {
                 <div className="rounded-xl border border-border bg-card p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Current Balance</p>
                     <p className="text-lg font-bold text-primary tabular-nums">
-                        {money((account as any).balance)}
+                        {money(account.balance)}
                     </p>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-3">
@@ -31,13 +31,11 @@ const FDDetails = ({ account, symbol }: FDDetailsProps) => {
                     </p>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Interest Rate</p>
-                    <p className="text-lg font-bold text-primary tabular-nums">
-                        {md.interest_rate}% p.a.
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                        {account.interest_policy?.treatment === 'PAYOUT'
+                            ? 'Principal at maturity'
+                            : 'Maturity amount'}
                     </p>
-                </div>
-                <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Maturity Amount</p>
                     <p className="text-lg font-bold text-primary tabular-nums">
                         {money(md.maturity_amount)}
                     </p>
@@ -53,11 +51,6 @@ const FDDetails = ({ account, symbol }: FDDetailsProps) => {
                     <p className="text-lg font-bold text-foreground">
                         {md.maturity_date ? formatDate(md.maturity_date) : '-'}
                     </p>
-                </div>
-                <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Interest Schedule</p>
-                    <p className="text-lg font-bold text-foreground">Monthly</p>
-                    <p className="text-[10px] text-muted-foreground">Accrued daily</p>
                 </div>
             </div>
         </section>

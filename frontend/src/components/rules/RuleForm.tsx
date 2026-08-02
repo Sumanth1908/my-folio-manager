@@ -41,6 +41,7 @@ interface RuleFormData {
     formula: string;
     endDate: string;
     nextRunAt: string;
+    executionOrder: string;
 }
 
 // Normalize transaction type
@@ -96,6 +97,7 @@ const createInitialFormData = (rule?: Rule | null, accountId?: string | null): R
         nextRunAt: rule?.next_run_at
             ? getUTCDateTimeString(rule.next_run_at)
             : new Date().toISOString().split('T')[0] + 'T10:00', // Default to 10 AM UTC for new rules
+        executionOrder: String(rule?.execution_order ?? 100),
         transferDirection,
         transferOtherAccountId,
         formula: config.formula ?? '',
@@ -176,13 +178,14 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
             return;
         }
 
-        const { name, ruleType, isActive, descriptionContains, categoryId, frequency, amount, txType, nextRunAt, transferDirection, transferOtherAccountId, formula, endDate } = formData;
+        const { name, ruleType, isActive, descriptionContains, categoryId, frequency, amount, txType, nextRunAt, transferDirection, transferOtherAccountId, formula, endDate, executionOrder } = formData;
 
         const payload: Record<string, unknown> = {
             account_id: selectedAccountId,
             name,
             rule_type: ruleType,
             is_active: isActive,
+            execution_order: Number(executionOrder),
             configuration: {}
         };
 
@@ -409,6 +412,22 @@ const RuleForm = ({ accountId, ruleToEdit, onSuccess, onCancel }: RuleFormProps)
                             onChange={e => updateField('endDate', e.target.value)}
                             className="date-time-field"
                         />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                            Execution Order
+                        </label>
+                        <input
+                            type="number"
+                            min="1"
+                            max="10000"
+                            value={formData.executionOrder}
+                            onChange={e => updateField('executionOrder', e.target.value)}
+                            className="date-time-field"
+                            required
+                        />
+                        <p className="text-[9px] text-muted-foreground ml-1">Lower runs first at the same time.</p>
                     </div>
 
                     {isTransfer && (

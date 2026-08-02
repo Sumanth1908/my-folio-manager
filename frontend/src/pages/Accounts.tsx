@@ -65,7 +65,7 @@ const Accounts = () => {
             )}
             <PageHeader
                 eyebrow="Workspace"
-                title="Accounts"
+                title="Manage Accounts"
                 description="Manage balances, account status, and activity across your financial portfolio."
             />
 

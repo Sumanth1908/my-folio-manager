@@ -1,6 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
-import { useAppDispatch } from '../../../store/hooks';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import type { RootState } from '../../../store';
 import { updateAccount } from '../../../store/slices/accountsSlice';
+import { fetchCategories } from '../../../store/slices/categoriesSlice';
 import type { Account } from '../../../types';
 import { ACCOUNT_TYPE } from '../../../constants';
 import { Button } from '../../ui/Button';
@@ -15,8 +17,15 @@ import {
     SelectValue,
 } from '../../ui/Select';
 import LoanEditFields from '../loan/LoanEditFields';
-import SavingsEditFields from '../savings/SavingsEditFields';
-import FDEditFields from '../fixed-deposit/FDEditFields';
+import InterestPolicyFields, {
+    SELF_PAYOUT_ACCOUNT,
+    type InterestPolicyFormState,
+} from './InterestPolicyFields';
+import {
+    calculateLoanEmi,
+    calculateLoanTenure,
+    type LoanCalculationSource,
+} from '../../../lib/loans';
 
 interface AccountEditFormProps {
     account: Account;
@@ -28,33 +37,18 @@ interface AccountEditFormData {
     name: string;
     status: string;
     interestRate: string;
-    interestFrequency: string;
     emiAmount: string;
     tenure: string;
-    accrualDay: string;
     startDate: string;
     emiStartDate: string;
 }
 
-// Get initial interest rate based on account type
-const getInitialInterestRate = (account: Account): string => {
-    return account.metadata_?.interest_rate?.toString() ?? '';
-};
-
-// Get initial accrual day based on account type
-const getInitialAccrualDay = (account: Account): string => {
-    const day = account.metadata_?.interest_accrual_day ?? 1;
-    return day.toString();
-};
-
 const createInitialFormData = (account: Account): AccountEditFormData => ({
     name: account.account_name ?? '',
     status: account.status ?? 'Active',
-    interestRate: getInitialInterestRate(account),
-    interestFrequency: account.metadata_?.interest_frequency ?? 'MONTHLY',
+    interestRate: account.metadata_?.interest_rate?.toString() ?? '',
     emiAmount: account.metadata_?.emi_amount?.toString() ?? '',
     tenure: account.metadata_?.tenure_months?.toString() ?? '',
-    accrualDay: getInitialAccrualDay(account),
     startDate: account.metadata_?.start_date
         ? account.metadata_.start_date.substring(0, 10)
         : '',
@@ -65,8 +59,58 @@ const createInitialFormData = (account: Account): AccountEditFormData => ({
 
 const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps) => {
     const dispatch = useAppDispatch();
+    const accounts = useAppSelector((state: RootState) => state.accounts.items);
+    const categories = useAppSelector((state: RootState) => state.categories.items);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState<AccountEditFormData>(() => createInitialFormData(account));
+    const [interestPolicy, setInterestPolicy] = useState<InterestPolicyFormState>(() => ({
+        enabled: account.interest_policy?.enabled ?? account.is_interest_enabled,
+        rate: account.interest_policy?.annual_rate?.toString() ?? '',
+        treatment: account.interest_policy?.treatment
+            ?? 'CAPITALIZE',
+        settlementFrequency: account.interest_policy?.settlement_frequency
+            ?? 'MONTHLY',
+        dayCount: account.interest_policy?.day_count ?? 'ACTUAL_365',
+        payoutAccountId: account.interest_policy?.payout_account_id
+            ?? (account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT
+                && account.interest_policy?.treatment === 'PAYOUT'
+                ? SELF_PAYOUT_ACCOUNT
+                : ''),
+        categoryId: account.interest_policy?.category_id?.toString() ?? '',
+    }));
+    const [loanCalculationSource, setLoanCalculationSource] = useState<LoanCalculationSource>('TENURE');
+    const supportsInterest = Boolean(
+        account.interest_policy
+        || account.metadata_?.supports_interest
+        || [ACCOUNT_TYPE.SAVINGS, ACCOUNT_TYPE.LOAN, ACCOUNT_TYPE.FIXED_DEPOSIT, ACCOUNT_TYPE.RECURRING_DEPOSIT].includes(account.account_type as never)
+    );
+
+    useEffect(() => {
+        if (categories.length === 0) dispatch(fetchCategories());
+    }, [categories.length, dispatch]);
+
+    useEffect(() => {
+        if (account.account_type !== ACCOUNT_TYPE.LOAN) return;
+        const principal = account.metadata_?.loan_amount;
+        if (loanCalculationSource === 'TENURE') {
+            const emi = calculateLoanEmi(principal, formData.interestRate, formData.tenure);
+            if (emi != null && formData.emiAmount !== emi.toFixed(2)) {
+                setFormData(previous => ({ ...previous, emiAmount: emi.toFixed(2) }));
+            }
+        } else {
+            const tenure = calculateLoanTenure(principal, formData.interestRate, formData.emiAmount);
+            if (tenure != null && formData.tenure !== String(tenure)) {
+                setFormData(previous => ({ ...previous, tenure: String(tenure) }));
+            }
+        }
+    }, [
+        account.account_type,
+        account.metadata_,
+        formData.emiAmount,
+        formData.interestRate,
+        formData.tenure,
+        loanCalculationSource,
+    ]);
 
     // Memoized update handler
     const updateField = useCallback(<K extends keyof AccountEditFormData>(field: K, value: AccountEditFormData[K]) => {
@@ -77,7 +121,7 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const { name, status, interestRate, interestFrequency, emiAmount, tenure, accrualDay, startDate, emiStartDate } = formData;
+        const { name, status, interestRate, emiAmount, tenure, startDate, emiStartDate } = formData;
 
         const data: Record<string, unknown> = {
             account_name: name,
@@ -90,22 +134,39 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
                 interest_rate: parseFloat(interestRate),
                 emi_amount: parseFloat(emiAmount),
                 tenure_months: parseInt(tenure, 10),
-                interest_accrual_day: parseInt(accrualDay, 10),
                 start_date: startDate || undefined,
                 emi_start_date: emiStartDate || undefined
             };
-        } else if (account.account_type === ACCOUNT_TYPE.SAVINGS) {
-            data.metadata_ = {
-                ...(account.metadata_ || {}),
-                interest_rate: parseFloat(interestRate),
-                interest_frequency: interestFrequency,
-                interest_accrual_day: parseInt(accrualDay, 10)
-            };
-        } else if (account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT || account.account_type === ACCOUNT_TYPE.RECURRING_DEPOSIT) {
-            data.metadata_ = {
-                ...(account.metadata_ || {}),
-                interest_rate: parseFloat(interestRate),
-                interest_accrual_day: parseInt(accrualDay, 10)
+        }
+
+        if (account.account_type === ACCOUNT_TYPE.LOAN) {
+            data.is_interest_enabled = true;
+        } else if (supportsInterest) {
+            data.is_interest_enabled = interestPolicy.enabled;
+            data.interest_policy = {
+                enabled: interestPolicy.enabled,
+                direction: 'EARNED',
+                annual_rate: parseFloat(interestPolicy.rate || '0'),
+                balance_basis: account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT && interestPolicy.treatment === 'PAYOUT'
+                    ? 'FIXED_PRINCIPAL'
+                    : 'LEDGER_BALANCE',
+                day_count: interestPolicy.dayCount,
+                treatment: interestPolicy.treatment,
+                settlement_frequency: interestPolicy.settlementFrequency,
+                payout_account_id: interestPolicy.treatment === 'PAYOUT'
+                    && interestPolicy.payoutAccountId !== SELF_PAYOUT_ACCOUNT
+                    ? interestPolicy.payoutAccountId || null
+                    : null,
+                category_id: interestPolicy.categoryId
+                    ? parseInt(interestPolicy.categoryId, 10)
+                    : null,
+                // For updates this is the effective date of the new terms, not
+                // the original policy start date.
+                effective_from: `${new Date().toISOString().split('T')[0]}T00:00:00.000Z`,
+                end_date: account.interest_policy?.end_date
+                    ?? (account.metadata_?.maturity_date
+                        ? new Date(`${account.metadata_.maturity_date}T00:00:00Z`).toISOString()
+                        : null),
             };
         }
 
@@ -119,49 +180,41 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
         } finally {
             setIsSubmitting(false);
         }
-    }, [formData, account, dispatch, onSuccess]);
+    }, [formData, account, dispatch, interestPolicy, onSuccess, supportsInterest]);
 
     // Render type-specific fields
     const typeSpecificFields = useMemo(() => {
         switch (account.account_type) {
-            case ACCOUNT_TYPE.SAVINGS:
-                return (
-                    <SavingsEditFields
-                        interestRate={formData.interestRate}
-                        setInterestRate={v => updateField('interestRate', v)}
-                        interestFrequency={formData.interestFrequency}
-                        setInterestFrequency={v => updateField('interestFrequency', v)}
-                    />
-                );
             case ACCOUNT_TYPE.FIXED_DEPOSIT:
             case ACCOUNT_TYPE.RECURRING_DEPOSIT:
-                return (
-                    <FDEditFields
-                        interestRate={formData.interestRate}
-                        setInterestRate={v => updateField('interestRate', v)}
-                    />
-                );
+            case ACCOUNT_TYPE.SAVINGS:
+                return null;
             case ACCOUNT_TYPE.LOAN:
                 return (
                     <LoanEditFields
                         interestRate={formData.interestRate}
                         setInterestRate={v => updateField('interestRate', v)}
-                        accrualDay={formData.accrualDay}
-                        setAccrualDay={v => updateField('accrualDay', v)}
                         emiAmount={formData.emiAmount}
-                        setEmiAmount={v => updateField('emiAmount', v)}
+                        setEmiAmount={v => {
+                            setLoanCalculationSource('EMI');
+                            updateField('emiAmount', v);
+                        }}
                         tenure={formData.tenure}
-                        setTenure={v => updateField('tenure', v)}
+                        setTenure={v => {
+                            setLoanCalculationSource('TENURE');
+                            updateField('tenure', v);
+                        }}
                         startDate={formData.startDate}
                         setStartDate={v => updateField('startDate', v)}
                         emiStartDate={formData.emiStartDate}
                         setEmiStartDate={v => updateField('emiStartDate', v)}
+                        calculatedField={loanCalculationSource === 'TENURE' ? 'EMI' : 'TENURE'}
                     />
                 );
             default:
                 return null;
         }
-    }, [account.account_type, formData, updateField]);
+    }, [account.account_type, formData, loanCalculationSource, updateField]);
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
@@ -197,6 +250,21 @@ const AccountEditForm = ({ account, onSuccess, onCancel }: AccountEditFormProps)
             </div>
 
             {typeSpecificFields}
+
+            {supportsInterest && account.account_type !== ACCOUNT_TYPE.LOAN && (
+                <InterestPolicyFields
+                    value={interestPolicy}
+                    onChange={setInterestPolicy}
+                    accounts={accounts}
+                    categories={categories}
+                    currency={account.currency}
+                    excludeAccountId={account.account_id}
+                    allowsMaturitySettlement={Boolean(account.metadata_?.maturity_date)}
+                    allowSelfPayout={account.account_type === ACCOUNT_TYPE.FIXED_DEPOSIT}
+                    selfPayoutLabel="This fixed deposit account (default)"
+                    advancedTerms={account.account_type === ACCOUNT_TYPE.RECURRING_DEPOSIT}
+                />
+            )}
 
             <div className="flex justify-end gap-3 pt-4">
                 <Button type="button" variant="ghost" onClick={onCancel}>

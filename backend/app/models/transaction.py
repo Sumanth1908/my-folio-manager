@@ -25,4 +25,7 @@ class Transaction(SQLModel, table=True):
     transfer_id: Optional[str] = Field(default=None, max_length=36, index=True)
     # Client-supplied key to make POSTs safely retryable (unique; NULLs exempt)
     idempotency_key: Optional[str] = Field(default=None, max_length=64, unique=True)
+    # System-generated transactions carry an explicit semantic origin so loan
+    # allocation and reporting do not have to infer interest from the sign.
+    transaction_kind: str = Field(default="USER", max_length=30, index=True)
     transaction_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

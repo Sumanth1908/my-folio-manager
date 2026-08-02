@@ -1,13 +1,142 @@
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
+import math
 from typing import List, Optional
+from dateutil.relativedelta import relativedelta
 from sqlmodel import Session, func, select
 
 from app.models import Account, AccountType, Transaction
 from app.models.investment_holding import InvestmentHolding
+from app.models.interest import InterestPolicy
 from app.schemas.account import AccountCreate, AccountRead, AccountUpdate
+from app.schemas.interest import InterestPolicyCreate, InterestPolicyUpdate
 from app.services import rules_service
 from app.services.account_types import get_account_type_definition
+from app.services import interest_service
+
+
+def normalize_recurring_deposit_metadata(metadata: Optional[dict]) -> Optional[dict]:
+    """Keep only authoritative RD terms; schedule values derive from dates."""
+    if metadata is None:
+        return None
+    normalized = dict(metadata)
+
+    start_date = normalized.get("start_date")
+    maturity_date = normalized.get("maturity_date")
+    tenure_months = normalized.get("tenure_months")
+    if not maturity_date and start_date and tenure_months:
+        try:
+            maturity_date = (
+                datetime.fromisoformat(str(start_date))
+                + relativedelta(months=int(tenure_months))
+            ).date().isoformat()
+            normalized["maturity_date"] = maturity_date
+        except (TypeError, ValueError):
+            pass
+
+    # Remove values that can be derived from the authoritative dates.
+    if start_date:
+        normalized.pop("deposit_day", None)
+    if maturity_date:
+        normalized.pop("tenure_months", None)
+    return normalized
+
+
+def normalize_car_loan_metadata(metadata: Optional[dict]) -> dict:
+    """Complete and validate the principal/rate/EMI/tenure car-loan terms."""
+    normalized = dict(metadata or {})
+    try:
+        principal = Decimal(str(normalized["loan_amount"]))
+        annual_rate = Decimal(str(normalized["interest_rate"]))
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("Loan amount and annual interest rate are required")
+    if principal <= 0 or annual_rate < 0:
+        raise ValueError("Loan amount must be positive and interest rate cannot be negative")
+
+    tenure = int(normalized.get("tenure_months") or 0)
+    emi = Decimal(str(normalized.get("emi_amount") or 0))
+    monthly_rate = annual_rate / Decimal("1200")
+
+    if tenure > 0 and emi <= 0:
+        if monthly_rate == 0:
+            emi = principal / Decimal(tenure)
+        else:
+            growth = (Decimal("1") + monthly_rate) ** tenure
+            emi = principal * monthly_rate * growth / (growth - Decimal("1"))
+        normalized["emi_amount"] = float(emi.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+    elif emi > 0 and tenure <= 0:
+        if monthly_rate == 0:
+            tenure = math.ceil(float(principal / emi))
+        else:
+            minimum_payment = principal * monthly_rate
+            if emi <= minimum_payment:
+                raise ValueError("EMI must be greater than the first month's interest")
+            tenure = math.ceil(
+                math.log(float(emi / (emi - minimum_payment)))
+                / math.log(float(Decimal("1") + monthly_rate))
+            )
+        normalized["tenure_months"] = tenure
+    elif tenure <= 0 or emi <= 0:
+        raise ValueError("Provide either a positive EMI or a positive tenure")
+
+    if monthly_rate > 0 and emi <= principal * monthly_rate:
+        raise ValueError("EMI must be greater than the first month's interest")
+
+    start_date = normalized.get("start_date")
+    if not start_date:
+        raise ValueError("Loan start date is required")
+    try:
+        parsed_start = datetime.fromisoformat(str(start_date))
+    except ValueError:
+        raise ValueError("Loan start date is invalid")
+    if not normalized.get("emi_start_date"):
+        normalized["emi_start_date"] = (
+            parsed_start + relativedelta(months=1)
+        ).date().isoformat()
+    normalized.setdefault("principal_balance", float(principal))
+    normalized.setdefault("interest_balance", 0.0)
+    normalized.setdefault("outstanding_amount", float(principal))
+    return normalized
+
+
+def _car_loan_policy_terms(account: Account) -> dict:
+    """Return the server-owned policy fields derived from normalized terms."""
+    metadata = account.metadata_ or {}
+    return {
+        "enabled": True,
+        "direction": "CHARGED",
+        "annual_rate": metadata["interest_rate"],
+        "balance_basis": "PRINCIPAL_OUTSTANDING",
+        "day_count": "THIRTY_360",
+        "treatment": "INTEREST_DUE",
+        "settlement_frequency": "MONTHLY",
+        "payout_account_id": None,
+        "category_id": None,
+        "end_date": (
+            datetime.fromisoformat(str(metadata["start_date"]))
+            + relativedelta(months=int(metadata["tenure_months"]))
+        ),
+    }
+
+
+def car_loan_policy_create(
+    account: Account,
+) -> InterestPolicyCreate:
+    """Apply conventional monthly reducing-balance car-loan terms."""
+    metadata = account.metadata_ or {}
+    return InterestPolicyCreate(
+        **_car_loan_policy_terms(account),
+        effective_from=datetime.fromisoformat(str(metadata["start_date"])),
+    )
+
+
+def car_loan_policy_update(
+    account: Account,
+) -> InterestPolicyUpdate:
+    return InterestPolicyUpdate(
+        **_car_loan_policy_terms(account),
+        effective_from=datetime.now(timezone.utc),
+    )
 
 
 def calculate_asset_value(session: Session, account: Account) -> Decimal:
@@ -96,6 +225,8 @@ def enrich_account(
     account: Account,
     balance: Optional[Decimal] = None,
     asset_value: Optional[Decimal] = None,
+    interest_policy: Optional[InterestPolicy] = None,
+    interest_policy_loaded: bool = False,
 ) -> AccountRead:
     account_dict = account.model_dump()
 
@@ -114,6 +245,12 @@ def enrich_account(
         else account_dict["balance"]
     )
     account_dict["account_nature"] = type_definition.nature.value
+    policy = (
+        interest_policy
+        if interest_policy_loaded
+        else interest_service.get_interest_policy(session, account.account_id)
+    )
+    account_dict["interest_policy"] = policy.model_dump() if policy else None
 
     if type_definition.supports_holdings:
         holdings = session.exec(select(InvestmentHolding).where(InvestmentHolding.account_id == account.account_id)).all()
@@ -138,9 +275,14 @@ def create_account(session: Session, account_in: AccountCreate, user_id: str) ->
     """Create an account with its funding transaction and automation rules in
     ONE database transaction — a failure at any step leaves nothing behind
     instead of a half-provisioned account."""
-    account = Account(**account_in.model_dump(), user_id=user_id)
-    if account.account_type == AccountType.SAVINGS:
-        rules_service.validate_savings_interest_frequency(account.metadata_)
+    account_data = account_in.model_dump(exclude={"interest_policy"})
+    if account_data.get("account_type") == AccountType.RECURRING_DEPOSIT:
+        account_data["metadata_"] = normalize_recurring_deposit_metadata(
+            account_data.get("metadata_")
+        )
+    elif account_data.get("account_type") == AccountType.LOAN:
+        account_data["metadata_"] = normalize_car_loan_metadata(account_data.get("metadata_"))
+    account = Account(**account_data, user_id=user_id)
     session.add(account)
     session.flush()
 
@@ -172,8 +314,16 @@ def create_account(session: Session, account_in: AccountCreate, user_id: str) ->
                 )
                 session.add(initial_tx)
 
-    if account.is_interest_enabled:
-        rules_service.create_default_interest_rule(session, account)
+    policy_input = account_in.interest_policy
+    if account.account_type == AccountType.LOAN:
+        policy_input = car_loan_policy_create(account)
+        account.is_interest_enabled = True
+
+    if policy_input:
+        policy = interest_service.create_interest_policy(session, account, policy_input)
+        rules_service.upsert_managed_interest_rule(session, account, policy)
+    elif account.is_interest_enabled:
+        raise ValueError("An interest policy is required when interest is enabled")
 
     if account.account_type == AccountType.RECURRING_DEPOSIT:
         rules_service.create_rd_auto_deposit_rule(session, account)
@@ -190,22 +340,34 @@ def update_account(session: Session, account_id: str, account_in: AccountUpdate,
     if not account:
         return None
         
-    updates = account_in.model_dump(exclude_unset=True)
-    if account.account_type == AccountType.SAVINGS:
-        proposed_metadata = updates.get("metadata_", account.metadata_)
-        rules_service.validate_savings_interest_frequency(proposed_metadata)
+    updates = account_in.model_dump(exclude_unset=True, exclude={"interest_policy"})
+    if account.account_type == AccountType.RECURRING_DEPOSIT:
+        updates["metadata_"] = normalize_recurring_deposit_metadata(
+            updates.get("metadata_", account.metadata_)
+        )
+    elif account.account_type == AccountType.LOAN:
+        updates["metadata_"] = normalize_car_loan_metadata(
+            updates.get("metadata_", account.metadata_)
+        )
 
     for key, value in updates.items():
         setattr(account, key, value)
 
     session.add(account)
-    if account.account_type in {
-        AccountType.SAVINGS,
-        AccountType.LOAN,
-        AccountType.FIXED_DEPOSIT,
-        AccountType.RECURRING_DEPOSIT,
-    }:
-        rules_service.create_default_interest_rule(session, account)
+    policy_update = account_in.interest_policy
+    if account.account_type == AccountType.LOAN:
+        policy_update = car_loan_policy_update(account)
+        account.is_interest_enabled = True
+
+    if policy_update is not None:
+        policy = interest_service.update_interest_policy(session, account, policy_update)
+        rules_service.upsert_managed_interest_rule(session, account, policy)
+    elif existing_policy := interest_service.get_interest_policy(session, account.account_id):
+        rules_service.upsert_managed_interest_rule(session, account, existing_policy)
+    elif account.is_interest_enabled:
+        raise ValueError("Interest-enabled accounts require a managed interest policy")
+    if account.account_type == AccountType.LOAN:
+        rules_service.create_loan_auto_debit_rule(session, account)
     session.commit()
     session.refresh(account)
     return account

@@ -50,6 +50,7 @@ class TransactionRead(TransactionBase):
     transaction_date: datetime
     category: Optional[CategoryRead] = None
     transfer_id: Optional[str] = None
+    transaction_kind: str = "USER"
 
     class Config:
         from_attributes = True

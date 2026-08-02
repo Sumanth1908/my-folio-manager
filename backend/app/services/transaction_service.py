@@ -119,6 +119,7 @@ def create_transaction_core(
     transaction_in: TransactionCreate,
     user_id: str,
     commit: bool = True,
+    transaction_kind: str = "USER",
 ) -> Transaction:
     """Create a transaction.
 
@@ -142,6 +143,7 @@ def create_transaction_core(
     # Currency is server-authoritative: a mismatched client value would sum
     # foreign amounts straight into the derived balance.
     transaction_data["currency"] = account.currency
+    transaction_data["transaction_kind"] = transaction_kind
 
     if not transaction_data.get('transaction_date'):
         transaction_data['transaction_date'] = datetime.now(timezone.utc).replace(tzinfo=None)

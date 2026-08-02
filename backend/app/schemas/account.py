@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.models.account import AccountType
 from app.schemas.investment import InvestmentHoldingRead
+from app.schemas.interest import InterestPolicyCreate, InterestPolicyRead, InterestPolicyUpdate
 
 
 class AccountBase(BaseModel):
@@ -24,7 +25,7 @@ class AccountBase(BaseModel):
         return normalize_account_type(value)
 
 class AccountCreate(AccountBase):
-    pass
+    interest_policy: InterestPolicyCreate | None = None
 
 class AccountUpdate(BaseModel):
     account_name: str | None = None
@@ -32,6 +33,7 @@ class AccountUpdate(BaseModel):
     status: str | None = None
     is_interest_enabled: bool | None = None
     metadata_: Optional[Dict[str, Any]] = None
+    interest_policy: InterestPolicyUpdate | None = None
 
 class AccountRead(AccountBase):
     model_config = ConfigDict(from_attributes=True)
@@ -43,6 +45,7 @@ class AccountRead(AccountBase):
     asset_value: Decimal = Decimal("0.00")
     net_value: Decimal = Decimal("0.00")
     account_nature: str = "ASSET"
+    interest_policy: InterestPolicyRead | None = None
 
 class AccountCloseRequest(BaseModel):
     # Account to debit the outstanding balance from. If omitted, the payoff is recorded

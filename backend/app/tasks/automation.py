@@ -47,7 +47,11 @@ def run_automation_batch() -> dict:
                     Rule.is_active == True,
                     Rule.next_run_at <= now
                 )
-                .order_by(Rule.next_run_at)
+                .order_by(
+                    Rule.next_run_at.asc(),
+                    Rule.execution_order.asc(),
+                    Rule.rule_id.asc(),
+                )
             ).all()
 
         logger.info(f"Found {len(due_rule_ids)} due rules to process.")

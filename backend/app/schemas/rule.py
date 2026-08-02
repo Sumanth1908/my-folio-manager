@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Optional, Dict, Any
@@ -53,10 +53,21 @@ class CalculationRuleConfig(BaseModel):
     end_date: Optional[datetime] = None
 
 
+class InterestRuleConfig(BaseModel):
+    """Schedule configuration for managed interest processing."""
+    model_config = ConfigDict(extra="allow")
+
+    interest_policy_id: int
+    action: str = "SETTLE"
+    frequency: RuleFrequency
+    end_date: Optional[datetime] = None
+
+
 CONFIG_MODELS = {
     RuleType.CATEGORIZATION: CategorizationConfig,
     RuleType.TRANSACTION: TransactionRuleConfig,
     RuleType.CALCULATION: CalculationRuleConfig,
+    RuleType.INTEREST: InterestRuleConfig,
 }
 
 # Every variable the formula context can provide (see CalculationRuleStrategy).
@@ -66,6 +77,8 @@ FORMULA_VARIABLES = {
     "interest_rate": 1.0,
     "principal_amount": 1.0,
     "loan_amount": 1.0,
+    "deposit_amount": 1.0,
+    "outstanding_amount": 1.0,
     "min_balance": 1.0,
 }
 
@@ -98,6 +111,7 @@ class RuleBase(BaseModel):
     rule_type: RuleType = RuleType.CATEGORIZATION
     is_active: bool = True
     next_run_at: Optional[datetime] = None
+    execution_order: int = Field(default=100, ge=1, le=10000)
     configuration: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 class RuleCreate(RuleBase):
@@ -113,7 +127,36 @@ class RuleUpdate(BaseModel):
     rule_type: Optional[RuleType] = None
     is_active: Optional[bool] = None
     next_run_at: Optional[datetime] = None
+    execution_order: Optional[int] = Field(default=None, ge=1, le=10000)
     configuration: Optional[Dict[str, Any]] = None
+
+
+class InterestRuleScheduleUpdate(BaseModel):
+    """Editable scheduler controls for a managed interest rule."""
+
+    next_run_date: Optional[date] = None
+    end_date: Optional[date] = None
+    execution_order: Optional[int] = Field(default=None, ge=1, le=10000)
+
+
+class InterestRuleScheduleRead(BaseModel):
+    rule_id: int
+    effective_from: date
+    end_date: Optional[date] = None
+    next_run_date: Optional[date] = None
+    execution_order: int
+    settlement_time_utc: str
+    replay_from_dates: list[date] = Field(default_factory=list)
+
+
+class InterestRuleReplayRequest(BaseModel):
+    replay_from: date
+
+
+class InterestRuleReplayResult(BaseModel):
+    schedule: InterestRuleScheduleRead
+    removed_executions: int
+    removed_transactions: int
 
 
 class RuleExecutionRead(BaseModel):

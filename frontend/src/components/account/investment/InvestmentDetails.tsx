@@ -288,10 +288,11 @@ const InvestmentDetails = ({ account, symbol }: InvestmentDetailsProps) => {
                 isOpen={Boolean(editingHolding)}
                 onClose={() => setEditingHolding(null)}
                 title={`Update ${editingHolding?.symbol || 'Asset'}`}
-                description="Change the current manual value or asset details."
+                description="Change the quantity, unit, current value, or asset details."
             >
                 {editingHolding && (
                     <AssetValueForm
+                        key={editingHolding.holding_id}
                         holding={editingHolding}
                         onSuccess={() => setEditingHolding(null)}
                         onCancel={() => setEditingHolding(null)}

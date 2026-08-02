@@ -11,6 +11,16 @@ export const accountSupportsHoldings = (account: Account): boolean =>
     || account.metadata_?.supports_holdings === true
     || getAccountHoldings(account).length > 0;
 
+export const getRecurringDepositScheduleDay = (account: Account): number | null => {
+    const startDate = account.metadata_?.start_date;
+    if (typeof startDate === 'string') {
+        const day = Number.parseInt(startDate.substring(8, 10), 10);
+        if (Number.isInteger(day) && day >= 1 && day <= 31) return day;
+    }
+
+    return null;
+};
+
 export const getAccountDisplayValue = (account: Account): number => {
     if (account.net_value !== undefined && account.net_value !== null) {
         return Number(account.net_value);

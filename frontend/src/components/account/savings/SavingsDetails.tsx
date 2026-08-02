@@ -18,7 +18,9 @@ export default function SavingsDetails({ account, symbol }: SavingsDetailsProps)
                 <div className="rounded-xl border border-border bg-card p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Interest Rate</p>
                     <p className="text-lg font-bold text-foreground tabular-nums">
-                        {md.interest_rate ? `${md.interest_rate}% APY` : 'N/A'}
+                        {account.interest_policy
+                            ? `${account.interest_policy.annual_rate}% p.a.`
+                            : 'N/A'}
                     </p>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-3">
@@ -30,7 +32,7 @@ export default function SavingsDetails({ account, symbol }: SavingsDetailsProps)
                 <div className="rounded-xl border border-border bg-card p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Interest Frequency</p>
                     <p className="text-lg font-bold text-foreground">
-                        {(md.interest_frequency || 'MONTHLY').toLowerCase().replace(/^./, (value: string) => value.toUpperCase())}
+                        {(account.interest_policy?.settlement_frequency ?? 'N/A').toLowerCase().replace(/^./, (value: string) => value.toUpperCase())}
                     </p>
                 </div>
             </div>

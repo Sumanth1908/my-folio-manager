@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Tag, RefreshCw, Calendar, Trash2, ArrowRightLeft, Calculator, Play, Zap } from 'lucide-react';
+import { Plus, Tag, RefreshCw, Calendar, Trash2, ArrowRightLeft, Calculator, Play, Zap, Landmark, Power } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { fetchRules, deleteRule, executeRule, triggerAutomation } from '../store/slices/rulesSlice';
+import { fetchRules, deleteRule, executeRule, triggerAutomation, updateRule } from '../store/slices/rulesSlice';
 import { fetchAccounts } from '../store/slices/accountsSlice';
 import { type RootState } from '../store';
 import { type Rule } from '../types';
@@ -18,6 +18,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { toast } from 'sonner';
 import { useCreateFlow } from '../context/CreateFlowContext';
+import InterestRuleScheduleModal from '../components/rules/InterestRuleScheduleModal';
 
 interface RulesProps {
     embedded?: boolean;
@@ -32,6 +33,7 @@ export default function Rules({ embedded = false }: RulesProps) {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [ruleToEdit, setRuleToEdit] = useState<Rule | null>(null);
     const [ruleToDelete, setRuleToDelete] = useState<Rule | null>(null);
+    const [interestScheduleRule, setInterestScheduleRule] = useState<Rule | null>(null);
     const [statusFilter, setStatusFilter] = useState<'Active' | 'Closed' | 'all'>('Active');
 
     useEffect(() => {
@@ -46,8 +48,8 @@ export default function Rules({ embedded = false }: RulesProps) {
         try {
             await dispatch(executeRule({ id: ruleId, accountId: null })).unwrap();
             toast.success('Rule executed successfully');
-        } catch (error: any) {
-            toast.error(typeof error === 'string' ? error : error?.message || 'Failed to execute rule');
+        } catch (error: unknown) {
+            toast.error(typeof error === 'string' ? error : error instanceof Error ? error.message : 'Failed to execute rule');
         }
     };
 
@@ -58,8 +60,8 @@ export default function Rules({ embedded = false }: RulesProps) {
             setTimeout(() => {
                 dispatch(fetchRules(null));
             }, 2000);
-        } catch (error: any) {
-            toast.error(error?.message || 'Failed to trigger worker');
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : 'Failed to trigger worker');
         }
     };
 
@@ -69,8 +71,21 @@ export default function Rules({ embedded = false }: RulesProps) {
             await dispatch(deleteRule({ id: ruleToDelete.rule_id, accountId: null })).unwrap();
             toast.success('Rule deleted');
             setRuleToDelete(null);
-        } catch (error: any) {
-            toast.error(error?.message || 'Failed to delete rule');
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : 'Failed to delete rule');
+        }
+    };
+
+    const handleToggle = async (rule: Rule) => {
+        try {
+            await dispatch(updateRule({
+                id: rule.rule_id,
+                data: { is_active: !rule.is_active },
+                accountId: null,
+            })).unwrap();
+            toast.success(`Rule ${rule.is_active ? 'paused' : 'resumed'}`);
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : 'Failed to toggle rule');
         }
     };
 
@@ -79,9 +94,10 @@ export default function Rules({ embedded = false }: RulesProps) {
         setRuleToEdit(null);
     };
 
-    const getRuleIcon = (type: string, config: any) => {
+    const getRuleIcon = (type: string, config?: Rule['configuration']) => {
         if (type === RULE_TYPE.CATEGORIZATION) return <Tag size={16} />;
         if (type === RULE_TYPE.CALCULATION) return <Calculator size={16} />;
+        if (type === RULE_TYPE.INTEREST) return <Landmark size={16} />;
         if (config?.transaction_type === TRANSACTION_TYPE.TRANSFER) return <ArrowRightLeft size={16} />;
         return <RefreshCw size={16} />;
     };
@@ -244,16 +260,37 @@ export default function Rules({ embedded = false }: RulesProps) {
                                                             </span>
                                                         </>
                                                     )}
+                                                    {rule.rule_type !== RULE_TYPE.CATEGORIZATION && (
+                                                        <>
+                                                            <span className="w-1 h-1 rounded-full bg-border" />
+                                                            <span>Order: {rule.execution_order}</span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {!isClosed && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleToggle(rule)}
+                                                    className={cn(
+                                                        "h-8 w-8 rounded-lg",
+                                                        rule.is_active ? "text-muted-foreground hover:text-foreground" : "text-emerald-600 hover:bg-emerald-600/10"
+                                                    )}
+                                                    title={rule.is_active ? 'Pause rule' : 'Resume rule'}
+                                                >
+                                                    <Power size={14} />
+                                                </Button>
+                                            )}
                                             {!isClosed && rule.rule_type !== RULE_TYPE.CATEGORIZATION && (
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => handleExecute(rule.rule_id)}
+                                                    disabled={!rule.is_active || (rule.rule_type === RULE_TYPE.INTEREST && Boolean(rule.next_run_at) && new Date(rule.next_run_at!).getTime() > Date.now())}
                                                     className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
                                                     title="Execute Now"
                                                 >
@@ -266,8 +303,12 @@ export default function Rules({ embedded = false }: RulesProps) {
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => {
-                                                        setRuleToEdit(rule);
-                                                        setIsFormOpen(true);
+                                                        if (rule.rule_type === RULE_TYPE.INTEREST) {
+                                                            setInterestScheduleRule(rule);
+                                                        } else {
+                                                            setRuleToEdit(rule);
+                                                            setIsFormOpen(true);
+                                                        }
                                                     }}
                                                     className="h-8 text-xs text-muted-foreground hover:text-foreground bg-muted/50 rounded-lg"
                                                 >
@@ -275,7 +316,7 @@ export default function Rules({ embedded = false }: RulesProps) {
                                                 </Button>
                                             )}
 
-                                            <Button
+                                            {rule.rule_type !== RULE_TYPE.INTEREST && <Button
                                                 variant="ghost"
                                                 size="icon"
                                                 onClick={() => setRuleToDelete(rule)}
@@ -283,7 +324,7 @@ export default function Rules({ embedded = false }: RulesProps) {
                                                 title="Delete Rule"
                                             >
                                                 <Trash2 size={14} />
-                                            </Button>
+                                            </Button>}
                                         </div>
                                     </div>
                                 ))}
@@ -302,6 +343,12 @@ export default function Rules({ embedded = false }: RulesProps) {
                 message={`“${ruleToDelete?.name || 'This rule'}” will stop running and cannot be recovered.`}
                 confirmText="Delete rule"
                 variant="danger"
+            />
+            <InterestRuleScheduleModal
+                rule={interestScheduleRule}
+                isOpen={Boolean(interestScheduleRule)}
+                onClose={() => setInterestScheduleRule(null)}
+                onSaved={() => { dispatch(fetchRules(null)); }}
             />
         </div>
     );

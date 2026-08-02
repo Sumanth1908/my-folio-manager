@@ -53,7 +53,7 @@ const choices: Choice[] = [
 
 const flowMeta: Record<CreateFlow, { title: string; description: string; width: string }> = {
     transaction: { title: 'New transaction', description: 'Record income, spending, or a transfer between accounts.', width: 'max-w-lg' },
-    account: { title: 'Create account', description: 'Choose an account type and enter its opening details.', width: 'max-w-3xl' },
+    account: { title: 'Create account', description: 'Choose an account type and enter its opening details.', width: 'max-w-5xl' },
     automation: { title: 'New automation', description: 'Choose what should happen and when it should run.', width: 'max-w-2xl' },
     budget: { title: 'Add budget', description: 'Set a monthly spending limit for a category.', width: 'max-w-sm' },
     category: { title: 'New category', description: 'Create a reusable label for financial activity.', width: 'max-w-md' },

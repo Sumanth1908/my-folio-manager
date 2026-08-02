@@ -1,5 +1,4 @@
 """Service for exporting and importing user data."""
-import json
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any
@@ -10,6 +9,8 @@ from app.models import (
     Account,
     Category,
     InvestmentHolding,
+    InterestPolicy,
+    InterestRatePeriod,
     Rule,
     Settings,
     Transaction,
@@ -19,7 +20,7 @@ from app.models import (
 class DataExportService:
     """Service for handling data export and import operations."""
 
-    EXPORT_VERSION = "1.2.0"
+    EXPORT_VERSION = "1.3.0"
 
     @staticmethod
     def _serialize_value(value: Any) -> Any:
@@ -77,6 +78,14 @@ class DataExportService:
             select(Rule).where(Rule.account_id.in_(account_ids))
         ).all()
 
+        interest_policies = session.exec(
+            select(InterestPolicy).where(InterestPolicy.account_id.in_(account_ids))
+        ).all()
+        policy_ids = [policy.policy_id for policy in interest_policies]
+        interest_rate_periods = session.exec(
+            select(InterestRatePeriod).where(InterestRatePeriod.policy_id.in_(policy_ids))
+        ).all() if policy_ids else []
+
         export_data = {
             "export_version": self.EXPORT_VERSION,
             "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -88,6 +97,8 @@ class DataExportService:
                 "investment_holdings": [self._model_to_dict(ih) for ih in investment_holdings],
                 "transactions": [self._model_to_dict(tx) for tx in transactions],
                 "rules": [self._model_to_dict(rule) for rule in rules],
+                "interest_policies": [self._model_to_dict(policy) for policy in interest_policies],
+                "interest_rate_periods": [self._model_to_dict(period) for period in interest_rate_periods],
             }
         }
 
@@ -104,6 +115,7 @@ class DataExportService:
         
         category_id_map: dict[int, int] = {}
         account_id_map: dict[str, str] = {}
+        policy_id_map: dict[int, int] = {}
 
         if clear_existing:
             self._delete_user_data(session, user_id)
@@ -114,6 +126,8 @@ class DataExportService:
             "investment_holdings": 0,
             "transactions": 0,
             "rules": 0,
+            "interest_policies": 0,
+            "interest_rate_periods": 0,
         }
 
         if data.get("settings"):
@@ -161,6 +175,42 @@ class DataExportService:
             account_id_map[old_id] = new_account.account_id
             summary["accounts"] += 1
 
+        for policy_data in data.get("interest_policies", []):
+            new_account_id = account_id_map.get(policy_data.get("account_id"))
+            if not new_account_id:
+                continue
+            old_policy_id = policy_data.get("policy_id")
+            new_policy = InterestPolicy(
+                account_id=new_account_id,
+                enabled=policy_data.get("enabled", True),
+                direction=policy_data.get("direction", "EARNED"),
+                annual_rate=Decimal(str(policy_data.get("annual_rate", 0))),
+                balance_basis=policy_data.get("balance_basis", "LEDGER_BALANCE"),
+                day_count=policy_data.get("day_count", "ACTUAL_365"),
+                treatment=policy_data.get("treatment", "CAPITALIZE"),
+                settlement_frequency=policy_data.get("settlement_frequency", "MONTHLY"),
+                payout_account_id=account_id_map.get(policy_data.get("payout_account_id")),
+                category_id=category_id_map.get(policy_data.get("category_id")),
+                effective_from=datetime.fromisoformat(policy_data["effective_from"]),
+                end_date=datetime.fromisoformat(policy_data["end_date"]) if policy_data.get("end_date") else None,
+                calculation_version=policy_data.get("calculation_version", 1),
+            )
+            session.add(new_policy)
+            session.flush()
+            policy_id_map[old_policy_id] = new_policy.policy_id
+            summary["interest_policies"] += 1
+
+        for rate_data in data.get("interest_rate_periods", []):
+            new_policy_id = policy_id_map.get(rate_data.get("policy_id"))
+            if not new_policy_id:
+                continue
+            session.add(InterestRatePeriod(
+                policy_id=new_policy_id,
+                annual_rate=Decimal(str(rate_data.get("annual_rate", 0))),
+                effective_from=datetime.fromisoformat(rate_data["effective_from"]),
+            ))
+            summary["interest_rate_periods"] += 1
+
         for ih_data in data.get("investment_holdings", []):
             old_account_id = ih_data.get("account_id")
             new_account_id = account_id_map.get(old_account_id)
@@ -202,6 +252,7 @@ class DataExportService:
                     description=tx_data.get("description"),
                     category_id=new_category_id,
                     transaction_date=datetime.fromisoformat(tx_data["transaction_date"]) if tx_data.get("transaction_date") else datetime.now(timezone.utc),
+                    transaction_kind=tx_data.get("transaction_kind", "USER"),
                 )
                 session.add(new_tx)
                 summary["transactions"] += 1
@@ -210,11 +261,17 @@ class DataExportService:
             old_account_id = rule_data.get("account_id")
             new_account_id = account_id_map.get(old_account_id)
             if new_account_id:
+                configuration = dict(rule_data.get("configuration", {}))
+                if configuration.get("interest_policy_id") in policy_id_map:
+                    configuration["interest_policy_id"] = policy_id_map[configuration["interest_policy_id"]]
+                for account_key in ("source_account_id", "target_account_id"):
+                    if configuration.get(account_key) in account_id_map:
+                        configuration[account_key] = account_id_map[configuration[account_key]]
                 new_rule = Rule(
                     account_id=new_account_id,
                     name=rule_data["name"],
                     rule_type=rule_data.get("rule_type", "CATEGORIZATION"),
-                    configuration=rule_data.get("configuration", {}),
+                    configuration=configuration,
                     next_run_at=datetime.fromisoformat(rule_data["next_run_at"]) if rule_data.get("next_run_at") else None,
                     is_active=rule_data.get("is_active", True),
                 )

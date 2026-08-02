@@ -33,7 +33,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     { label: 'Overview', path: '/', icon: LayoutDashboard },
-    { label: 'Accounts', path: '/accounts', icon: Landmark },
+    { label: 'Manage Accounts', path: '/accounts', icon: Landmark },
     { label: 'Activity', path: '/activity', icon: ReceiptText },
     { label: 'Planning', path: '/planning', icon: WalletCards },
     { label: 'Wealth', path: '/wealth', icon: ChartPie },

@@ -331,6 +331,7 @@ const AccountActivityPanel = ({
                             onToggle={handleToggleRule}
                             onEdit={handleEditRule}
                             onDelete={handleDeleteRule}
+                            onRefresh={onRefresh}
                             isExecuting={!!isExecutingRuleId} // Pass boolean if executing any
                         />
                     )}

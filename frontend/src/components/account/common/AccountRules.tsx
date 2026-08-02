@@ -10,6 +10,7 @@ import { TRANSACTION_TYPE, RULE_TYPE } from '../../../constants';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import { useAppSelector } from '../../../store/hooks';
 import type { RootState } from '../../../store';
+import InterestRuleScheduleModal from '../../rules/InterestRuleScheduleModal';
 
 interface AccountRulesProps {
     rules: Rule[] | undefined;
@@ -20,6 +21,7 @@ interface AccountRulesProps {
     onToggle: (rule: Rule) => void;
     onEdit: (rule: Rule) => void;
     onDelete: (id: number) => void;
+    onRefresh: () => void;
     isExecuting?: boolean;
 }
 
@@ -32,6 +34,7 @@ export default function AccountRules({
     onToggle,
     onEdit,
     onDelete,
+    onRefresh,
     isExecuting = false
 }: AccountRulesProps) {
     const { items: accounts } = useAppSelector((state: RootState) => state.accounts);
@@ -39,6 +42,7 @@ export default function AccountRules({
     const [historyRuleId, setHistoryRuleId] = useState<number | null>(null);
     const [executions, setExecutions] = useState<RuleExecution[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const [scheduleRule, setScheduleRule] = useState<Rule | null>(null);
 
     const getAccountName = (id: string | undefined) => {
         if (!id) return '';
@@ -59,7 +63,7 @@ export default function AccountRules({
                     : ''),
                 { duration: 6000, icon: '🔍' }
             );
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast.error(handleApiError(error, 'Preview failed'));
         } finally {
             setPreviewingId(null);
@@ -76,7 +80,7 @@ export default function AccountRules({
         try {
             const res = await api.get<RuleExecution[]>(`/rules/${rule.rule_id}/executions`);
             setExecutions(res.data);
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast.error(handleApiError(error, 'Failed to load history'));
             setHistoryRuleId(null);
         } finally {
@@ -95,6 +99,9 @@ export default function AccountRules({
                     {rules?.map(rule => {
                         const isOwner = rule.account_id === accountId;
                         const config = rule.configuration || {};
+                        const isManagedInterestDue = rule.rule_type !== RULE_TYPE.INTEREST
+                            || !rule.next_run_at
+                            || new Date(rule.next_run_at).getTime() <= Date.now();
                         const isSource = config.source_account_id === accountId;
                         const isTarget = config.target_account_id === accountId;
                         
@@ -153,6 +160,14 @@ export default function AccountRules({
                                                 <span>→</span>
                                                 <span className="text-primary">{rule.category_name}</span>
                                             </div>
+                                        ) : rule.rule_type === RULE_TYPE.INTEREST ? (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-primary">{rule.configuration?.frequency}</span>
+                                                <span className="text-muted-foreground/30">•</span>
+                                                <span className="text-foreground">Managed interest settlement</span>
+                                                <span className="text-muted-foreground">order: {rule.execution_order}</span>
+                                                {rule.next_run_at && <span className="text-primary/70">next: {formatDate(rule.next_run_at, true)}</span>}
+                                            </div>
                                         ) : rule.rule_type === RULE_TYPE.CALCULATION ? (
                                             <div className="flex items-center gap-2">
                                                 <span className="text-primary">{rule.configuration?.frequency}</span>
@@ -193,7 +208,7 @@ export default function AccountRules({
                                     </div>
                                 </div>
                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {((rule.rule_type === RULE_TYPE.TRANSACTION) || (rule.rule_type === RULE_TYPE.CALCULATION)) && isOwner && (
+                                    {rule.rule_type !== RULE_TYPE.CATEGORIZATION && isOwner && (
                                         <>
                                         <Button
                                             variant="ghost"
@@ -223,7 +238,7 @@ export default function AccountRules({
                                             variant="outline"
                                             size="sm"
                                             onClick={() => onExecute(rule.rule_id)}
-                                            disabled={isExecuting || !rule.is_active}
+                                            disabled={isExecuting || !rule.is_active || !isManagedInterestDue}
                                             className="h-8 gap-1.5 text-[9px] font-black uppercase tracking-widest border-emerald-600/20 text-emerald-600 hover:bg-emerald-600/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <Play size={10} fill="currentColor" />
@@ -248,19 +263,20 @@ export default function AccountRules({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                onClick={() => onEdit(rule)}
+                                                onClick={() => rule.rule_type === RULE_TYPE.INTEREST ? setScheduleRule(rule) : onEdit(rule)}
                                                 className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                                                title={rule.rule_type === RULE_TYPE.INTEREST ? 'Edit interest schedule and replay dates' : 'Edit rule'}
                                             >
                                                 <Pencil size={14} />
                                             </Button>
-                                            <Button
+                                            {rule.rule_type !== RULE_TYPE.INTEREST && <Button
                                                 variant="ghost"
                                                 size="icon"
                                                 onClick={() => onDelete(rule.rule_id)}
                                                 className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
                                             >
                                                 <Trash2 size={14} />
-                                            </Button>
+                                            </Button>}
                                         </>
                                     )}
                                 </div>
@@ -311,6 +327,12 @@ export default function AccountRules({
                     )}
                 </div>
             )}
+            <InterestRuleScheduleModal
+                rule={scheduleRule}
+                isOpen={Boolean(scheduleRule)}
+                onClose={() => setScheduleRule(null)}
+                onSaved={onRefresh}
+            />
         </>
     );
 }

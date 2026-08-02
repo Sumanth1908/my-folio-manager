@@ -4,12 +4,10 @@ from decimal import Decimal
 import pytest
 from sqlmodel import select
 
-from app.models import Account, AccountType, RuleExecution, RuleExecutionStatus, Transaction
+from app.models import AccountType, InterestPolicy, RuleExecution, RuleExecutionStatus, Transaction
 from app.models.rule import Rule, RuleType
 from app.schemas.rule import validate_rule_configuration
-from app.services.rules_service import (compute_next_run, process_single_rule,
-                                        next_calendar_quarter_start,
-                                        replace_day_clamped)
+from app.services.rules_service import compute_next_run, get_rules, process_single_rule
 from tests.conftest import make_account, seed_transaction
 
 
@@ -32,65 +30,42 @@ def make_rule(session, account, rule_type=RuleType.CALCULATION, config=None, nex
     return rule
 
 
-class TestReplaceDayClamped:
-    def test_short_month_clamps(self):
-        assert replace_day_clamped(datetime(2026, 2, 15), 31).day == 28
-
-    def test_leap_february(self):
-        assert replace_day_clamped(datetime(2028, 2, 15), 30).day == 29
-
-    def test_normal_day_unchanged(self):
-        assert replace_day_clamped(datetime(2026, 3, 15), 10).day == 10
-
-
-class TestNextCalendarQuarterStart:
-    def test_mid_quarter_advances_to_next_quarter_boundary(self):
-        assert next_calendar_quarter_start(datetime(2026, 8, 15, 1)) == datetime(2026, 10, 1, 1)
-
-    def test_fourth_quarter_rolls_into_next_year(self):
-        assert next_calendar_quarter_start(datetime(2026, 12, 20, 1)) == datetime(2027, 1, 1, 1)
-
-
 class TestComputeNextRun:
-    def test_monthly_calculation_clamps_accrual_day(self, session, user):
-        # accrual day 31, moving Jan → Feb, must clamp instead of crashing
-        account = make_account(session, user, metadata={"interest_accrual_day": 31})
+    def test_monthly_cadence_uses_scheduled_execution_date(self, session, user):
+        account = make_account(session, user)
         rule = make_rule(session, account, config={"frequency": "MONTHLY"})
         rule.next_run_at = datetime(2026, 1, 31)
 
-        next_run, active = compute_next_run(rule, account, "MONTHLY", datetime(2026, 1, 31, tzinfo=timezone.utc))
+        next_run, active = compute_next_run(rule, datetime(2026, 1, 31, tzinfo=timezone.utc))
         assert active is True
-        assert next_run.month == 2
-        assert next_run.day == 28
+        assert next_run == datetime(2026, 2, 28, tzinfo=timezone.utc)
 
     def test_unknown_frequency_deactivates(self, session, user):
         account = make_account(session, user)
         rule = make_rule(session, account, config={"frequency": "MONTLY"})  # typo on purpose
 
-        next_run, active = compute_next_run(rule, account, "MONTLY", datetime.now(timezone.utc))
+        next_run, active = compute_next_run(rule, datetime.now(timezone.utc))
         assert next_run is None
         assert active is False
 
-    def test_quarterly_calculation_advances_to_calendar_quarter(self, session, user):
-        account = make_account(session, user, metadata={"interest_accrual_day": 31})
+    def test_quarterly_cadence_adds_three_months(self, session, user):
+        account = make_account(session, user)
         rule = make_rule(session, account, config={"frequency": "QUARTERLY"})
         rule.next_run_at = datetime(2026, 1, 31)
 
         next_run, active = compute_next_run(
             rule,
-            account,
-            "QUARTERLY",
             datetime(2026, 1, 31, tzinfo=timezone.utc),
         )
 
         assert active is True
-        assert next_run == datetime(2026, 4, 1, tzinfo=timezone.utc)
+        assert next_run == datetime(2026, 4, 30, tzinfo=timezone.utc)
 
     def test_one_time_deactivates(self, session, user):
         account = make_account(session, user)
         rule = make_rule(session, account, config={"frequency": "ONE_TIME"})
 
-        next_run, active = compute_next_run(rule, account, "ONE_TIME", datetime.now(timezone.utc))
+        next_run, active = compute_next_run(rule, datetime.now(timezone.utc))
         assert next_run is None
         assert active is False
 
@@ -99,13 +74,57 @@ class TestComputeNextRun:
         end = (_naive_now() + timedelta(days=5)).isoformat()
         rule = make_rule(session, account, config={"frequency": "MONTHLY", "end_date": end})
 
-        next_run, active = compute_next_run(rule, account, "MONTHLY", datetime.now(timezone.utc))
+        next_run, active = compute_next_run(rule, datetime.now(timezone.utc))
         assert active is False
+
+    def test_overdue_monthly_rule_preserves_historical_cadence(self, session, user):
+        account = make_account(session, user)
+        rule = make_rule(session, account, config={"frequency": "MONTHLY"})
+        rule.next_run_at = datetime(2025, 12, 24, 10)
+
+        next_run, active = compute_next_run(
+            rule,
+            datetime(2026, 8, 2, tzinfo=timezone.utc),
+        )
+
+        assert active is True
+        assert next_run == datetime(2026, 1, 24, 10, tzinfo=timezone.utc)
 
 
 class TestProcessSingleRule:
+    def test_rd_formula_uses_managed_rate_and_installment_amount(self, session, user):
+        account = make_account(
+            session,
+            user,
+            account_type=AccountType.RECURRING_DEPOSIT,
+            metadata={"deposit_amount": 1000},
+        )
+        session.add(InterestPolicy(
+            account_id=account.account_id,
+            annual_rate=Decimal("12"),
+            effective_from=_naive_now(),
+        ))
+        session.commit()
+        rule = make_rule(session, account, config={
+            "formula": "deposit_amount * (interest_rate / 100)",
+            "frequency": "ONE_TIME",
+        })
+
+        process_single_rule(session, rule)
+
+        posted = session.exec(
+            select(Transaction).where(Transaction.account_id == account.account_id)
+        ).one()
+        assert posted.amount == Decimal("120.00")
+
     def test_posts_interest_and_records_execution(self, session, user):
-        account = make_account(session, user, metadata={"interest_rate": 12.0})
+        account = make_account(session, user)
+        session.add(InterestPolicy(
+            account_id=account.account_id,
+            annual_rate=Decimal("12"),
+            effective_from=_naive_now(),
+        ))
+        session.commit()
         seed_transaction(session, account, 1000, days_ago=60)
         rule = make_rule(session, account, config={
             "formula": "balance * (interest_rate / 100) / 12",
@@ -145,7 +164,13 @@ class TestProcessSingleRule:
         assert executions[0].status == RuleExecutionStatus.SKIPPED
 
     def test_zero_amount_skips_but_advances_schedule(self, session, user):
-        account = make_account(session, user, metadata={"interest_rate": 12.0})
+        account = make_account(session, user)
+        session.add(InterestPolicy(
+            account_id=account.account_id,
+            annual_rate=Decimal("12"),
+            effective_from=_naive_now(),
+        ))
+        session.commit()
         # No transactions → zero balance → zero interest
         rule = make_rule(session, account, config={
             "formula": "balance * (interest_rate / 100) / 12",
@@ -182,6 +207,55 @@ class TestProcessSingleRule:
         debit = [t for t in savings_txs if t.amount < 0][0]
         assert debit.amount == Decimal("-500.00")
         assert debit.transfer_id == rd_txs[0].transfer_id
+
+
+class TestRuleListing:
+    def test_closed_account_rules_are_hidden_from_linked_and_global_views(self, session, user):
+        savings = make_account(session, user, name="Savings")
+        closed_loan = make_account(
+            session,
+            user,
+            account_type=AccountType.LOAN,
+            name="Closed loan",
+            status="Closed",
+        )
+        visible = Rule(
+            account_id=savings.account_id,
+            name="Visible savings rule",
+            rule_type=RuleType.TRANSACTION,
+            configuration={"transaction_amount": "10", "frequency": "MONTHLY"},
+        )
+        owned_by_closed = Rule(
+            account_id=closed_loan.account_id,
+            name="Closed loan auto debit",
+            rule_type=RuleType.TRANSACTION,
+            configuration={
+                "transaction_amount": "100",
+                "frequency": "MONTHLY",
+                "source_account_id": savings.account_id,
+                "target_account_id": closed_loan.account_id,
+            },
+        )
+        targets_closed = Rule(
+            account_id=savings.account_id,
+            name="Transfer to closed loan",
+            rule_type=RuleType.TRANSACTION,
+            configuration={
+                "transaction_amount": "100",
+                "frequency": "MONTHLY",
+                "target_account_id": closed_loan.account_id,
+            },
+        )
+        session.add(visible)
+        session.add(owned_by_closed)
+        session.add(targets_closed)
+        session.commit()
+
+        savings_rules = get_rules(session, user.user_id, savings.account_id)
+        global_rules = get_rules(session, user.user_id)
+
+        assert [rule.name for rule in savings_rules] == ["Visible savings rule"]
+        assert [rule.name for rule in global_rules] == ["Visible savings rule"]
 
 
 class TestConfigurationValidation:

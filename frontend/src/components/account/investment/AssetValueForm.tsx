@@ -16,7 +16,8 @@ export default function AssetValueForm({ holding, onSuccess, onCancel }: AssetVa
     const dispatch = useAppDispatch();
     const isLoading = useAppSelector((state: RootState) => state.holdings.loading);
     const [name, setName] = useState(holding.name);
-    const [unit, setUnit] = useState(holding.unit);
+    const [quantity, setQuantity] = useState(String(holding.quantity));
+    const [unit, setUnit] = useState(holding.unit || 'unit');
     const [currentPrice, setCurrentPrice] = useState(String(holding.current_price ?? holding.average_price));
     const [notes, setNotes] = useState(String(holding.metadata_?.notes ?? ''));
 
@@ -29,7 +30,7 @@ export default function AssetValueForm({ holding, onSuccess, onCancel }: AssetVa
                     account_id: holding.account_id,
                     symbol: holding.symbol,
                     name: name.trim(),
-                    quantity: Number(holding.quantity),
+                    quantity: Number(quantity),
                     average_price: Number(holding.average_price),
                     current_price: Number(currentPrice),
                     currency: holding.currency,
@@ -56,15 +57,19 @@ export default function AssetValueForm({ holding, onSuccess, onCancel }: AssetVa
                 <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Asset name</label>
                 <input required value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded-xl border border-border bg-background p-3 outline-none focus:ring-2 focus:ring-primary" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Quantity</label>
+                    <input type="number" min="0.0001" step="any" required value={quantity} onChange={(event) => setQuantity(event.target.value)} className="w-full rounded-xl border border-border bg-background p-3 outline-none focus:ring-2 focus:ring-primary" />
+                </div>
                 <div>
                     <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Unit</label>
                     <input required value={unit} onChange={(event) => setUnit(event.target.value)} className="w-full rounded-xl border border-border bg-background p-3 outline-none focus:ring-2 focus:ring-primary" />
                 </div>
-                <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Current value / {unit}</label>
-                    <input type="number" min="0" step="any" required value={currentPrice} onChange={(event) => setCurrentPrice(event.target.value)} className="w-full rounded-xl border border-border bg-background p-3 outline-none focus:ring-2 focus:ring-primary" />
-                </div>
+            </div>
+            <div>
+                <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Current value / {unit}</label>
+                <input type="number" min="0" step="any" required value={currentPrice} onChange={(event) => setCurrentPrice(event.target.value)} className="w-full rounded-xl border border-border bg-background p-3 outline-none focus:ring-2 focus:ring-primary" />
             </div>
             <div>
                 <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Notes</label>

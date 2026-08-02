@@ -9,6 +9,16 @@ from app.models.rule_execution import RuleExecution, RuleExecutionStatus
 from app.models.transaction import Transaction
 from app.models.settings import Settings
 from app.models.investment_holding import InvestmentHolding
+from app.models.interest import (
+    InterestBalanceBasis,
+    InterestDayCount,
+    InterestDirection,
+    InterestExecution,
+    InterestExecutionStatus,
+    InterestPolicy,
+    InterestRatePeriod,
+    InterestTreatment,
+)
 from app.models.user import User
 
 __all__ = [
@@ -25,5 +35,13 @@ __all__ = [
     "RuleExecutionStatus",
     "Settings",
     "InvestmentHolding",
+    "InterestBalanceBasis",
+    "InterestDayCount",
+    "InterestDirection",
+    "InterestExecution",
+    "InterestExecutionStatus",
+    "InterestPolicy",
+    "InterestRatePeriod",
+    "InterestTreatment",
     "User",
 ]
